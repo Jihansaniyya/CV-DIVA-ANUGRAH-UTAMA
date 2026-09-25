@@ -6,6 +6,7 @@ use App\Enums\RoleCode;
 use App\Models\Project;
 use App\Models\Unit;
 use App\Models\WorkItem;
+use App\Services\ProjectScheduleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -42,7 +43,7 @@ class ProjectManagementTest extends TestCase
 
         $this->assertSame(6, $project->periods()->count());
         $this->assertSame(45, $project->jangka_waktu_hari);
-        $this->assertSame('Minggu I', $project->periods()->orderBy('urutan')->first()->nama_periode);
+        $this->assertSame('M-I', $project->periods()->orderBy('urutan')->first()->nama_periode);
         $this->assertDatabaseHas('project_assignments', ['project_id' => $project->id, 'user_id' => $qs->id, 'peran' => 'QS']);
     }
 
@@ -75,6 +76,8 @@ class ProjectManagementTest extends TestCase
     {
         $admin = $this->userDenganPeran(RoleCode::ADMIN);
         $project = Project::factory()->create();
+        app(ProjectScheduleService::class)->generateWeeklyPeriods($project);
+        $rentang = ['period_mulai_id' => $project->periods()->min('id'), 'period_selesai_id' => $project->periods()->max('id')];
         $unit = Unit::where('code', 'm3')->firstOrFail();
 
         // 100 x 100.000 = 10.000.000 dan 200 x 150.000 = 30.000.000 -> total 40.000.000
@@ -83,6 +86,7 @@ class ProjectManagementTest extends TestCase
             'uraian_pekerjaan' => 'Galian Tanah',
             'volume' => 100,
             'harga_satuan' => 100000,
+            ...$rentang,
         ])->assertCreated();
 
         $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-items", [
@@ -90,6 +94,7 @@ class ProjectManagementTest extends TestCase
             'uraian_pekerjaan' => 'Pembesian',
             'volume' => 200,
             'harga_satuan' => 150000,
+            ...$rentang,
         ])->assertCreated();
 
         $galian = WorkItem::where('uraian_pekerjaan', 'Galian Tanah')->firstOrFail();

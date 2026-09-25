@@ -40,7 +40,6 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
         Route::post('projects', [ProjectController::class, 'store']);
         Route::put('projects/{project}', [ProjectController::class, 'update']);
         Route::delete('projects/{project}', [ProjectController::class, 'destroy']);
-        Route::post('projects/{project}/generate-periods', [ProjectController::class, 'generatePeriods']);
     });
 
     // Kelompok pekerjaan
@@ -60,12 +59,8 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
         Route::delete('projects/{project}/work-items/{workItem}', [WorkItemController::class, 'destroy']);
     });
 
-    // Periode pelaksanaan
+    // Periode pelaksanaan (dibentuk otomatis dari tanggal proyek, tidak dibuat manual)
     Route::get('projects/{project}/periods', [PeriodController::class, 'index']);
-    Route::middleware('role:ADMIN')->group(function () {
-        Route::post('projects/{project}/periods', [PeriodController::class, 'store']);
-        Route::delete('projects/{project}/periods/{period}', [PeriodController::class, 'destroy']);
-    });
 
     // Rencana pekerjaan
     Route::get('projects/{project}/work-plans', [WorkPlanController::class, 'index']);

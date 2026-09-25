@@ -10,37 +10,61 @@ use Illuminate\Support\Facades\DB;
 /**
  * Membentuk periode pelaksanaan proyek.
  *
- * Periode dasar aplikasi adalah MINGGUAN (7 hari kalender), mengikuti kolom
- * "MINGGU KE" pada laporan bulanan. Pengelompokan bulan (BULAN I, BULAN II, ...)
- * dihitung 4 minggu per bulan agar konsisten dengan contoh laporan
- * (45 hari kalender = 6 minggu = Bulan I minggu I-IV, Bulan II minggu V-VI).
+ * Periode dasar aplikasi adalah MINGGUAN (7 hari kalender) berlabel M-I, M-II, ...
+ * Jumlah periode = ceil(jumlah hari pelaksanaan / 7), misalnya 45 hari = 7 minggu.
+ * Pengelompokan bulan (BULAN I, BULAN II, ...) dihitung 4 minggu per bulan.
+ *
+ * Periode proyek adalah sumber tunggal bagi Data Pekerjaan, Rencana, Progres,
+ * Kurva S, dan Laporan. Periode tidak dibuat manual; setiap perubahan tanggal
+ * proyek menyinkronkan ulang periode beserta data yang merujuknya.
  */
 class ProjectScheduleService
 {
     public const MINGGU_PER_BULAN = 4;
 
     private const ROMAWI = [
-        1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
-        9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII', 13 => 'XIII', 14 => 'XIV', 15 => 'XV',
-        16 => 'XVI', 17 => 'XVII', 18 => 'XVIII', 19 => 'XIX', 20 => 'XX',
+        1000 => 'M', 900 => 'CM', 500 => 'D', 400 => 'CD', 100 => 'C', 90 => 'XC',
+        50 => 'L', 40 => 'XL', 10 => 'X', 9 => 'IX', 5 => 'V', 4 => 'IV', 1 => 'I',
     ];
+
+    public function __construct(private readonly WorkPlanService $plans) {}
 
     public static function romawi(int $angka): string
     {
-        return self::ROMAWI[$angka] ?? (string) $angka;
+        if ($angka < 1) {
+            return (string) $angka;
+        }
+
+        $hasil = '';
+
+        foreach (self::ROMAWI as $nilai => $simbol) {
+            while ($angka >= $nilai) {
+                $hasil .= $simbol;
+                $angka -= $nilai;
+            }
+        }
+
+        return $hasil;
+    }
+
+    public static function label(int $urutan): string
+    {
+        return 'M-'.self::romawi($urutan);
     }
 
     /**
-     * Bangun periode mingguan untuk sebuah proyek.
-     * Periode lama yang sudah dipakai rencana/laporan tidak dihapus kecuali $force.
+     * Sinkronkan periode mingguan proyek dengan tanggal pelaksanaannya.
+     *
+     * Periode yang sudah ada dipertahankan (id tetap) dan diperbarui tanggalnya.
+     * Bila durasi proyek berkurang, periode berlebih dihapus: rentang pekerjaan
+     * yang melewati periode terakhir dipotong dan target volumenya dibagi ulang.
+     * Laporan progres dipetakan ulang ke periode sesuai tanggal laporannya.
+     *
+     * @return int jumlah periode baru yang dibuat
      */
-    public function generateWeeklyPeriods(Project $project, bool $force = false): int
+    public function generateWeeklyPeriods(Project $project): int
     {
-        return DB::transaction(function () use ($project, $force) {
-            if ($force) {
-                $project->periods()->delete();
-            }
-
+        return DB::transaction(function () use ($project) {
             $mulai = CarbonImmutable::parse($project->tanggal_mulai);
             $selesai = CarbonImmutable::parse($project->tanggal_selesai);
             $jumlahHari = $mulai->diffInDays($selesai) + 1;
@@ -62,7 +86,7 @@ class ProjectScheduleService
                 $period = Period::updateOrCreate(
                     ['project_id' => $project->id, 'urutan' => $i],
                     [
-                        'nama_periode' => 'Minggu '.self::romawi($i),
+                        'nama_periode' => self::label($i),
                         'bulan_ke' => $bulanKe,
                         'minggu_ke' => $i,
                         'minggu_ke_bulan' => $mingguKeBulan,
@@ -75,6 +99,9 @@ class ProjectScheduleService
                     $dibuat++;
                 }
             }
+
+            $this->hapusPeriodeBerlebih($project, $jumlahMinggu);
+            $this->petakanUlangTanggal($project);
 
             $project->forceFill([
                 'jangka_waktu_hari' => $project->jangka_waktu_hari ?: $jumlahHari,
@@ -91,5 +118,55 @@ class ProjectScheduleService
             ->whereDate('tanggal_mulai', '<=', $tanggal)
             ->whereDate('tanggal_selesai', '>=', $tanggal)
             ->first();
+    }
+
+    private function hapusPeriodeBerlebih(Project $project, int $jumlahMinggu): void
+    {
+        $berlebih = $project->periods()->where('urutan', '>', $jumlahMinggu)->pluck('id');
+
+        if ($berlebih->isEmpty()) {
+            return;
+        }
+
+        $terakhir = $project->periods()->where('urutan', $jumlahMinggu)->firstOrFail();
+
+        $terdampak = $project->workItems()
+            ->where(fn ($q) => $q->whereIn('period_mulai_id', $berlebih)->orWhereIn('period_selesai_id', $berlebih))
+            ->get();
+
+        foreach ($terdampak as $item) {
+            if ($berlebih->contains($item->period_mulai_id)) {
+                $item->period_mulai_id = $terakhir->id;
+            }
+
+            if ($berlebih->contains($item->period_selesai_id)) {
+                $item->period_selesai_id = $terakhir->id;
+            }
+
+            $item->saveQuietly();
+        }
+
+        // Rencana pada periode berlebih ikut terhapus (cascade).
+        $project->periods()->whereIn('id', $berlebih)->delete();
+
+        foreach ($terdampak as $item) {
+            $this->plans->distributeEvenly($item->fresh());
+        }
+    }
+
+    /**
+     * Laporan progres selalu mengikuti periode yang memuat tanggal laporannya.
+     * Milestone memakai periode pilihan Admin; bila periodenya terhapus menjadi null.
+     */
+    private function petakanUlangTanggal(Project $project): void
+    {
+        foreach ($project->progressReports()->get() as $report) {
+            $periodId = $this->resolvePeriod($project, $report->tanggal_laporan->toDateString())?->id;
+
+            if ($report->period_id !== $periodId) {
+                $report->period_id = $periodId;
+                $report->saveQuietly();
+            }
+        }
     }
 }

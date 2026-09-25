@@ -93,18 +93,18 @@ tercatat pada `projects.qs_user_id` dan disinkronkan ke tabel ini.
 | `harga_satuan` | decimal(18,2) nullable | |
 | `harga_pekerjaan` | decimal(18,2) nullable | hasil hitung `volume × harga_satuan` |
 | `bobot` | decimal(9,4) | bobot efektif (%) hasil perhitungan |
-| `waktu_mulai`, `waktu_selesai` | date nullable | |
+| `period_mulai_id`, `period_selesai_id` | FK → `periods.id` nullable | Periode Mulai/Selesai (mis. M-II s/d M-V); menentukan periode aktif rencana |
 | `urutan` | smallint | urutan tampil pada laporan |
 
 ### `periods` (periode pelaksanaan)
-`id`, `project_id` FK, `urutan` (unique bersama `project_id`), `nama_periode` ("Minggu I"),
+`id`, `project_id` FK, `urutan` (unique bersama `project_id`), `nama_periode` ("M-I", "M-II", ...),
 `bulan_ke`, `minggu_ke`, `minggu_ke_bulan`, `tanggal_mulai`, `tanggal_selesai`.
 
 ### `work_plans` (rencana pekerjaan per periode)
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | `project_id`, `work_item_id`, `period_id` | FK | unique `(work_item_id, period_id)` |
-| `target_volume` | decimal(15,3) | target volume periode tersebut |
+| `target_volume` | decimal(15,4) | target volume periode tersebut; hanya pada periode aktif pekerjaan |
 | `target_persentase` | decimal(9,4) | terhadap volume pekerjaan |
 | `target_bobot` | decimal(9,4) | kontribusi ke progres proyek |
 | `catatan` | text nullable | |
@@ -213,8 +213,8 @@ Contoh Beton K-250 (volume 23,87 m³, bobot 40,35%): target M-II..M-V = 4 / 8 / 
 bobot rencana 6,76 / 13,52 / 11,83 / 8,24 % (total 40,35%).
 
 Batasan: `Σ target_volume` seluruh periode untuk satu pekerjaan tidak boleh melebihi volume rencananya
-(`sisa = volume − Σ target_volume` tidak boleh negatif), dan volume pekerjaan tidak boleh diturunkan di
-bawah total target yang sudah direncanakan. Jumlah periode mengikuti durasi proyek (§4.6).
+(`sisa = volume − Σ target_volume` tidak boleh negatif), dan target hanya boleh diisi pada periode aktif
+pekerjaan (§4.7). Jumlah periode mengikuti durasi proyek (§4.6).
 
 ### 4.3 Progres aktual — `ProgressService`
 
@@ -256,9 +256,31 @@ ini*, dan *realisasi s/d bulan ini*.
 
 ### 4.6 Periode pelaksanaan — `ProjectScheduleService`
 
-Periode dasar aplikasi adalah **mingguan** (7 hari kalender) mengikuti kolom "MINGGU KE" pada laporan
-bulanan. Jumlah periode = `ceil(jumlah hari pelaksanaan / 7)`. Pengelompokan bulan memakai 4 minggu per
-bulan sehingga konsisten dengan contoh laporan (BULAN I memuat minggu I–IV, BULAN II memuat minggu V–VI).
+Periode dasar aplikasi adalah **mingguan** (7 hari kalender) berlabel `M-I`, `M-II`, ... mengikuti kolom
+"MINGGU KE" pada laporan bulanan. Jumlah periode = `ceil(jumlah hari pelaksanaan / 7)`, misalnya 45 hari
+= 7 minggu (M-I s/d M-VII). Pengelompokan bulan memakai 4 minggu per bulan (BULAN I memuat minggu I–IV,
+BULAN II memuat minggu V–VIII).
+
+Periode proyek adalah sumber tunggal bagi Data Pekerjaan, Rencana, Progres, Kurva S, dan Laporan, dan
+tidak dapat dibuat atau dihapus manual. Setiap perubahan tanggal proyek menyinkronkan periode:
+
+- periode yang sudah ada dipertahankan (id tetap) dan tanggalnya diperbarui; periode baru ditambahkan;
+- bila durasi berkurang, periode berlebih dihapus beserta rencananya, Periode Mulai/Selesai pekerjaan
+  yang melewati periode terakhir dipotong, dan target volume pekerjaan tersebut dibagi rata ulang;
+- `progress_reports.period_id` dipetakan ulang dari `tanggal_laporan`.
+
+### 4.7 Periode aktif dan target awal pekerjaan — `WorkPlanService`
+
+Admin memilih Periode Mulai dan Periode Selesai. Periode aktif = seluruh periode di antara keduanya
+(inklusif); target volume hanya dapat diisi pada periode aktif.
+
+```
+target awal per periode = volume / jumlah periode aktif      (sisa pembulatan ke periode terakhir)
+contoh Beton K-250      = 23,87 / 4 (M-II s/d M-V) = 5,9675 m³ per minggu
+```
+
+Periode Mulai/Selesai diubah → target dibagi rata ulang. Hanya volume diubah → setiap target
+diskalakan proporsional (`target × volume baru / volume lama`) sehingga pola rencana tetap terjaga.
 
 ## 5. Verifikasi terhadap Dokumen Referensi
 

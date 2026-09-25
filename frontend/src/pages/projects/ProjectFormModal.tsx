@@ -88,7 +88,10 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
       await queryClient.invalidateQueries({ queryKey: qk.dashboard })
 
       if (project) {
+        // Perubahan durasi menyinkronkan periode; seluruh modul yang memakai periode dimuat ulang.
         await queryClient.invalidateQueries({ queryKey: qk.project(project.id) })
+        await queryClient.invalidateQueries({ queryKey: ['progress'] })
+        await queryClient.invalidateQueries({ queryKey: ['report'] })
       }
 
       onClose()

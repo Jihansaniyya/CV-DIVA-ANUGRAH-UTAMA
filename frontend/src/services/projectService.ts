@@ -46,8 +46,8 @@ export interface WorkItemPayload {
   uraian_pekerjaan: string
   volume: number
   harga_satuan: number | null
-  waktu_mulai?: string | null
-  waktu_selesai?: string | null
+  period_mulai_id: number | null
+  period_selesai_id: number | null
   urutan?: number | null
   keterangan?: string | null
 }
@@ -86,10 +86,6 @@ export const projectService = {
 
   async remove(id: number): Promise<void> {
     await api.delete(`/projects/${id}`)
-  },
-
-  async generatePeriods(id: number, force = false): Promise<void> {
-    await api.post(`/projects/${id}/generate-periods`, { force })
   },
 
   async categories(id: number): Promise<WorkCategory[]> {

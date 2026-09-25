@@ -59,7 +59,7 @@ abstract class TestCase extends BaseTestCase
             'urutan' => 2,
         ]);
 
-        app(ProjectScheduleService::class)->generateWeeklyPeriods($project, true);
+        app(ProjectScheduleService::class)->generateWeeklyPeriods($project);
         app(WeightCalculatorService::class)->recalculateProject($project);
 
         $project->assignments()->create(['user_id' => $qs->id, 'peran' => 'QS', 'is_primary' => true]);

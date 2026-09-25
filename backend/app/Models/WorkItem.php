@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class WorkItem extends Model
 {
@@ -20,8 +21,8 @@ class WorkItem extends Model
         'harga_satuan',
         'harga_pekerjaan',
         'bobot',
-        'waktu_mulai',
-        'waktu_selesai',
+        'period_mulai_id',
+        'period_selesai_id',
         'urutan',
         'keterangan',
     ];
@@ -33,8 +34,6 @@ class WorkItem extends Model
             'harga_satuan' => 'decimal:2',
             'harga_pekerjaan' => 'decimal:2',
             'bobot' => 'decimal:4',
-            'waktu_mulai' => 'date',
-            'waktu_selesai' => 'date',
         ];
     }
 
@@ -51,6 +50,31 @@ class WorkItem extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function periodMulai(): BelongsTo
+    {
+        return $this->belongsTo(Period::class, 'period_mulai_id');
+    }
+
+    public function periodSelesai(): BelongsTo
+    {
+        return $this->belongsTo(Period::class, 'period_selesai_id');
+    }
+
+    /**
+     * Periode aktif pekerjaan: M-mulai s/d M-selesai.
+     * Bila rentang belum ditetapkan, seluruh periode proyek dianggap aktif.
+     */
+    public function activePeriods(): Collection
+    {
+        $mulai = $this->periodMulai?->urutan ?? 1;
+        $selesai = $this->periodSelesai?->urutan ?? PHP_INT_MAX;
+
+        return Period::where('project_id', $this->project_id)
+            ->whereBetween('urutan', [$mulai, $selesai])
+            ->orderBy('urutan')
+            ->get();
     }
 
     public function workPlans(): HasMany

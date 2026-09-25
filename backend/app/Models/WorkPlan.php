@@ -23,7 +23,7 @@ class WorkPlan extends Model
     protected function casts(): array
     {
         return [
-            'target_volume' => 'decimal:3',
+            'target_volume' => 'decimal:4',
             'target_persentase' => 'decimal:4',
             'target_bobot' => 'decimal:4',
         ];

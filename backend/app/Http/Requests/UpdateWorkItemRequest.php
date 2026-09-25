@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesWorkItemPeriods;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateWorkItemRequest extends FormRequest
 {
+    use ValidatesWorkItemPeriods;
+
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
@@ -19,8 +22,8 @@ class UpdateWorkItemRequest extends FormRequest
             'uraian_pekerjaan' => ['sometimes', 'required', 'string', 'max:255'],
             'volume' => ['sometimes', 'required', 'numeric', 'min:0.001'],
             'harga_satuan' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'waktu_mulai' => ['nullable', 'date'],
-            'waktu_selesai' => ['nullable', 'date', 'after_or_equal:waktu_mulai'],
+            'period_mulai_id' => ['sometimes', 'required', ...$this->periodRule()],
+            'period_selesai_id' => ['sometimes', 'required', ...$this->periodRule()],
             'urutan' => ['nullable', 'integer', 'min:1'],
             'keterangan' => ['nullable', 'string'],
         ];
@@ -31,7 +34,7 @@ class UpdateWorkItemRequest extends FormRequest
         return [
             'unit_id' => 'satuan pekerjaan', 'uraian_pekerjaan' => 'uraian pekerjaan',
             'volume' => 'volume pekerjaan', 'harga_satuan' => 'harga satuan',
-            'waktu_mulai' => 'waktu mulai', 'waktu_selesai' => 'waktu selesai',
+            'period_mulai_id' => 'periode mulai', 'period_selesai_id' => 'periode selesai',
         ];
     }
 }

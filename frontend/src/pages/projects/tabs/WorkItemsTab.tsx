@@ -1,17 +1,17 @@
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { DatePicker, Input, Select } from '@/components/ui/Field'
+import { Input, Select } from '@/components/ui/Field'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
-import { qk, useCategories, useUnits, useWorkItems } from '@/hooks/queries'
+import { qk, useCategories, usePeriods, useUnits, useWorkItems } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { projectService, type WorkItemPayload } from '@/services/projectService'
 import type { WorkItem } from '@/types'
-import { angka, rupiah, tanggalSingkat } from '@/utils/format'
+import { angka, rupiah } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FolderPlus, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -22,8 +22,8 @@ const KOSONG: WorkItemPayload = {
   uraian_pekerjaan: '',
   volume: 0,
   harga_satuan: null,
-  waktu_mulai: null,
-  waktu_selesai: null,
+  period_mulai_id: null,
+  period_selesai_id: null,
   keterangan: null,
 }
 
@@ -36,6 +36,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
   const { data, isLoading, error, refetch } = useWorkItems(projectId)
   const { data: units } = useUnits()
   const { data: categories } = useCategories(projectId)
+  const { data: periods } = usePeriods(projectId)
 
   const [formTerbuka, setFormTerbuka] = useState(false)
   const [kategoriTerbuka, setKategoriTerbuka] = useState(false)
@@ -57,13 +58,21 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             uraian_pekerjaan: itemDiedit.uraian_pekerjaan,
             volume: itemDiedit.volume,
             harga_satuan: itemDiedit.harga_satuan,
-            waktu_mulai: itemDiedit.waktu_mulai,
-            waktu_selesai: itemDiedit.waktu_selesai,
+            period_mulai_id: itemDiedit.period_mulai_id,
+            period_selesai_id: itemDiedit.period_selesai_id,
             keterangan: itemDiedit.keterangan,
           }
-        : { ...KOSONG, unit_id: units?.[0]?.id ?? 0, work_category_id: categories?.[0]?.id ?? null },
+        : {
+            ...KOSONG,
+            unit_id: units?.[0]?.id ?? 0,
+            work_category_id: categories?.[0]?.id ?? null,
+            period_mulai_id: periods?.[0]?.id ?? null,
+            period_selesai_id: periods?.at(-1)?.id ?? null,
+          },
     )
-  }, [formTerbuka, itemDiedit, units, categories])
+  }, [formTerbuka, itemDiedit, units, categories, periods])
+
+  const urutanPeriode = (id: number | null) => periods?.find((period) => period.id === id)?.urutan ?? 0
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: qk.workItems(projectId) })
@@ -121,6 +130,11 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
     if (!form.unit_id) validasi.unit_id = 'Satuan pekerjaan wajib dipilih.'
     if (!form.volume || form.volume <= 0) validasi.volume = 'Volume harus lebih besar dari 0.'
     if (form.harga_satuan === null || form.harga_satuan < 0) validasi.harga_satuan = 'Harga satuan wajib diisi.'
+    if (!form.period_mulai_id) validasi.period_mulai_id = 'Periode mulai wajib dipilih.'
+    if (!form.period_selesai_id) validasi.period_selesai_id = 'Periode selesai wajib dipilih.'
+    else if (urutanPeriode(form.period_selesai_id) < urutanPeriode(form.period_mulai_id)) {
+      validasi.period_selesai_id = 'Periode selesai tidak boleh sebelum periode mulai.'
+    }
 
     setErrors(validasi)
 
@@ -192,7 +206,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
                 <Th align="right">Harga Satuan</Th>
                 <Th align="right">Harga Pekerjaan</Th>
                 <Th align="right">Bobot (%)</Th>
-                <Th>Waktu Pelaksanaan</Th>
+                <Th>Periode</Th>
                 <Th>Progres</Th>
                 {adminMode && <Th align="center">Aksi</Th>}
               </tr>
@@ -211,7 +225,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
                   <Td align="right">{item.harga_pekerjaan ? rupiah(item.harga_pekerjaan) : '-'}</Td>
                   <Td align="right">{angka(item.bobot, 4)}</Td>
                   <Td className="text-muted whitespace-nowrap">
-                    {item.waktu_mulai ? `${tanggalSingkat(item.waktu_mulai)} - ${tanggalSingkat(item.waktu_selesai)}` : '-'}
+                    {item.periode_mulai ? `${item.periode_mulai} s/d ${item.periode_selesai ?? item.periode_mulai}` : '-'}
                   </Td>
                   <Td className="min-w-36">
                     <ProgressBar nilai={item.persentase_realisasi ?? 0} />
@@ -349,18 +363,39 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             value={angka(pratinjau.bobot, 4)}
             hint={`Harga Pekerjaan / Total Harga Proyek (${rupiah(pratinjau.totalHarga)}) × 100%`}
           />
-          <DatePicker
-            label="Waktu Mulai"
-            value={form.waktu_mulai ?? ''}
-            onChange={(event) => setForm({ ...form, waktu_mulai: event.target.value || null })}
-            error={errors.waktu_mulai}
-          />
-          <DatePicker
-            label="Waktu Selesai"
-            value={form.waktu_selesai ?? ''}
-            onChange={(event) => setForm({ ...form, waktu_selesai: event.target.value || null })}
-            error={errors.waktu_selesai}
-          />
+          <Select
+            label="Periode Mulai"
+            required
+            value={form.period_mulai_id ?? ''}
+            onChange={(event) => setForm({ ...form, period_mulai_id: event.target.value ? Number(event.target.value) : null })}
+            error={errors.period_mulai_id}
+          >
+            <option value="">Pilih minggu</option>
+            {periods?.map((period) => (
+              <option key={period.id} value={period.id}>
+                {period.nama_periode}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Periode Selesai"
+            required
+            value={form.period_selesai_id ?? ''}
+            onChange={(event) => setForm({ ...form, period_selesai_id: event.target.value ? Number(event.target.value) : null })}
+            error={errors.period_selesai_id}
+          >
+            <option value="">Pilih minggu</option>
+            {periods?.map((period) => (
+              <option key={period.id} value={period.id} disabled={period.urutan < urutanPeriode(form.period_mulai_id)}>
+                {period.nama_periode}
+              </option>
+            ))}
+          </Select>
+          <p className="text-[11px] text-muted sm:col-span-2">
+            {itemDiedit
+              ? 'Mengubah Periode Mulai/Selesai membagi ulang target volume secara merata. Mengubah volume menyesuaikan target secara proporsional.'
+              : 'Target volume awal dibagi rata ke setiap minggu aktif dan dapat diubah pada tab Rencana.'}
+          </p>
         </form>
       </Modal>
 

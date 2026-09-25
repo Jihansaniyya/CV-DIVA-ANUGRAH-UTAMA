@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Enums\RoleCode;
+use App\Models\Period;
 use App\Models\Project;
 use App\Models\Unit;
+use App\Models\User;
 use App\Models\WorkItem;
 use App\Services\ProjectScheduleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 class WorkPlanCalculationTest extends TestCase
@@ -20,37 +23,51 @@ class WorkPlanCalculationTest extends TestCase
         $this->seedMasterData();
     }
 
+    private function admin(): User
+    {
+        return $this->userDenganPeran(RoleCode::ADMIN);
+    }
+
+    /** @return Collection<int,Period> dengan key urutan (1 = M-I) */
+    private function periode(Project $project): Collection
+    {
+        return $project->periods()->orderBy('urutan')->get()->keyBy('urutan');
+    }
+
     /**
-     * Proyek 5 minggu dengan Beton K-250 (bobot 40,35%) sesuai dokumen referensi.
-     * Pekerjaan lain mewakili sisa harga proyek (total 172.133.983,60).
+     * Proyek 6 minggu (M-I s/d M-VI). Beton K-250 (bobot 40,35%) direncanakan M-II s/d M-V
+     * sesuai dokumen referensi; pekerjaan lain mewakili sisa harga proyek (total 172.133.983,60).
      *
      * @return array{project: Project, beton: WorkItem, lain: WorkItem}
      */
     private function proyekBeton(): array
     {
-        $admin = $this->userDenganPeran(RoleCode::ADMIN);
         $mulai = now()->startOfWeek();
         $project = Project::factory()->create([
             'tanggal_mulai' => $mulai->toDateString(),
-            'tanggal_selesai' => $mulai->copy()->addWeeks(5)->subDay()->toDateString(),
+            'tanggal_selesai' => $mulai->copy()->addWeeks(6)->subDay()->toDateString(),
         ]);
-        app(ProjectScheduleService::class)->generateWeeklyPeriods($project, true);
+        app(ProjectScheduleService::class)->generateWeeklyPeriods($project);
+        $p = $this->periode($project);
 
-        $m3 = Unit::where('code', 'm3')->firstOrFail();
-        $ls = Unit::where('code', 'ls')->firstOrFail();
-
-        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-items", [
-            'unit_id' => $m3->id,
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items", [
+            'unit_id' => Unit::where('code', 'm3')->value('id'),
             'uraian_pekerjaan' => 'Pek. Beton K-250 Ready Mix',
             'volume' => 23.87,
             'harga_satuan' => 2909892.81,
-        ])->assertCreated();
+            'period_mulai_id' => $p[2]->id,
+            'period_selesai_id' => $p[5]->id,
+        ])->assertCreated()
+            ->assertJsonPath('data.periode_mulai', 'M-II')
+            ->assertJsonPath('data.periode_selesai', 'M-V');
 
-        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-items", [
-            'unit_id' => $ls->id,
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items", [
+            'unit_id' => Unit::where('code', 'ls')->value('id'),
             'uraian_pekerjaan' => 'Pekerjaan lainnya',
             'volume' => 1,
             'harga_satuan' => 102674842.23,
+            'period_mulai_id' => $p[1]->id,
+            'period_selesai_id' => $p[6]->id,
         ])->assertCreated();
 
         return [
@@ -60,26 +77,75 @@ class WorkPlanCalculationTest extends TestCase
         ];
     }
 
-    public function test_harga_satuan_wajib_dan_bobot_manual_diabaikan(): void
+    private function matriks(Project $project): array
     {
-        $admin = $this->userDenganPeran(RoleCode::ADMIN);
-        $project = Project::factory()->create();
-        $unit = Unit::where('code', 'm3')->firstOrFail();
+        return $this->actingAs($this->admin())->getJson("/api/projects/{$project->id}/work-plans")->assertOk()->json('data');
+    }
 
-        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-items", [
-            'unit_id' => $unit->id,
+    private function baris(array $matriks, WorkItem $item): array
+    {
+        return collect($matriks['baris'])->firstWhere('work_item_id', $item->id);
+    }
+
+    public function test_jumlah_periode_mengikuti_durasi_proyek_dengan_label_m(): void
+    {
+        $mulai = now()->startOfWeek();
+        $project = Project::factory()->create([
+            'tanggal_mulai' => $mulai->toDateString(),
+            'tanggal_selesai' => $mulai->copy()->addDays(44)->toDateString(), // 45 hari kalender
+        ]);
+        app(ProjectScheduleService::class)->generateWeeklyPeriods($project);
+
+        $this->assertSame(
+            ['M-I', 'M-II', 'M-III', 'M-IV', 'M-V', 'M-VI', 'M-VII'],
+            $project->periods()->orderBy('urutan')->pluck('nama_periode')->all(),
+        );
+        $this->assertSame('M-XXIV', ProjectScheduleService::label(24));
+    }
+
+    public function test_harga_satuan_dan_periode_wajib_serta_bobot_manual_diabaikan(): void
+    {
+        $project = Project::factory()->create();
+        app(ProjectScheduleService::class)->generateWeeklyPeriods($project);
+        $p = $this->periode($project);
+        $unit = Unit::where('code', 'm3')->value('id');
+
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items", [
+            'unit_id' => $unit,
             'uraian_pekerjaan' => 'Galian Tanah',
             'volume' => 10,
-        ])->assertStatus(422)->assertJsonValidationErrors('harga_satuan');
+        ])->assertStatus(422)->assertJsonValidationErrors(['harga_satuan', 'period_mulai_id', 'period_selesai_id']);
 
-        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-items", [
-            'unit_id' => $unit->id,
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items", [
+            'unit_id' => $unit,
             'uraian_pekerjaan' => 'Galian Tanah',
             'volume' => 10,
             'harga_satuan' => 50000,
+            'period_mulai_id' => $p[1]->id,
+            'period_selesai_id' => $p[2]->id,
             'bobot' => 12,
             'bobot_manual' => 12,
         ])->assertCreated()->assertJsonPath('data.bobot', 100)->assertJsonMissingPath('data.bobot_manual');
+    }
+
+    public function test_periode_selesai_tidak_boleh_sebelum_mulai_atau_milik_proyek_lain(): void
+    {
+        ['project' => $project] = $this->proyekBeton();
+        $p = $this->periode($project);
+        $lain = Project::factory()->create();
+        app(ProjectScheduleService::class)->generateWeeklyPeriods($lain);
+
+        $data = ['unit_id' => Unit::where('code', 'm3')->value('id'), 'uraian_pekerjaan' => 'Uji', 'volume' => 5, 'harga_satuan' => 1000];
+
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items", $data + [
+            'period_mulai_id' => $p[4]->id,
+            'period_selesai_id' => $p[2]->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('period_selesai_id');
+
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items", $data + [
+            'period_mulai_id' => $lain->periods()->value('id'),
+            'period_selesai_id' => $p[2]->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('period_mulai_id');
     }
 
     public function test_harga_total_dan_bobot_pekerjaan_dihitung_otomatis(): void
@@ -90,80 +156,165 @@ class WorkPlanCalculationTest extends TestCase
         $this->assertEqualsWithDelta(40.3518, (float) $beton->bobot, 0.0001);
         $this->assertEqualsWithDelta(100.0, (float) $beton->bobot + (float) $lain->bobot, 0.0001);
 
-        $admin = $this->userDenganPeran(RoleCode::ADMIN);
-        $this->actingAs($admin)->getJson("/api/projects/{$project->id}/work-items")
+        $this->actingAs($this->admin())->getJson("/api/projects/{$project->id}/work-items")
             ->assertOk()
             ->assertJsonPath('meta.total_harga_pekerjaan', 172133983.6)
             ->assertJsonPath('meta.total_bobot', 100);
     }
 
-    public function test_bobot_rencana_mingguan_dihitung_dari_target_volume(): void
+    public function test_pekerjaan_baru_membagi_rata_target_ke_periode_aktif(): void
     {
         ['project' => $project, 'beton' => $beton] = $this->proyekBeton();
-        $admin = $this->userDenganPeran(RoleCode::ADMIN);
-        $periods = $project->periods()->orderBy('urutan')->get();
 
-        $this->assertCount(5, $periods);
+        $baris = $this->baris($this->matriks($project), $beton);
 
-        $targets = [0, 4, 8, 7, 4.87];
-        $rows = [];
-        foreach ($periods as $i => $period) {
-            $rows[] = ['work_item_id' => $beton->id, 'period_id' => $period->id, 'target_volume' => $targets[$i]];
-        }
+        $this->assertSame([false, true, true, true, true, false], array_column($baris['periode'], 'aktif'));
+        $this->assertEquals([0, 5.9675, 5.9675, 5.9675, 5.9675, 0], array_column($baris['periode'], 'target_volume'));
+        $this->assertEqualsWithDelta(0.0, $baris['sisa_volume'], 0.00001);
+        $this->assertEqualsWithDelta(40.3518, $baris['total_target_bobot'], 0.0005);
+    }
 
-        $matrix = $this->actingAs($admin)
+    public function test_bobot_rencana_mingguan_dihitung_dari_target_volume(): void
+    {
+        ['project' => $project, 'beton' => $beton, 'lain' => $lain] = $this->proyekBeton();
+        $p = $this->periode($project);
+
+        $targets = [1 => 0, 2 => 4, 3 => 8, 4 => 7, 5 => 4.87, 6 => 0];
+        $rows = collect($targets)->map(fn ($target, $urutan) => [
+            'work_item_id' => $beton->id, 'period_id' => $p[$urutan]->id, 'target_volume' => $target,
+        ])->values()->all();
+
+        $matriks = $this->actingAs($this->admin())
             ->postJson("/api/projects/{$project->id}/work-plans", ['rows' => $rows])
             ->assertOk()
             ->json('data');
 
-        $baris = collect($matrix['baris'])->firstWhere('work_item_id', $beton->id);
+        $baris = $this->baris($matriks, $beton);
         $bobotPerMinggu = array_column($baris['periode'], 'target_bobot');
 
-        foreach ([0.0, 6.76, 13.52, 11.83, 8.24] as $i => $harapan) {
-            $this->assertEqualsWithDelta($harapan, $bobotPerMinggu[$i], 0.01, 'Minggu ke-'.($i + 1));
+        foreach ([0.0, 6.76, 13.52, 11.83, 8.24, 0.0] as $i => $harapan) {
+            $this->assertEqualsWithDelta($harapan, $bobotPerMinggu[$i], 0.01, 'M-'.ProjectScheduleService::romawi($i + 1));
         }
 
         $this->assertEqualsWithDelta(0.0, $baris['sisa_volume'], 0.0001);
         $this->assertEqualsWithDelta(23.87, $baris['total_target_volume'], 0.0001);
         $this->assertEqualsWithDelta(40.35, $baris['total_target_bobot'], 0.01);
-        $this->assertEqualsWithDelta(40.35, $matrix['total_bobot_rencana'], 0.01);
-        $this->assertEqualsWithDelta(40.35, end($matrix['total_per_periode'])['kumulatif'], 0.01);
 
-        // Kurva S memakai rencana yang sama
-        $kurva = $this->actingAs($admin)->getJson("/api/projects/{$project->id}/curve-s")->assertOk()->json('data');
-        $this->assertEqualsWithDelta(40.35, $kurva['ringkasan']['total_bobot_rencana'], 0.01);
+        // Seluruh pekerjaan terencana penuh -> rencana kumulatif akhir 100%, dan Kurva S memakai data yang sama.
+        $this->assertEqualsWithDelta(100.0, $matriks['total_bobot_rencana'], 0.001);
+        $this->assertEqualsWithDelta(100.0, end($matriks['total_per_periode'])['kumulatif'], 0.001);
+
+        $kurva = $this->actingAs($this->admin())->getJson("/api/projects/{$project->id}/curve-s")->assertOk()->json('data');
+        $this->assertEqualsWithDelta(100.0, $kurva['ringkasan']['total_bobot_rencana'], 0.001);
+        $this->assertSame(['M-I', 'M-II', 'M-III', 'M-IV', 'M-V', 'M-VI'], array_column($kurva['titik'], 'nama_periode'));
+        $this->assertEquals(
+            array_column($matriks['total_per_periode'], 'kumulatif'),
+            array_column($kurva['titik'], 'rencana_kumulatif'),
+        );
+        $this->assertEqualsWithDelta(
+            (float) $lain->fresh()->workPlans()->where('period_id', $p[2]->id)->value('target_bobot') + 6.76,
+            $kurva['titik'][1]['rencana'],
+            0.01,
+        );
+    }
+
+    public function test_target_pada_periode_nonaktif_ditolak(): void
+    {
+        ['project' => $project, 'beton' => $beton] = $this->proyekBeton();
+        $p = $this->periode($project);
+
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-plans", [
+            'rows' => [['work_item_id' => $beton->id, 'period_id' => $p[1]->id, 'target_volume' => 1]],
+        ])->assertStatus(422)->assertJsonValidationErrors('rows');
+    }
+
+    public function test_target_melebihi_volume_ditolak(): void
+    {
+        ['project' => $project, 'beton' => $beton] = $this->proyekBeton();
+        $p = $this->periode($project);
+
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-plans", [
+            'rows' => [['work_item_id' => $beton->id, 'period_id' => $p[2]->id, 'target_volume' => 20]],
+        ])->assertStatus(422)->assertJsonValidationErrors('rows');
+    }
+
+    public function test_perubahan_rentang_periode_membagi_ulang_target(): void
+    {
+        ['project' => $project, 'beton' => $beton] = $this->proyekBeton();
+        $p = $this->periode($project);
+
+        $this->actingAs($this->admin())->putJson("/api/projects/{$project->id}/work-items/{$beton->id}", [
+            'period_mulai_id' => $p[3]->id,
+            'period_selesai_id' => $p[4]->id,
+        ])->assertOk();
+
+        $baris = $this->baris($this->matriks($project), $beton);
+        $this->assertEquals([0, 0, 11.935, 11.935, 0, 0], array_column($baris['periode'], 'target_volume'));
+    }
+
+    public function test_perubahan_volume_menskalakan_target_proporsional(): void
+    {
+        ['project' => $project, 'beton' => $beton] = $this->proyekBeton();
+        $p = $this->periode($project);
+
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-plans", [
+            'rows' => [
+                ['work_item_id' => $beton->id, 'period_id' => $p[2]->id, 'target_volume' => 4],
+                ['work_item_id' => $beton->id, 'period_id' => $p[3]->id, 'target_volume' => 8],
+                ['work_item_id' => $beton->id, 'period_id' => $p[4]->id, 'target_volume' => 7],
+                ['work_item_id' => $beton->id, 'period_id' => $p[5]->id, 'target_volume' => 4.87],
+            ],
+        ])->assertOk();
+
+        // Volume diperkecil setengahnya -> pola target tetap, sisa tetap 0.
+        $this->actingAs($this->admin())->putJson("/api/projects/{$project->id}/work-items/{$beton->id}", [
+            'volume' => 11.935,
+        ])->assertOk();
+
+        $baris = $this->baris($this->matriks($project), $beton);
+        $this->assertEquals([0, 2, 4, 3.5, 2.435, 0], array_column($baris['periode'], 'target_volume'));
+        $this->assertEqualsWithDelta(0.0, $baris['sisa_volume'], 0.00001);
     }
 
     public function test_perubahan_harga_menyelaraskan_bobot_rencana(): void
     {
         ['project' => $project, 'beton' => $beton, 'lain' => $lain] = $this->proyekBeton();
-        $admin = $this->userDenganPeran(RoleCode::ADMIN);
-        $period = $project->periods()->orderBy('urutan')->firstOrFail();
-
-        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans", [
-            'rows' => [['work_item_id' => $beton->id, 'period_id' => $period->id, 'target_volume' => 23.87]],
-        ])->assertOk();
 
         // Harga pekerjaan lain disamakan dengan beton -> bobot beton menjadi 50%
-        $this->actingAs($admin)->putJson("/api/projects/{$project->id}/work-items/{$lain->id}", [
+        $this->actingAs($this->admin())->putJson("/api/projects/{$project->id}/work-items/{$lain->id}", [
             'harga_satuan' => 69459141.37,
         ])->assertOk();
 
-        $this->assertEqualsWithDelta(50.0, (float) $beton->workPlans()->firstOrFail()->target_bobot, 0.0001);
+        $this->assertEqualsWithDelta(50.0, (float) $beton->workPlans()->sum('target_bobot'), 0.0005);
     }
 
-    public function test_volume_pekerjaan_tidak_boleh_kurang_dari_total_target_rencana(): void
+    public function test_durasi_proyek_berkurang_menyesuaikan_periode_pekerjaan_dan_rencana(): void
     {
-        ['project' => $project, 'beton' => $beton] = $this->proyekBeton();
-        $admin = $this->userDenganPeran(RoleCode::ADMIN);
-        $period = $project->periods()->orderBy('urutan')->firstOrFail();
+        ['project' => $project, 'beton' => $beton, 'lain' => $lain] = $this->proyekBeton();
 
-        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans", [
-            'rows' => [['work_item_id' => $beton->id, 'period_id' => $period->id, 'target_volume' => 20]],
+        // 6 minggu -> 4 minggu
+        $this->actingAs($this->admin())->putJson("/api/projects/{$project->id}", [
+            'tanggal_mulai' => $project->tanggal_mulai->toDateString(),
+            'tanggal_selesai' => $project->tanggal_mulai->copy()->addWeeks(4)->subDay()->toDateString(),
         ])->assertOk();
 
-        $this->actingAs($admin)->putJson("/api/projects/{$project->id}/work-items/{$beton->id}", [
-            'volume' => 15,
-        ])->assertStatus(422)->assertJsonValidationErrors('volume');
+        $p = $this->periode($project);
+        $this->assertSame(['M-I', 'M-II', 'M-III', 'M-IV'], $p->pluck('nama_periode')->values()->all());
+
+        $this->assertSame($p[4]->id, $beton->fresh()->period_selesai_id);
+        $this->assertSame($p[4]->id, $lain->fresh()->period_selesai_id);
+
+        $matriks = $this->matriks($project);
+        $this->assertEquals([0, 7.9567, 7.9567, 7.9566], array_column($this->baris($matriks, $beton)['periode'], 'target_volume'));
+        $this->assertEqualsWithDelta(0.0, $this->baris($matriks, $lain)['sisa_volume'], 0.00001);
+        $this->assertEqualsWithDelta(100.0, $matriks['total_bobot_rencana'], 0.001);
+
+        // Durasi bertambah lagi -> periode baru ikut terbentuk.
+        $this->actingAs($this->admin())->putJson("/api/projects/{$project->id}", [
+            'tanggal_mulai' => $project->tanggal_mulai->toDateString(),
+            'tanggal_selesai' => $project->tanggal_mulai->copy()->addDays(44)->toDateString(),
+        ])->assertOk();
+
+        $this->assertSame(7, $project->periods()->count());
     }
 }

@@ -61,9 +61,8 @@ class ProjectController extends Controller
 
         $project = Project::create($data);
 
-        if ($request->boolean('generate_periode', true)) {
-            $this->schedule->generateWeeklyPeriods($project);
-        }
+        // Periode mingguan (M-I, M-II, ...) selalu dibentuk dari durasi proyek.
+        $this->schedule->generateWeeklyPeriods($project);
 
         $this->sinkronkanPenugasanQs($project);
 
@@ -93,6 +92,7 @@ class ProjectController extends Controller
 
         $project->update($request->validated());
 
+        // Durasi berubah -> periode, rentang pekerjaan, rencana, dan progres ikut disinkronkan.
         if ($tanggalBerubah) {
             $this->schedule->generateWeeklyPeriods($project);
         }
@@ -112,18 +112,6 @@ class ProjectController extends Controller
         $project->delete();
 
         return response()->json(['message' => 'Proyek berhasil dihapus.']);
-    }
-
-    /** Buat ulang periode mingguan proyek. */
-    public function generatePeriods(Request $request, Project $project): JsonResponse
-    {
-        $this->authorize('update', $project);
-
-        $dibuat = $this->schedule->generateWeeklyPeriods($project, $request->boolean('force'));
-
-        return response()->json([
-            'message' => 'Periode pelaksanaan berhasil dibentuk ('.$dibuat.' periode baru).',
-        ]);
     }
 
     /** QS penanggung jawab utama juga dicatat pada tabel penugasan. */

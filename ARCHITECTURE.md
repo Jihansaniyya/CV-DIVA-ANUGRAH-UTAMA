@@ -147,13 +147,15 @@ horizontal, chart memakai `ResponsiveContainer`.
 ### 4.1 Pembentukan rencana dan Kurva S
 
 ```
-Admin membuat proyek
-   └─► ProjectScheduleService: periode mingguan dibentuk otomatis
-Admin menambah pekerjaan (volume, satuan, harga satuan)
-   └─► WeightCalculatorService: harga_pekerjaan dan bobot dihitung ulang untuk seluruh pekerjaan
-Admin mengisi target volume per periode
+Admin membuat/mengubah tanggal proyek
+   └─► ProjectScheduleService: periode M-I, M-II, ... disinkronkan dari durasi proyek
+        (periode berlebih dihapus, rentang pekerjaan dipotong, laporan progres dipetakan ulang)
+Admin menambah pekerjaan (volume, satuan, harga satuan, Periode Mulai, Periode Selesai)
+   ├─► WeightCalculatorService: harga_pekerjaan dan bobot dihitung ulang untuk seluruh pekerjaan
+   └─► WorkPlanService: volume dibagi rata ke periode aktif sebagai target awal
+Admin menyesuaikan target volume pada periode aktif
    └─► WorkPlanService: target_persentase dan target_bobot dihitung, total divalidasi
-        └─► CurveSService: rencana kumulatif per periode → garis rencana pada Kurva S
+        └─► CurveSService: rencana kumulatif per periode → garis rencana pada Kurva S (tanpa tombol generate)
 ```
 
 ### 4.2 Pencatatan progres
@@ -224,13 +226,11 @@ diunduh ulang.
 | PATCH | `/api/users/{user}/toggle-active` | Admin |
 | GET | `/api/projects`, `/api/projects/{project}` | terautentikasi (QS dibatasi penugasan) |
 | POST/PUT/DELETE | `/api/projects`, `/api/projects/{project}` | Admin |
-| POST | `/api/projects/{project}/generate-periods` | Admin |
 | GET | `/api/projects/{project}/work-categories` | terautentikasi |
 | POST/PUT/DELETE | `/api/projects/{project}/work-categories[/{workCategory}]` | Admin |
 | GET | `/api/projects/{project}/work-items[/{workItem}]` | terautentikasi |
 | POST/PUT/DELETE | `/api/projects/{project}/work-items[/{workItem}]` | Admin |
-| GET | `/api/projects/{project}/periods` | terautentikasi |
-| POST/DELETE | `/api/projects/{project}/periods[/{period}]` | Admin |
+| GET | `/api/projects/{project}/periods` (hanya baca; dibentuk otomatis) | terautentikasi |
 | GET | `/api/projects/{project}/work-plans` | terautentikasi |
 | POST | `/api/projects/{project}/work-plans` | Admin |
 | GET | `/api/projects/{project}/milestones` | terautentikasi |

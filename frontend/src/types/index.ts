@@ -83,8 +83,10 @@ export interface WorkItem {
   harga_satuan: number | null
   harga_pekerjaan: number | null
   bobot: number
-  waktu_mulai: string | null
-  waktu_selesai: string | null
+  period_mulai_id: number | null
+  period_selesai_id: number | null
+  periode_mulai: string | null
+  periode_selesai: string | null
   urutan: number
   keterangan: string | null
   volume_realisasi?: number
@@ -117,6 +119,8 @@ export interface Milestone {
 
 export interface WorkPlanCell {
   period_id: number
+  /** Periode berada di antara Periode Mulai dan Periode Selesai pekerjaan. */
+  aktif: boolean
   target_volume: number
   target_persentase: number
   target_bobot: number
@@ -129,6 +133,10 @@ export interface WorkPlanRow {
   satuan: string | null
   volume: number
   bobot: number
+  period_mulai_id: number | null
+  period_selesai_id: number | null
+  periode_mulai: string | null
+  periode_selesai: string | null
   periode: WorkPlanCell[]
   total_target_volume: number
   total_target_bobot: number

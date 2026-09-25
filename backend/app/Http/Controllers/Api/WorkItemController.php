@@ -12,9 +12,12 @@ use App\Services\WeightCalculatorService;
 use App\Services\WorkPlanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WorkItemController extends Controller
 {
+    private const RELASI = ['unit', 'category', 'periodMulai', 'periodSelesai'];
+
     public function __construct(
         private readonly WeightCalculatorService $weights,
         private readonly WorkPlanService $plans,
@@ -24,7 +27,7 @@ class WorkItemController extends Controller
     {
         $this->authorize('view', $project);
 
-        $items = $project->workItems()->with(['unit', 'category'])->orderBy('urutan')->get();
+        $items = $project->workItems()->with(self::RELASI)->orderBy('urutan')->get();
 
         $items->each(function (WorkItem $item) {
             $realisasi = $item->volumeRealisasi();
@@ -49,12 +52,17 @@ class WorkItemController extends Controller
         $data = $request->validated();
         $data['urutan'] = $data['urutan'] ?? ((int) $project->workItems()->max('urutan') + 1);
 
-        $item = $project->workItems()->create($data);
-        $this->weights->recalculateProject($project);
+        $item = DB::transaction(function () use ($project, $data) {
+            $item = $project->workItems()->create($data);
+            $this->plans->syncWithWorkItem($item);
+            $this->weights->recalculateProject($project);
+
+            return $item;
+        });
 
         return response()->json([
-            'message' => 'Pekerjaan berhasil ditambahkan.',
-            'data' => new WorkItemResource($item->fresh(['unit', 'category'])),
+            'message' => 'Pekerjaan berhasil ditambahkan. Target volume awal dibagi rata ke periode aktif.',
+            'data' => new WorkItemResource($item->fresh(self::RELASI)),
         ], 201);
     }
 
@@ -63,23 +71,28 @@ class WorkItemController extends Controller
         $this->authorize('view', $project);
         abort_unless($workItem->project_id === $project->id, 404);
 
-        return response()->json(['data' => new WorkItemResource($workItem->load(['unit', 'category']))]);
+        return response()->json(['data' => new WorkItemResource($workItem->load(self::RELASI))]);
     }
 
     public function update(UpdateWorkItemRequest $request, Project $project, WorkItem $workItem): JsonResponse
     {
         abort_unless($workItem->project_id === $project->id, 404);
 
-        if ($request->has('volume')) {
-            $this->plans->ensureVolumeCoversPlans($workItem, (float) $request->validated('volume'));
-        }
+        DB::transaction(function () use ($request, $project, $workItem) {
+            $sebelum = [
+                'period_mulai_id' => $workItem->period_mulai_id,
+                'period_selesai_id' => $workItem->period_selesai_id,
+                'volume' => (float) $workItem->volume,
+            ];
 
-        $workItem->update($request->validated());
-        $this->weights->recalculateProject($project);
+            $workItem->update($request->validated());
+            $this->plans->syncWithWorkItem($workItem, $sebelum);
+            $this->weights->recalculateProject($project);
+        });
 
         return response()->json([
             'message' => 'Pekerjaan berhasil diperbarui.',
-            'data' => new WorkItemResource($workItem->fresh(['unit', 'category'])),
+            'data' => new WorkItemResource($workItem->fresh(self::RELASI)),
         ]);
     }
 

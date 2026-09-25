@@ -34,7 +34,6 @@ class StoreProjectRequest extends FormRequest
             'qs_user_id' => ['nullable', 'exists:users,id'],
             'status' => ['nullable', Rule::enum(ProjectStatus::class)],
             'keterangan' => ['nullable', 'string'],
-            'generate_periode' => ['boolean'],
         ];
     }
 

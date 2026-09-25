@@ -15,11 +15,17 @@ use Illuminate\Validation\ValidationException;
  *   target_persentase = target_volume / volume pekerjaan x 100
  *   target_bobot      = target_persentase x bobot pekerjaan / 100
  *
- * Total target_volume seluruh periode untuk satu pekerjaan tidak boleh
- * melebihi volume rencana pekerjaan tersebut.
+ * Target hanya boleh diisi pada periode aktif pekerjaan (Periode Mulai s/d
+ * Periode Selesai). Total target_volume seluruh periode untuk satu pekerjaan
+ * tidak boleh melebihi volume rencana pekerjaan tersebut.
  */
 class WorkPlanService
 {
+    /** Presisi target_volume (decimal 15,4). */
+    private const DESIMAL = 4;
+
+    private const TOLERANSI = 0.00005;
+
     public function __construct(private readonly WeightCalculatorService $weights) {}
 
     /**
@@ -30,8 +36,8 @@ class WorkPlanService
     public function sync(Project $project, array $rows): void
     {
         DB::transaction(function () use ($project, $rows) {
-            $items = $project->workItems()->get()->keyBy('id');
-            $periodIds = $project->periods()->pluck('id');
+            $items = $project->workItems()->with(['periodMulai', 'periodSelesai'])->get()->keyBy('id');
+            $periods = $project->periods()->get()->keyBy('id');
 
             $akumulasi = [];
 
@@ -42,9 +48,19 @@ class WorkPlanService
                     ]);
                 }
 
-                if (! $periodIds->contains($row['period_id'])) {
+                if (! $periods->has($row['period_id'])) {
                     throw ValidationException::withMessages([
                         'period_id' => 'Periode tidak ditemukan pada proyek ini.',
+                    ]);
+                }
+
+                /** @var WorkItem $item */
+                $item = $items[$row['work_item_id']];
+
+                if ((float) $row['target_volume'] > 0 && ! $this->periodeAktif($item, $periods[$row['period_id']])) {
+                    throw ValidationException::withMessages([
+                        'rows' => 'Periode '.$periods[$row['period_id']]->nama_periode.' berada di luar rentang pelaksanaan pekerjaan "'
+                            .$item->uraian_pekerjaan.'" ('.$this->labelRentang($item).').',
                     ]);
                 }
 
@@ -60,7 +76,7 @@ class WorkPlanService
                     ->whereNotIn('period_id', $idsDalamKiriman)
                     ->sum('target_volume');
 
-                if (round($totalTarget + $targetLain, 3) > round((float) $item->volume, 3) + 0.0001) {
+                if (round($totalTarget + $targetLain, self::DESIMAL) > round((float) $item->volume, self::DESIMAL) + self::TOLERANSI) {
                     throw ValidationException::withMessages([
                         'rows' => 'Total target volume pekerjaan "'.$item->uraian_pekerjaan.'" melebihi volume rencana ('.number_format((float) $item->volume, 2, ',', '.').').',
                     ]);
@@ -68,52 +84,111 @@ class WorkPlanService
             }
 
             foreach ($rows as $row) {
-                /** @var WorkItem $item */
-                $item = $items[$row['work_item_id']];
-                $nilai = $this->weights->planValues($item, (float) $row['target_volume']);
-
-                if ((float) $row['target_volume'] <= 0) {
-                    WorkPlan::where('work_item_id', $item->id)
-                        ->where('period_id', $row['period_id'])
-                        ->delete();
-
-                    continue;
-                }
-
-                WorkPlan::updateOrCreate(
-                    ['work_item_id' => $item->id, 'period_id' => $row['period_id']],
-                    [
-                        'project_id' => $project->id,
-                        'target_volume' => $row['target_volume'],
-                        'target_persentase' => $nilai['target_persentase'],
-                        'target_bobot' => $nilai['target_bobot'],
-                        'catatan' => $row['catatan'] ?? null,
-                    ]
-                );
+                $this->simpanTarget($items[$row['work_item_id']], (int) $row['period_id'], (float) $row['target_volume'], $row['catatan'] ?? null);
             }
         });
     }
 
     /**
-     * Volume pekerjaan tidak boleh diturunkan di bawah total target volume
-     * yang sudah direncanakan, agar sisa volume tidak bernilai negatif.
+     * Selaraskan rencana setelah data pekerjaan disimpan.
+     *
+     * - Pekerjaan baru, atau Periode Mulai/Selesai berubah: target dibagi rata ulang.
+     * - Hanya volume berubah: target diskalakan proporsional.
+     *
+     * @param  array{period_mulai_id:int|null,period_selesai_id:int|null,volume:float}|null  $sebelum
      */
-    public function ensureVolumeCoversPlans(WorkItem $item, float $volumeBaru): void
+    public function syncWithWorkItem(WorkItem $item, ?array $sebelum = null): void
     {
-        $totalTarget = (float) $item->workPlans()->sum('target_volume');
+        $item->load(['periodMulai', 'periodSelesai']);
 
-        if (round($totalTarget, 3) > round($volumeBaru, 3) + 0.0001) {
-            throw ValidationException::withMessages([
-                'volume' => 'Volume tidak boleh kurang dari total target volume pada rencana pekerjaan ('.number_format($totalTarget, 3, ',', '.').'). Kurangi target rencana terlebih dahulu.',
-            ]);
+        $rentangBerubah = $sebelum === null
+            || (int) $sebelum['period_mulai_id'] !== (int) $item->period_mulai_id
+            || (int) $sebelum['period_selesai_id'] !== (int) $item->period_selesai_id;
+
+        if ($rentangBerubah) {
+            $this->distributeEvenly($item);
+        } elseif (abs($sebelum['volume'] - (float) $item->volume) > self::TOLERANSI) {
+            $this->scaleToVolume($item, $sebelum['volume']);
         }
+    }
+
+    /**
+     * Nilai awal rencana: volume pekerjaan dibagi rata ke seluruh periode aktif.
+     * Contoh 23,87 m³ pada M-II s/d M-V = 5,9675 m³ per minggu. Sisa pembulatan
+     * dimasukkan ke periode terakhir agar total tetap sama dengan volume.
+     * Rencana lama pekerjaan ini diganti seluruhnya.
+     */
+    public function distributeEvenly(WorkItem $item): void
+    {
+        DB::transaction(function () use ($item) {
+            $item->workPlans()->delete();
+
+            $aktif = $item->activePeriods();
+            $jumlah = $aktif->count();
+
+            if ($jumlah === 0 || (float) $item->volume <= 0) {
+                return;
+            }
+
+            $volume = (float) $item->volume;
+            $bagian = round($volume / $jumlah, self::DESIMAL);
+
+            foreach ($aktif->values() as $index => $period) {
+                $target = $index === $jumlah - 1
+                    ? round($volume - $bagian * ($jumlah - 1), self::DESIMAL)
+                    : $bagian;
+
+                $this->simpanTarget($item, $period->id, $target);
+            }
+        });
+    }
+
+    /**
+     * Saat volume pekerjaan berubah, target setiap periode diskalakan proporsional
+     * sehingga pola rencana yang disusun Admin tetap terjaga.
+     */
+    public function scaleToVolume(WorkItem $item, float $volumeLama): void
+    {
+        if ($volumeLama <= 0) {
+            $this->distributeEvenly($item);
+
+            return;
+        }
+
+        DB::transaction(function () use ($item, $volumeLama) {
+            $plans = $item->workPlans()->join('periods', 'periods.id', '=', 'work_plans.period_id')
+                ->orderBy('periods.urutan')
+                ->get(['work_plans.*']);
+
+            if ($plans->isEmpty()) {
+                return;
+            }
+
+            $volumeBaru = (float) $item->volume;
+            $totalLama = (float) $plans->sum('target_volume');
+            $penuh = abs($totalLama - $volumeLama) < self::TOLERANSI;
+            $faktor = $volumeBaru / $volumeLama;
+            $total = 0.0;
+
+            foreach ($plans->values() as $index => $plan) {
+                $target = round((float) $plan->target_volume * $faktor, self::DESIMAL);
+
+                // Rencana yang sebelumnya penuh tetap penuh (sisa 0) tanpa selisih pembulatan.
+                if ($penuh && $index === $plans->count() - 1) {
+                    $target = round($volumeBaru - $total, self::DESIMAL);
+                }
+
+                $total += $target;
+                $this->simpanTarget($item, $plan->period_id, $target, $plan->catatan);
+            }
+        });
     }
 
     /** Matriks rencana: pekerjaan x periode, siap dipakai tabel rencana di frontend. */
     public function matrix(Project $project): array
     {
         $periods = $project->periods()->orderBy('urutan')->get();
-        $items = $project->workItems()->with(['unit', 'category'])->get();
+        $items = $project->workItems()->with(['unit', 'category', 'periodMulai', 'periodSelesai'])->orderBy('urutan')->get();
         $plans = $project->workPlans()->get();
 
         $baris = $items->map(function (WorkItem $item) use ($periods, $plans) {
@@ -126,15 +201,20 @@ class WorkPlanService
                 'satuan' => $item->unit?->code,
                 'volume' => (float) $item->volume,
                 'bobot' => (float) $item->bobot,
+                'period_mulai_id' => $item->period_mulai_id,
+                'period_selesai_id' => $item->period_selesai_id,
+                'periode_mulai' => $item->periodMulai?->nama_periode,
+                'periode_selesai' => $item->periodSelesai?->nama_periode,
                 'periode' => $periods->map(fn (Period $p) => [
                     'period_id' => $p->id,
+                    'aktif' => $this->periodeAktif($item, $p),
                     'target_volume' => (float) ($planItem[$p->id]->target_volume ?? 0),
                     'target_persentase' => (float) ($planItem[$p->id]->target_persentase ?? 0),
                     'target_bobot' => (float) ($planItem[$p->id]->target_bobot ?? 0),
                 ])->all(),
-                'total_target_volume' => (float) $planItem->sum('target_volume'),
+                'total_target_volume' => round((float) $planItem->sum('target_volume'), self::DESIMAL),
                 'total_target_bobot' => round((float) $planItem->sum('target_bobot'), 4),
-                'sisa_volume' => round((float) $item->volume - (float) $planItem->sum('target_volume'), 3),
+                'sisa_volume' => round((float) $item->volume - (float) $planItem->sum('target_volume'), self::DESIMAL),
             ];
         })->all();
 
@@ -169,5 +249,41 @@ class WorkPlanService
             'total_bobot_pekerjaan' => round((float) $items->sum('bobot'), 4),
             'total_bobot_rencana' => round((float) $plans->sum('target_bobot'), 4),
         ];
+    }
+
+    /** Periode aktif = di antara Periode Mulai dan Periode Selesai pekerjaan (inklusif). */
+    public function periodeAktif(WorkItem $item, Period $period): bool
+    {
+        $mulai = $item->periodMulai?->urutan ?? 1;
+        $selesai = $item->periodSelesai?->urutan ?? PHP_INT_MAX;
+
+        return $period->urutan >= $mulai && $period->urutan <= $selesai;
+    }
+
+    private function labelRentang(WorkItem $item): string
+    {
+        return ($item->periodMulai?->nama_periode ?? 'awal').' s/d '.($item->periodSelesai?->nama_periode ?? 'akhir');
+    }
+
+    private function simpanTarget(WorkItem $item, int $periodId, float $targetVolume, ?string $catatan = null): void
+    {
+        if ($targetVolume <= 0) {
+            WorkPlan::where('work_item_id', $item->id)->where('period_id', $periodId)->delete();
+
+            return;
+        }
+
+        $nilai = $this->weights->planValues($item, $targetVolume);
+
+        WorkPlan::updateOrCreate(
+            ['work_item_id' => $item->id, 'period_id' => $periodId],
+            [
+                'project_id' => $item->project_id,
+                'target_volume' => $targetVolume,
+                'target_persentase' => $nilai['target_persentase'],
+                'target_bobot' => $nilai['target_bobot'],
+                'catatan' => $catatan,
+            ]
+        );
     }
 }

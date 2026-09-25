@@ -111,14 +111,17 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
 
     const rows: WorkPlanRowPayload[] = []
 
+    // Hanya periode aktif (Periode Mulai s/d Periode Selesai) yang dikirim.
     data.baris.forEach((baris) => {
-      data.periode.forEach((period) => {
-        rows.push({
-          work_item_id: baris.work_item_id,
-          period_id: period.id,
-          target_volume: draft[kunci(baris.work_item_id, period.id)] ?? 0,
+      baris.periode
+        .filter((sel) => sel.aktif)
+        .forEach((sel) => {
+          rows.push({
+            work_item_id: baris.work_item_id,
+            period_id: sel.period_id,
+            target_volume: draft[kunci(baris.work_item_id, sel.period_id)] ?? 0,
+          })
         })
-      })
     })
 
     simpan.mutate(rows)
@@ -127,7 +130,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
   return (
     <Card
       title="Rencana Pekerjaan per Periode"
-      description={`Admin mengisi target volume per periode (${data.periode.length} periode). Bobot rencana dan kumulatif dihitung sistem sebagai dasar Kurva S.`}
+      description={`Periode proyek M-I s/d ${data.periode.at(-1)?.nama_periode ?? '-'} (${data.periode.length} minggu). Admin mengisi target volume pada minggu aktif; bobot rencana, rencana kumulatif, dan Kurva S dihitung otomatis.`}
       action={
         adminMode ? (
           <Button
@@ -162,7 +165,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
             <tr>
               {data.periode.map((period) => (
                 <th key={period.id} className="min-w-24">
-                  {period.nama_periode.replace('Minggu ', 'M-')}
+                  {period.nama_periode}
                 </th>
               ))}
             </tr>
@@ -175,19 +178,37 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
                 <tr key={baris.work_item_id}>
                   <td className="text-left">
                     {baris.uraian_pekerjaan}
-                    {baris.kategori && <span className="block text-[10px] text-muted">{baris.kategori}</span>}
+                    <span className="block text-[10px] text-muted">
+                      {[baris.kategori, baris.periode_mulai && `${baris.periode_mulai} s/d ${baris.periode_selesai ?? baris.periode_mulai}`]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
                   </td>
                   <td className="text-center">{baris.satuan}</td>
                   <td className="num">{angka(baris.volume, 2)}</td>
                   <td className="num">{angka(baris.bobot, 4)}</td>
                   {data.periode.map((period) => {
                     const target = draft[kunci(baris.work_item_id, period.id)] ?? 0
+                    const aktif = baris.periode.find((sel) => sel.period_id === period.id)?.aktif ?? false
+
+                    if (!aktif) {
+                      return (
+                        <td
+                          key={period.id}
+                          className="bg-surface text-center text-muted"
+                          title={`Di luar periode pekerjaan (${baris.periode_mulai ?? '-'} s/d ${baris.periode_selesai ?? '-'})`}
+                          aria-label={`${period.nama_periode} tidak aktif untuk ${baris.uraian_pekerjaan}`}
+                        >
+                          -
+                        </td>
+                      )
+                    }
 
                     return (
                       <td key={period.id} className="p-0 align-top">
                         <input
                           type="number"
-                          step="0.001"
+                          step="0.0001"
                           min="0"
                           disabled={!adminMode}
                           className="w-full border-0 bg-transparent px-2 py-1.5 text-right text-xs tabular-nums focus:bg-primary-light disabled:text-muted"

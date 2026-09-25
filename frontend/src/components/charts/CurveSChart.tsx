@@ -24,7 +24,7 @@ interface CurveSChartProps {
  */
 export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: CurveSChartProps) {
   const titik = data.titik.map((item) => ({
-    nama: item.nama_periode.replace('Minggu ', 'M-'),
+    nama: item.nama_periode,
     rencana: item.rencana_kumulatif,
     aktual: item.aktual_kumulatif,
     deviasi: item.deviasi,

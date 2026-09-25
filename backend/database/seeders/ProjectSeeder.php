@@ -75,7 +75,7 @@ class ProjectSeeder extends Seeder
         );
 
         $project->assignments()->updateOrCreate(['user_id' => $qs->id], ['peran' => 'QS', 'is_primary' => true]);
-        $this->schedule->generateWeeklyPeriods($project, true);
+        $this->schedule->generateWeeklyPeriods($project);
 
         $pendahuluan = $this->kategori($project, 'A', 'PEKERJAAN PENDAHULUAN', 1);
         $saluran = $this->kategori($project, 'B', 'PEKERJAAN SALURAN', 2);
@@ -93,7 +93,7 @@ class ProjectSeeder extends Seeder
         $items = [];
 
         foreach ($daftar as [$kategori, $uraian, $satuan, $volume, $harga, $urutan]) {
-            $items[$uraian] = $this->pekerjaan($project, $kategori, $units[$satuan], $uraian, $volume, $harga, $urutan, $mulai);
+            $items[$uraian] = $this->pekerjaan($project, $kategori, $units[$satuan], $uraian, $volume, $harga, $urutan);
         }
 
         $this->weights->recalculateProject($project);
@@ -119,7 +119,7 @@ class ProjectSeeder extends Seeder
 
         $rows[] = ['Mainhole (Grill)', 6, 53.00];
 
-        $this->plans->sync($project, collect($rows)->map(fn ($row) => [
+        $this->simpanRencana($project, collect($rows)->map(fn ($row) => [
             'work_item_id' => $items[$row[0]]->id,
             'period_id' => $periods->firstWhere('urutan', $row[1])->id,
             'target_volume' => $row[2],
@@ -192,7 +192,7 @@ class ProjectSeeder extends Seeder
         );
 
         $project->assignments()->updateOrCreate(['user_id' => $qs->id], ['peran' => 'QS', 'is_primary' => true]);
-        $this->schedule->generateWeeklyPeriods($project, true);
+        $this->schedule->generateWeeklyPeriods($project);
 
         $pendahuluan = $this->kategori($project, 'A', 'PEKERJAAN PERSIAPAN', 1);
         $jalan = $this->kategori($project, 'B', 'PEKERJAAN JALAN', 2);
@@ -210,7 +210,7 @@ class ProjectSeeder extends Seeder
         $items = [];
 
         foreach ($daftar as [$kategori, $uraian, $satuan, $volume, $harga, $urutan]) {
-            $items[$uraian] = $this->pekerjaan($project, $kategori, $units[$satuan], $uraian, $volume, $harga, $urutan, $mulai);
+            $items[$uraian] = $this->pekerjaan($project, $kategori, $units[$satuan], $uraian, $volume, $harga, $urutan);
         }
 
         $this->weights->recalculateProject($project);
@@ -238,7 +238,7 @@ class ProjectSeeder extends Seeder
             }
         }
 
-        $this->plans->sync($project, $rows);
+        $this->simpanRencana($project, $rows);
 
         // Realisasi 4 minggu pertama, sebagian di bawah target sehingga muncul deviasi negatif.
         $realisasi = [
@@ -299,7 +299,7 @@ class ProjectSeeder extends Seeder
         );
 
         $project->assignments()->updateOrCreate(['user_id' => $qs->id], ['peran' => 'QS', 'is_primary' => true]);
-        $this->schedule->generateWeeklyPeriods($project, true);
+        $this->schedule->generateWeeklyPeriods($project);
 
         $persiapan = $this->kategori($project, 'A', 'PEKERJAAN PERSIAPAN', 1);
         $drainase = $this->kategori($project, 'B', 'PEKERJAAN DRAINASE', 2);
@@ -315,7 +315,7 @@ class ProjectSeeder extends Seeder
         $items = [];
 
         foreach ($daftar as [$kategori, $uraian, $satuan, $volume, $harga, $urutan]) {
-            $items[$uraian] = $this->pekerjaan($project, $kategori, $units[$satuan], $uraian, $volume, $harga, $urutan, $mulai);
+            $items[$uraian] = $this->pekerjaan($project, $kategori, $units[$satuan], $uraian, $volume, $harga, $urutan);
         }
 
         $this->weights->recalculateProject($project);
@@ -339,6 +339,28 @@ class ProjectSeeder extends Seeder
                     'target_volume' => $volume,
                 ];
             }
+        }
+
+        $this->simpanRencana($project, $rows);
+    }
+
+    /**
+     * Tetapkan Periode Mulai/Selesai tiap pekerjaan dari periode rencananya,
+     * lalu simpan rencana. Pekerjaan tanpa rencana memakai seluruh periode proyek.
+     *
+     * @param  array<int,array{work_item_id:int,period_id:int,target_volume:float}>  $rows
+     */
+    private function simpanRencana(Project $project, array $rows): void
+    {
+        $periods = $project->periods()->orderBy('urutan')->get()->keyBy('id');
+        $perPekerjaan = collect($rows)->groupBy('work_item_id');
+
+        foreach ($project->workItems()->get() as $item) {
+            $urutan = $perPekerjaan->get($item->id, collect())->map(fn ($row) => $periods[$row['period_id']]->urutan);
+            $mulai = $urutan->isEmpty() ? $periods->first() : $periods->firstWhere('urutan', $urutan->min());
+            $selesai = $urutan->isEmpty() ? $periods->last() : $periods->firstWhere('urutan', $urutan->max());
+
+            $item->update(['period_mulai_id' => $mulai->id, 'period_selesai_id' => $selesai->id]);
         }
 
         $this->plans->sync($project, $rows);
@@ -372,7 +394,6 @@ class ProjectSeeder extends Seeder
         float $volume,
         float $hargaSatuan,
         int $urutan,
-        CarbonImmutable $mulai,
     ): WorkItem {
         return $project->workItems()->updateOrCreate(
             ['uraian_pekerjaan' => $uraian],
@@ -381,8 +402,6 @@ class ProjectSeeder extends Seeder
                 'unit_id' => $unitId,
                 'volume' => $volume,
                 'harga_satuan' => $hargaSatuan,
-                'waktu_mulai' => $mulai->toDateString(),
-                'waktu_selesai' => $project->tanggal_selesai,
                 'urutan' => $urutan,
             ]
         );
