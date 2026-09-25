@@ -58,15 +58,15 @@ laporan yang pernah digenerate.
 |---|---|---|
 | `id` | PK | |
 | `nama_proyek` | varchar | |
-| `nomor_spk`, `nomor_pekerjaan`, `nomor_proyek` | varchar nullable | |
+| `nomor_spk` | varchar nullable | |
 | `lokasi` | varchar | |
 | `sumber_dana` | varchar nullable | |
 | `tahun_anggaran` | year nullable | |
 | `tanggal_spk` | date nullable | |
 | `tanggal_mulai`, `tanggal_selesai` | date | dasar pembentukan periode |
 | `jangka_waktu_hari` | smallint nullable | sesuai SPK; bila kosong dihitung dari tanggal pelaksanaan |
-| `kontraktor_pelaksana`, `konsultan_pengawas` | varchar nullable | header laporan |
-| `nama_site_engineer`, `nama_pelaksana_lapangan` | varchar nullable | blok tanda tangan laporan |
+| `kontraktor_pelaksana`, `konsultan_pengawas` | varchar (wajib diisi pada form) | header laporan |
+| `nama_site_engineer` (wajib diisi pada form), `nama_pelaksana_lapangan` | varchar | blok tanda tangan laporan |
 | `qs_user_id` | FK → `users.id` nullable | QS penanggung jawab utama |
 | `created_by` | FK → `users.id` nullable | |
 | `status` | enum | `BELUM_DIMULAI`, `BERJALAN`, `SELESAI`, `TERLAMBAT` |

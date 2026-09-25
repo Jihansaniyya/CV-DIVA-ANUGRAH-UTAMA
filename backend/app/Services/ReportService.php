@@ -30,12 +30,11 @@ class ReportService
     {
         return [
             'nama_proyek' => $project->nama_proyek,
-            'pekerjaan' => $project->nomor_pekerjaan ? $project->nama_proyek : $project->nama_proyek,
+            'pekerjaan' => $project->nama_proyek,
             'lokasi' => $project->lokasi,
             'sumber_dana' => $project->sumber_dana,
             'tahun_anggaran' => $project->tahun_anggaran,
             'nomor_spk' => $project->nomor_spk,
-            'nomor_pekerjaan' => $project->nomor_pekerjaan,
             'tanggal_spk' => $project->tanggal_spk?->toDateString(),
             'tanggal_mulai' => $project->tanggal_mulai->toDateString(),
             'tanggal_selesai' => $project->tanggal_selesai->toDateString(),

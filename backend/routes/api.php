@@ -55,6 +55,7 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
     Route::get('projects/{project}/work-items/{workItem}', [WorkItemController::class, 'show']);
     Route::middleware('role:ADMIN')->group(function () {
         Route::post('projects/{project}/work-items', [WorkItemController::class, 'store']);
+        Route::post('projects/{project}/work-items/batch', [WorkItemController::class, 'storeBatch']);
         Route::put('projects/{project}/work-items/{workItem}', [WorkItemController::class, 'update']);
         Route::delete('projects/{project}/work-items/{workItem}', [WorkItemController::class, 'destroy']);
     });

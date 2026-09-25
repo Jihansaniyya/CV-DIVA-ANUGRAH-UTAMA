@@ -23,13 +23,16 @@ interface MenuItem {
   roles: RoleCode[]
 }
 
-/** Menu sidebar per peran sesuai PRD. */
+/**
+ * Menu sidebar per peran sesuai PRD.
+ * Admin mengakses Progres, Kurva S, dan Laporan melalui tab pada detail proyek.
+ */
 const MENU: MenuItem[] = [
   { to: '/dashboard', label: 'Beranda', icon: LayoutDashboard, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
   { to: '/proyek', label: 'Proyek', icon: ClipboardList, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
-  { to: '/kurva-s', label: 'Kurva S', icon: LineChart, roles: ['ADMIN', 'KONTRAKTOR'] },
-  { to: '/progres', label: 'Progres', icon: ClipboardCheck, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
-  { to: '/laporan', label: 'Laporan', icon: FileText, roles: ['ADMIN', 'KONTRAKTOR'] },
+  { to: '/kurva-s', label: 'Kurva S', icon: LineChart, roles: ['KONTRAKTOR'] },
+  { to: '/progres', label: 'Progres', icon: ClipboardCheck, roles: ['QS', 'KONTRAKTOR'] },
+  { to: '/laporan', label: 'Laporan', icon: FileText, roles: ['KONTRAKTOR'] },
   { to: '/pengguna', label: 'Pengguna', icon: Users, roles: ['ADMIN'] },
   { to: '/pengaturan', label: 'Pengaturan', icon: Settings, roles: ['ADMIN'] },
 ]

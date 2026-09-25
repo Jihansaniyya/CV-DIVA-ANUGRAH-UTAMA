@@ -22,8 +22,6 @@ export interface ProjectFilter {
 export interface ProjectPayload {
   nama_proyek: string
   nomor_spk?: string | null
-  nomor_pekerjaan?: string | null
-  nomor_proyek?: string | null
   lokasi: string
   sumber_dana?: string | null
   tahun_anggaran?: number | null
@@ -50,6 +48,13 @@ export interface WorkItemPayload {
   period_selesai_id: number | null
   urutan?: number | null
   keterangan?: string | null
+}
+
+/** Kelompok (yang sudah ada atau baru) beserta daftar pekerjaannya, disimpan sekaligus. */
+export interface WorkItemBatchPayload {
+  work_category_id?: number | null
+  kategori_baru?: { kode?: string | null; nama: string } | null
+  items: Omit<WorkItemPayload, 'work_category_id'>[]
 }
 
 export interface WorkPlanRowPayload {
@@ -114,6 +119,12 @@ export const projectService = {
 
   async createWorkItem(id: number, payload: WorkItemPayload): Promise<WorkItem> {
     const { data } = await api.post<{ data: WorkItem }>(`/projects/${id}/work-items`, payload)
+
+    return data.data
+  },
+
+  async createWorkItemBatch(id: number, payload: WorkItemBatchPayload): Promise<WorkItem[]> {
+    const { data } = await api.post<{ data: WorkItem[] }>(`/projects/${id}/work-items/batch`, payload)
 
     return data.data
   },

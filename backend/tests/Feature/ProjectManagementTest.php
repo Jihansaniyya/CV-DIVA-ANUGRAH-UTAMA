@@ -34,6 +34,9 @@ class ProjectManagementTest extends TestCase
             'tanggal_mulai' => '2025-02-20',
             'tanggal_selesai' => '2025-04-02',
             'jangka_waktu_hari' => 45,
+            'kontraktor_pelaksana' => 'CV. DIVA ANUGRAH UTAMA',
+            'konsultan_pengawas' => 'CV. AKMAL BERKAH ABADI',
+            'nama_site_engineer' => 'Abdul Muiz, ST',
             'qs_user_id' => $qs->id,
         ]);
 
@@ -45,6 +48,23 @@ class ProjectManagementTest extends TestCase
         $this->assertSame(45, $project->jangka_waktu_hari);
         $this->assertSame('M-I', $project->periods()->orderBy('urutan')->first()->nama_periode);
         $this->assertDatabaseHas('project_assignments', ['project_id' => $project->id, 'user_id' => $qs->id, 'peran' => 'QS']);
+    }
+
+    public function test_kontraktor_konsultan_dan_site_engineer_wajib_diisi(): void
+    {
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+
+        $this->actingAs($admin)->postJson('/api/projects', [
+            'nama_proyek' => 'Proyek Tanpa Pihak Terkait',
+            'lokasi' => 'Bontang',
+            'tanggal_mulai' => '2025-05-01',
+            'tanggal_selesai' => '2025-05-31',
+        ])->assertStatus(422)->assertJsonValidationErrors(['kontraktor_pelaksana', 'konsultan_pengawas', 'nama_site_engineer']);
+
+        $project = Project::factory()->create();
+
+        $this->actingAs($admin)->putJson("/api/projects/{$project->id}", ['konsultan_pengawas' => ''])
+            ->assertStatus(422)->assertJsonValidationErrors('konsultan_pengawas');
     }
 
     public function test_validasi_menolak_tanggal_selesai_sebelum_tanggal_mulai(): void

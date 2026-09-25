@@ -18,8 +18,6 @@ class Project extends Model
     protected $fillable = [
         'nama_proyek',
         'nomor_spk',
-        'nomor_pekerjaan',
-        'nomor_proyek',
         'lokasi',
         'sumber_dana',
         'tahun_anggaran',

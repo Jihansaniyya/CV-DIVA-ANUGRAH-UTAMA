@@ -27,8 +27,6 @@ export function InfoTab({ project }: { project: Project }) {
         <dl>
           <Baris label="Nama Proyek" nilai={project.nama_proyek} />
           <Baris label="Nomor SPK" nilai={project.nomor_spk} />
-          <Baris label="Nomor Pekerjaan" nilai={project.nomor_pekerjaan} />
-          <Baris label="Nomor Proyek" nilai={project.nomor_proyek} />
           <Baris label="Lokasi" nilai={project.lokasi} />
           <Baris label="Sumber Dana" nilai={project.sumber_dana} />
           <Baris label="Tahun Anggaran" nilai={project.tahun_anggaran} />

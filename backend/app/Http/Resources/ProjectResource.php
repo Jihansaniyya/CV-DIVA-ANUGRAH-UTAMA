@@ -13,8 +13,6 @@ class ProjectResource extends JsonResource
             'id' => $this->id,
             'nama_proyek' => $this->nama_proyek,
             'nomor_spk' => $this->nomor_spk,
-            'nomor_pekerjaan' => $this->nomor_pekerjaan,
-            'nomor_proyek' => $this->nomor_proyek,
             'lokasi' => $this->lokasi,
             'sumber_dana' => $this->sumber_dana,
             'tahun_anggaran' => $this->tahun_anggaran,

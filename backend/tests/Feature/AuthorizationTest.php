@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\RoleCode;
 use App\Models\Project;
+use App\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -26,6 +27,26 @@ class AuthorizationTest extends TestCase
         $this->actingAs($admin)->getJson('/api/users')->assertOk();
         $this->actingAs($qs)->getJson('/api/users')->assertStatus(403);
         $this->actingAs($kontraktor)->getJson('/api/users')->assertStatus(403);
+    }
+
+    public function test_tambah_pengguna_wajib_mengisi_seluruh_data(): void
+    {
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+        $roleId = Role::where('code', RoleCode::QS->value)->value('id');
+
+        $data = [
+            'name' => 'Nisa Rahma',
+            'username' => 'qs_nisa2',
+            'password' => 'rahasia123',
+            'password_confirmation' => 'rahasia123',
+            'role_id' => $roleId,
+        ];
+
+        $this->actingAs($admin)->postJson('/api/users', $data)
+            ->assertStatus(422)->assertJsonValidationErrors(['email', 'phone']);
+
+        $this->actingAs($admin)->postJson('/api/users', $data + ['email' => 'nisa2@example.com', 'phone' => '081234567890'])
+            ->assertCreated();
     }
 
     public function test_qs_dan_kontraktor_tidak_dapat_membuat_proyek(): void

@@ -19,8 +19,6 @@ interface ProjectFormModalProps {
 const KOSONG: ProjectPayload = {
   nama_proyek: '',
   nomor_spk: '',
-  nomor_pekerjaan: '',
-  nomor_proyek: '',
   lokasi: '',
   sumber_dana: '',
   tahun_anggaran: new Date().getFullYear(),
@@ -58,8 +56,6 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
         ? {
             nama_proyek: project.nama_proyek,
             nomor_spk: project.nomor_spk ?? '',
-            nomor_pekerjaan: project.nomor_pekerjaan ?? '',
-            nomor_proyek: project.nomor_proyek ?? '',
             lokasi: project.lokasi,
             sumber_dana: project.sumber_dana ?? '',
             tahun_anggaran: project.tahun_anggaran ? Number(project.tahun_anggaran) : null,
@@ -118,6 +114,9 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
 
     if (!form.nama_proyek.trim()) validasiLokal.nama_proyek = 'Nama proyek wajib diisi.'
     if (!form.lokasi.trim()) validasiLokal.lokasi = 'Lokasi proyek wajib diisi.'
+    if (!form.kontraktor_pelaksana?.trim()) validasiLokal.kontraktor_pelaksana = 'Kontraktor pelaksana wajib diisi.'
+    if (!form.konsultan_pengawas?.trim()) validasiLokal.konsultan_pengawas = 'Konsultan pengawas wajib diisi.'
+    if (!form.nama_site_engineer?.trim()) validasiLokal.nama_site_engineer = 'Nama site engineer wajib diisi.'
     if (!form.tanggal_mulai) validasiLokal.tanggal_mulai = 'Tanggal mulai wajib diisi.'
     if (!form.tanggal_selesai) validasiLokal.tanggal_selesai = 'Tanggal selesai wajib diisi.'
     if (form.tanggal_mulai && form.tanggal_selesai && form.tanggal_selesai < form.tanggal_mulai) {
@@ -164,9 +163,21 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
           error={errors.nama_proyek}
           placeholder="Contoh: Belanja Modal Jalan Kota (Pembuatan Penutup Parit)"
         />
-        <Input label="Nomor SPK" value={form.nomor_spk ?? ''} onChange={(event) => ubah('nomor_spk', event.target.value)} error={errors.nomor_spk} />
-        <Input label="Nomor Pekerjaan" value={form.nomor_pekerjaan ?? ''} onChange={(event) => ubah('nomor_pekerjaan', event.target.value)} error={errors.nomor_pekerjaan} />
-        <Input label="Lokasi Proyek" required value={form.lokasi} onChange={(event) => ubah('lokasi', event.target.value)} error={errors.lokasi} />
+        <Input
+          label="Nomor SPK"
+          value={form.nomor_spk ?? ''}
+          onChange={(event) => ubah('nomor_spk', event.target.value)}
+          error={errors.nomor_spk}
+          placeholder="Contoh: 000.3.2/98.1/SPK/Penutup Parit RT. 09-Kel.Boba/2025"
+        />
+        <Input
+          label="Lokasi Proyek"
+          required
+          value={form.lokasi}
+          onChange={(event) => ubah('lokasi', event.target.value)}
+          error={errors.lokasi}
+          placeholder="Contoh: RT. 09 Kel. Bontang Baru, Bontang Utara"
+        />
         <Input label="Sumber Dana" value={form.sumber_dana ?? ''} onChange={(event) => ubah('sumber_dana', event.target.value)} error={errors.sumber_dana} placeholder="Contoh: PAD Kota Bontang" />
         <Input
           label="Tahun Anggaran"
@@ -208,9 +219,31 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
           <option value="SELESAI">Selesai</option>
           <option value="TERLAMBAT">Terlambat</option>
         </Select>
-        <Input label="Kontraktor Pelaksana" value={form.kontraktor_pelaksana ?? ''} onChange={(event) => ubah('kontraktor_pelaksana', event.target.value)} error={errors.kontraktor_pelaksana} />
-        <Input label="Konsultan Pengawas" value={form.konsultan_pengawas ?? ''} onChange={(event) => ubah('konsultan_pengawas', event.target.value)} error={errors.konsultan_pengawas} />
-        <Input label="Nama Site Engineer" value={form.nama_site_engineer ?? ''} onChange={(event) => ubah('nama_site_engineer', event.target.value)} error={errors.nama_site_engineer} hint="Dipakai pada tanda tangan laporan." />
+        <Input
+          label="Kontraktor Pelaksana"
+          required
+          value={form.kontraktor_pelaksana ?? ''}
+          onChange={(event) => ubah('kontraktor_pelaksana', event.target.value)}
+          error={errors.kontraktor_pelaksana}
+          placeholder="Contoh: CV. DIVA ANUGRAH UTAMA"
+        />
+        <Input
+          label="Konsultan Pengawas"
+          required
+          value={form.konsultan_pengawas ?? ''}
+          onChange={(event) => ubah('konsultan_pengawas', event.target.value)}
+          error={errors.konsultan_pengawas}
+          placeholder="Contoh: CV. AKMAL BERKAH ABADI"
+        />
+        <Input
+          label="Nama Site Engineer"
+          required
+          value={form.nama_site_engineer ?? ''}
+          onChange={(event) => ubah('nama_site_engineer', event.target.value)}
+          error={errors.nama_site_engineer}
+          hint="Dipakai pada tanda tangan laporan."
+          placeholder="Contoh: Abdul Muiz, ST"
+        />
         <Input label="Nama Pelaksana Lapangan" value={form.nama_pelaksana_lapangan ?? ''} onChange={(event) => ubah('nama_pelaksana_lapangan', event.target.value)} error={errors.nama_pelaksana_lapangan} />
         <Textarea label="Keterangan" wrapClassName="sm:col-span-2" value={form.keterangan ?? ''} onChange={(event) => ubah('keterangan', event.target.value)} error={errors.keterangan} />
       </form>

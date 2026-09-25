@@ -37,8 +37,6 @@ export interface Project {
   id: number
   nama_proyek: string
   nomor_spk: string | null
-  nomor_pekerjaan: string | null
-  nomor_proyek: string | null
   lokasi: string
   sumber_dana: string | null
   tahun_anggaran: number | string | null
@@ -287,7 +285,6 @@ export interface ReportHeaderData {
   sumber_dana: string | null
   tahun_anggaran: number | string | null
   nomor_spk: string | null
-  nomor_pekerjaan: string | null
   tanggal_spk: string | null
   tanggal_mulai: string
   tanggal_selesai: string

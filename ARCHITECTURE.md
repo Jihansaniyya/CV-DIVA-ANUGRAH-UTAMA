@@ -230,6 +230,7 @@ diunduh ulang.
 | POST/PUT/DELETE | `/api/projects/{project}/work-categories[/{workCategory}]` | Admin |
 | GET | `/api/projects/{project}/work-items[/{workItem}]` | terautentikasi |
 | POST/PUT/DELETE | `/api/projects/{project}/work-items[/{workItem}]` | Admin |
+| POST | `/api/projects/{project}/work-items/batch` (kelompok baru/yang ada + daftar pekerjaan sekaligus) | Admin |
 | GET | `/api/projects/{project}/periods` (hanya baca; dibentuk otomatis) | terautentikasi |
 | GET | `/api/projects/{project}/work-plans` | terautentikasi |
 | POST | `/api/projects/{project}/work-plans` | Admin |

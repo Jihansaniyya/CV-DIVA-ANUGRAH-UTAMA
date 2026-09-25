@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreWorkItemBatchRequest;
 use App\Http\Requests\StoreWorkItemRequest;
 use App\Http\Requests\UpdateWorkItemRequest;
 use App\Http\Resources\WorkItemResource;
 use App\Models\Project;
 use App\Models\WorkItem;
 use App\Services\WeightCalculatorService;
-use App\Services\WorkPlanService;
+use App\Services\WorkItemService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class WorkItemController extends Controller
 {
@@ -20,7 +20,7 @@ class WorkItemController extends Controller
 
     public function __construct(
         private readonly WeightCalculatorService $weights,
-        private readonly WorkPlanService $plans,
+        private readonly WorkItemService $workItems,
     ) {}
 
     public function index(Request $request, Project $project): JsonResponse
@@ -49,20 +49,27 @@ class WorkItemController extends Controller
 
     public function store(StoreWorkItemRequest $request, Project $project): JsonResponse
     {
-        $data = $request->validated();
-        $data['urutan'] = $data['urutan'] ?? ((int) $project->workItems()->max('urutan') + 1);
-
-        $item = DB::transaction(function () use ($project, $data) {
-            $item = $project->workItems()->create($data);
-            $this->plans->syncWithWorkItem($item);
-            $this->weights->recalculateProject($project);
-
-            return $item;
-        });
+        $item = $this->workItems->create($project, $request->validated());
 
         return response()->json([
             'message' => 'Pekerjaan berhasil ditambahkan. Target volume awal dibagi rata ke periode aktif.',
-            'data' => new WorkItemResource($item->fresh(self::RELASI)),
+            'data' => new WorkItemResource($item),
+        ], 201);
+    }
+
+    /** Simpan kelompok pekerjaan (baru/yang sudah ada) beserta daftar pekerjaannya sekaligus. */
+    public function storeBatch(StoreWorkItemBatchRequest $request, Project $project): JsonResponse
+    {
+        $items = $this->workItems->createGroup(
+            $project,
+            $request->validated('items'),
+            $request->validated('work_category_id'),
+            $request->validated('kategori_baru'),
+        );
+
+        return response()->json([
+            'message' => $items->count().' pekerjaan berhasil ditambahkan. Target volume awal dibagi rata ke periode aktif.',
+            'data' => WorkItemResource::collection($items),
         ], 201);
     }
 
@@ -78,21 +85,11 @@ class WorkItemController extends Controller
     {
         abort_unless($workItem->project_id === $project->id, 404);
 
-        DB::transaction(function () use ($request, $project, $workItem) {
-            $sebelum = [
-                'period_mulai_id' => $workItem->period_mulai_id,
-                'period_selesai_id' => $workItem->period_selesai_id,
-                'volume' => (float) $workItem->volume,
-            ];
-
-            $workItem->update($request->validated());
-            $this->plans->syncWithWorkItem($workItem, $sebelum);
-            $this->weights->recalculateProject($project);
-        });
+        $item = $this->workItems->update($workItem, $request->validated());
 
         return response()->json([
             'message' => 'Pekerjaan berhasil diperbarui.',
-            'data' => new WorkItemResource($workItem->fresh(self::RELASI)),
+            'data' => new WorkItemResource($item),
         ]);
     }
 

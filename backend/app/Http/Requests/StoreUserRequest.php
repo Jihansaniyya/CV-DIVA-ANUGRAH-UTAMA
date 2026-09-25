@@ -17,8 +17,8 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:50', 'alpha_dash', 'unique:users,username'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:30'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'role_id' => ['required', 'exists:roles,id'],
             'is_active' => ['boolean'],
@@ -29,7 +29,7 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'name' => 'nama', 'username' => 'nama pengguna', 'password' => 'kata sandi',
-            'role_id' => 'peran', 'is_active' => 'status akun',
+            'role_id' => 'peran', 'is_active' => 'status akun', 'email' => 'email', 'phone' => 'nomor telepon',
         ];
     }
 }

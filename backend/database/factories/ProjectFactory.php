@@ -16,7 +16,6 @@ class ProjectFactory extends Factory
         return [
             'nama_proyek' => 'Pekerjaan '.fake()->unique()->words(3, true),
             'nomor_spk' => 'SPK/'.fake()->unique()->numerify('###')."/{$mulai->year}",
-            'nomor_pekerjaan' => fake()->numerify('###'),
             'lokasi' => 'Kota Bontang',
             'sumber_dana' => 'PAD Kota Bontang',
             'tahun_anggaran' => $mulai->year,

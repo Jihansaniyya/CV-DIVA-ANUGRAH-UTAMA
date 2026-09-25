@@ -55,8 +55,6 @@ class ProjectSeeder extends Seeder
             ['nomor_spk' => '000.3.2/98.1/SPK/Penutup Parit RT. 09-Kel.Boba/2025'],
             [
                 'nama_proyek' => 'Belanja Modal Jalan Kota (Pembuatan Penutup Parit RT 09 Kelurahan Bontang Baru)',
-                'nomor_pekerjaan' => '98.1/PP-BOBA/2025',
-                'nomor_proyek' => 'PRJ-2025-001',
                 'lokasi' => 'RT. 09 Kel. Bontang Baru',
                 'sumber_dana' => 'PAD Kota Bontang',
                 'tahun_anggaran' => 2025,
@@ -172,8 +170,6 @@ class ProjectSeeder extends Seeder
             ['nomor_spk' => '000.3.2/145/SPK/Jalan Lingkungan RT.12-Kel.Api-Api/'.$mulai->year],
             [
                 'nama_proyek' => 'Belanja Modal Jalan Kota (Peningkatan Jalan Lingkungan RT 12 Kelurahan Api-Api)',
-                'nomor_pekerjaan' => '145/JL-API/'.$mulai->year,
-                'nomor_proyek' => 'PRJ-'.$mulai->year.'-002',
                 'lokasi' => 'RT. 12 Kel. Api-Api, Bontang Utara',
                 'sumber_dana' => 'PAD Kota Bontang',
                 'tahun_anggaran' => $mulai->year,
@@ -279,8 +275,6 @@ class ProjectSeeder extends Seeder
             ['nomor_spk' => '000.3.2/201/SPK/Drainase Kel.Gunung Elai/'.$mulai->year],
             [
                 'nama_proyek' => 'Belanja Modal Drainase (Pembangunan Drainase Kelurahan Gunung Elai)',
-                'nomor_pekerjaan' => '201/DRN-GE/'.$mulai->year,
-                'nomor_proyek' => 'PRJ-'.$mulai->year.'-003',
                 'lokasi' => 'Kel. Gunung Elai, Bontang Utara',
                 'sumber_dana' => 'PAD Kota Bontang',
                 'tahun_anggaran' => $mulai->year,

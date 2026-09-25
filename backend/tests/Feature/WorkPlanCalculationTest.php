@@ -148,6 +148,48 @@ class WorkPlanCalculationTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('period_mulai_id');
     }
 
+    public function test_kelompok_baru_dan_daftar_pekerjaan_disimpan_sekaligus(): void
+    {
+        ['project' => $project] = $this->proyekBeton();
+        $p = $this->periode($project);
+        $m2 = Unit::where('code', 'm2')->value('id');
+
+        $response = $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items/batch", [
+            'kategori_baru' => ['kode' => 'C', 'nama' => 'PEKERJAAN FINISHING'],
+            'items' => [
+                ['unit_id' => $m2, 'uraian_pekerjaan' => 'Plesteran', 'volume' => 10, 'harga_satuan' => 50000, 'period_mulai_id' => $p[5]->id, 'period_selesai_id' => $p[6]->id],
+                ['unit_id' => $m2, 'uraian_pekerjaan' => 'Acian', 'volume' => 9, 'harga_satuan' => 40000, 'period_mulai_id' => $p[6]->id, 'period_selesai_id' => $p[6]->id],
+            ],
+        ])->assertCreated();
+
+        $response->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.kategori.nama', 'PEKERJAAN FINISHING')
+            ->assertJsonPath('data.1.kategori.kode', 'C');
+
+        $plesteran = WorkItem::where('uraian_pekerjaan', 'Plesteran')->firstOrFail();
+        $this->assertEquals([5.0, 5.0], $plesteran->workPlans()->orderBy('period_id')->pluck('target_volume')->map(fn ($v) => (float) $v)->all());
+
+        $this->actingAs($this->admin())->getJson("/api/projects/{$project->id}/work-items")->assertJsonPath('meta.total_bobot', 100);
+    }
+
+    public function test_simpan_kelompok_dan_pekerjaan_gagal_seluruhnya_bila_satu_baris_tidak_valid(): void
+    {
+        ['project' => $project] = $this->proyekBeton();
+        $p = $this->periode($project);
+        $m2 = Unit::where('code', 'm2')->value('id');
+
+        $this->actingAs($this->admin())->postJson("/api/projects/{$project->id}/work-items/batch", [
+            'kategori_baru' => ['nama' => 'PEKERJAAN FINISHING'],
+            'items' => [
+                ['unit_id' => $m2, 'uraian_pekerjaan' => 'Plesteran', 'volume' => 10, 'harga_satuan' => 50000, 'period_mulai_id' => $p[5]->id, 'period_selesai_id' => $p[6]->id],
+                ['unit_id' => $m2, 'uraian_pekerjaan' => '', 'volume' => 9, 'harga_satuan' => 40000, 'period_mulai_id' => $p[6]->id, 'period_selesai_id' => $p[2]->id],
+            ],
+        ])->assertStatus(422)->assertJsonValidationErrors(['items.1.uraian_pekerjaan', 'items.1.period_selesai_id']);
+
+        $this->assertSame(0, $project->workCategories()->count());
+        $this->assertSame(2, $project->workItems()->count());
+    }
+
     public function test_harga_total_dan_bobot_pekerjaan_dihitung_otomatis(): void
     {
         ['project' => $project, 'beton' => $beton, 'lain' => $lain] = $this->proyekBeton();

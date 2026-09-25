@@ -13,8 +13,9 @@ import { projectService, type WorkItemPayload } from '@/services/projectService'
 import type { WorkItem } from '@/types'
 import { angka, rupiah } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FolderPlus, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
+import { WorkItemBatchModal } from './WorkItemBatchModal'
 
 const KOSONG: WorkItemPayload = {
   work_category_id: null,
@@ -39,38 +40,28 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
   const { data: periods } = usePeriods(projectId)
 
   const [formTerbuka, setFormTerbuka] = useState(false)
-  const [kategoriTerbuka, setKategoriTerbuka] = useState(false)
+  const [tambahTerbuka, setTambahTerbuka] = useState(false)
   const [itemDiedit, setItemDiedit] = useState<WorkItem | null>(null)
   const [itemDihapus, setItemDihapus] = useState<WorkItem | null>(null)
   const [form, setForm] = useState<WorkItemPayload>(KOSONG)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [kategoriBaru, setKategoriBaru] = useState({ kode: '', nama: '' })
 
+  /** Form "Ubah Pekerjaan"; penambahan pekerjaan memakai WorkItemBatchModal. */
   useEffect(() => {
-    if (!formTerbuka) return
+    if (!formTerbuka || !itemDiedit) return
 
     setErrors({})
-    setForm(
-      itemDiedit
-        ? {
-            work_category_id: itemDiedit.work_category_id,
-            unit_id: itemDiedit.unit_id,
-            uraian_pekerjaan: itemDiedit.uraian_pekerjaan,
-            volume: itemDiedit.volume,
-            harga_satuan: itemDiedit.harga_satuan,
-            period_mulai_id: itemDiedit.period_mulai_id,
-            period_selesai_id: itemDiedit.period_selesai_id,
-            keterangan: itemDiedit.keterangan,
-          }
-        : {
-            ...KOSONG,
-            unit_id: units?.[0]?.id ?? 0,
-            work_category_id: categories?.[0]?.id ?? null,
-            period_mulai_id: periods?.[0]?.id ?? null,
-            period_selesai_id: periods?.at(-1)?.id ?? null,
-          },
-    )
-  }, [formTerbuka, itemDiedit, units, categories, periods])
+    setForm({
+      work_category_id: itemDiedit.work_category_id,
+      unit_id: itemDiedit.unit_id,
+      uraian_pekerjaan: itemDiedit.uraian_pekerjaan,
+      volume: itemDiedit.volume,
+      harga_satuan: itemDiedit.harga_satuan,
+      period_mulai_id: itemDiedit.period_mulai_id,
+      period_selesai_id: itemDiedit.period_selesai_id,
+      keterangan: itemDiedit.keterangan,
+    })
+  }, [formTerbuka, itemDiedit])
 
   const urutanPeriode = (id: number | null) => periods?.find((period) => period.id === id)?.urutan ?? 0
 
@@ -82,12 +73,9 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
   }
 
   const simpan = useMutation({
-    mutationFn: (payload: WorkItemPayload) =>
-      itemDiedit
-        ? projectService.updateWorkItem(projectId, itemDiedit.id, payload)
-        : projectService.createWorkItem(projectId, payload),
+    mutationFn: (payload: WorkItemPayload) => projectService.updateWorkItem(projectId, (itemDiedit as WorkItem).id, payload),
     onSuccess: async () => {
-      toast.sukses(itemDiedit ? 'Pekerjaan berhasil diperbarui.' : 'Pekerjaan berhasil ditambahkan.')
+      toast.sukses('Pekerjaan berhasil diperbarui.')
       await invalidate()
       setFormTerbuka(false)
     },
@@ -109,17 +97,6 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
       toast.gagal(pesanError(err))
       setItemDihapus(null)
     },
-  })
-
-  const simpanKategori = useMutation({
-    mutationFn: () => projectService.createCategory(projectId, { kode: kategoriBaru.kode || null, nama: kategoriBaru.nama }),
-    onSuccess: async () => {
-      toast.sukses('Kelompok pekerjaan berhasil ditambahkan.')
-      setKategoriBaru({ kode: '', nama: '' })
-      setKategoriTerbuka(false)
-      await queryClient.invalidateQueries({ queryKey: qk.categories(projectId) })
-    },
-    onError: (err) => toast.gagal(pesanError(err)),
   })
 
   const kirim = (event: FormEvent) => {
@@ -173,21 +150,9 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
       }
       action={
         adminMode ? (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" icon={<FolderPlus className="size-4" />} onClick={() => setKategoriTerbuka(true)}>
-              Kelompok
-            </Button>
-            <Button
-              size="sm"
-              icon={<Plus className="size-4" />}
-              onClick={() => {
-                setItemDiedit(null)
-                setFormTerbuka(true)
-              }}
-            >
-              Tambah Pekerjaan
-            </Button>
-          </div>
+          <Button size="sm" icon={<Plus className="size-4" />} onClick={() => setTambahTerbuka(true)}>
+            Tambah Pekerjaan
+          </Button>
         ) : undefined
       }
       bodyClassName="pt-0"
@@ -276,7 +241,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
       <Modal
         open={formTerbuka}
         onClose={() => setFormTerbuka(false)}
-        title={itemDiedit ? 'Ubah Pekerjaan' : 'Tambah Pekerjaan'}
+        title="Ubah Pekerjaan"
         description="Bobot pekerjaan dihitung otomatis dari harga pekerjaan terhadap total harga proyek."
         footer={
           <>
@@ -392,41 +357,25 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             ))}
           </Select>
           <p className="text-[11px] text-muted sm:col-span-2">
-            {itemDiedit
-              ? 'Mengubah Periode Mulai/Selesai membagi ulang target volume secara merata. Mengubah volume menyesuaikan target secara proporsional.'
-              : 'Target volume awal dibagi rata ke setiap minggu aktif dan dapat diubah pada tab Rencana.'}
+            Mengubah Periode Mulai/Selesai membagi ulang target volume secara merata. Mengubah volume menyesuaikan target secara
+            proporsional.
           </p>
         </form>
       </Modal>
 
-      <Modal
-        open={kategoriTerbuka}
-        onClose={() => setKategoriTerbuka(false)}
-        title="Tambah Kelompok Pekerjaan"
-        description="Kelompok dipakai sebagai bagian A, B, ... pada laporan."
-        size="sm"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setKategoriTerbuka(false)}>
-              Batal
-            </Button>
-            <Button loading={simpanKategori.isPending} disabled={!kategoriBaru.nama.trim()} onClick={() => simpanKategori.mutate()}>
-              Simpan
-            </Button>
-          </>
-        }
-      >
-        <div className="grid gap-4">
-          <Input label="Kode" value={kategoriBaru.kode} onChange={(event) => setKategoriBaru({ ...kategoriBaru, kode: event.target.value })} placeholder="A" />
-          <Input
-            label="Nama Kelompok"
-            required
-            value={kategoriBaru.nama}
-            onChange={(event) => setKategoriBaru({ ...kategoriBaru, nama: event.target.value })}
-            placeholder="PEKERJAAN PENDAHULUAN"
-          />
-        </div>
-      </Modal>
+      <WorkItemBatchModal
+        open={tambahTerbuka}
+        projectId={projectId}
+        units={units ?? []}
+        categories={categories ?? []}
+        periods={periods ?? []}
+        totalHargaSaatIni={data?.meta.total_harga_pekerjaan ?? 0}
+        onClose={() => setTambahTerbuka(false)}
+        onSaved={async () => {
+          await queryClient.invalidateQueries({ queryKey: qk.categories(projectId) })
+          await invalidate()
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(itemDihapus)}

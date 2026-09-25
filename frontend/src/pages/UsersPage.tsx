@@ -108,6 +108,8 @@ export function UsersPage() {
     if (!form.name.trim()) validasi.name = 'Nama wajib diisi.'
     if (!form.username.trim()) validasi.username = 'Nama pengguna wajib diisi.'
     if (!form.role_id) validasi.role_id = 'Peran wajib dipilih.'
+    if (!diedit && !(form.email ?? '').trim()) validasi.email = 'Email wajib diisi.'
+    if (!diedit && !(form.phone ?? '').trim()) validasi.phone = 'Nomor telepon wajib diisi.'
     if (!diedit && (form.password ?? '').length < 8) validasi.password = 'Kata sandi minimal 8 karakter.'
     if ((form.password ?? '') !== (form.password_confirmation ?? '')) {
       validasi.password_confirmation = 'Konfirmasi kata sandi tidak sama.'
@@ -289,8 +291,24 @@ export function UsersPage() {
             error={errors.username}
             hint="Hanya huruf, angka, garis bawah, dan tanda hubung."
           />
-          <Input label="Email" type="email" value={form.email ?? ''} onChange={(event) => setForm({ ...form, email: event.target.value })} error={errors.email} />
-          <Input label="Nomor Telepon" value={form.phone ?? ''} onChange={(event) => setForm({ ...form, phone: event.target.value })} error={errors.phone} />
+          <Input
+            label="Email"
+            type="email"
+            required={!diedit}
+            value={form.email ?? ''}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+            error={errors.email}
+            placeholder="Contoh: nisa@divaanugrah.co.id"
+          />
+          <Input
+            label="Nomor Telepon"
+            type="tel"
+            required={!diedit}
+            value={form.phone ?? ''}
+            onChange={(event) => setForm({ ...form, phone: event.target.value })}
+            error={errors.phone}
+            placeholder="Contoh: 0812 3456 7890"
+          />
           <Input
             label={diedit ? 'Kata Sandi Baru' : 'Kata Sandi'}
             type="password"
