@@ -19,13 +19,13 @@ export function ProgressTab({ projectId }: { projectId: number }) {
 
   return (
     <Card
-      title="Laporan Progres"
-      description="Laporan progres harian yang diinput QS untuk proyek ini."
+      title="Progres Harian"
+      description="Progres harian yang diinput QS untuk proyek ini."
       action={
         punyaPeran('QS', 'ADMIN') ? (
           <Link to={`/progres/baru?project_id=${projectId}`}>
             <Button size="sm" icon={<Plus className="size-4" />}>
-              Input Progres
+              Tambah Progres
             </Button>
           </Link>
         ) : undefined
@@ -33,7 +33,7 @@ export function ProgressTab({ projectId }: { projectId: number }) {
       bodyClassName="pt-0"
     >
       {!data || data.data.length === 0 ? (
-        <EmptyState judul="Belum ada laporan progres" pesan="Laporan yang diinput QS akan tampil di sini." />
+        <EmptyState judul="Belum ada progres" pesan="Progres yang diinput QS akan tampil di sini." />
       ) : (
         <TableWrap>
           <Table>

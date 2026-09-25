@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import type { RoleCode } from '@/types'
 import { cn } from '@/utils/cn'
 import {
+  ClipboardCheck,
   ClipboardList,
   FileText,
   LayoutDashboard,
@@ -24,11 +25,11 @@ interface MenuItem {
 
 /** Menu sidebar per peran sesuai PRD. */
 const MENU: MenuItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
+  { to: '/dashboard', label: 'Beranda', icon: LayoutDashboard, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
   { to: '/proyek', label: 'Proyek', icon: ClipboardList, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
   { to: '/kurva-s', label: 'Kurva S', icon: LineChart, roles: ['ADMIN', 'KONTRAKTOR'] },
-  { to: '/progres', label: 'Progres', icon: LineChart, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
-  { to: '/laporan', label: 'Laporan', icon: FileText, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
+  { to: '/progres', label: 'Progres', icon: ClipboardCheck, roles: ['ADMIN', 'QS', 'KONTRAKTOR'] },
+  { to: '/laporan', label: 'Laporan', icon: FileText, roles: ['ADMIN', 'KONTRAKTOR'] },
   { to: '/pengguna', label: 'Pengguna', icon: Users, roles: ['ADMIN'] },
   { to: '/pengaturan', label: 'Pengaturan', icon: Settings, roles: ['ADMIN'] },
 ]
@@ -36,10 +37,11 @@ const MENU: MenuItem[] = [
 interface SidebarProps {
   open: boolean
   onClose: () => void
+  onLogout: () => void
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
-  const { user, logout } = useAuth()
+export function Sidebar({ open, onClose, onLogout }: SidebarProps) {
+  const { user } = useAuth()
   const menu = MENU.filter((item) => (user ? item.roles.includes(user.role_code) : false))
 
   return (
@@ -88,7 +90,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <div className="border-t border-white/10 px-3 py-3">
           <button
             type="button"
-            onClick={() => void logout()}
+            onClick={() => {
+              onClose()
+              onLogout()
+            }}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
           >
             <LogOut className="size-[18px]" aria-hidden />

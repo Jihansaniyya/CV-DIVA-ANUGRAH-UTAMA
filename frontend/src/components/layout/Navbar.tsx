@@ -1,16 +1,11 @@
 import { useAuth } from '@/hooks/useAuth'
+import { LABEL_PERAN } from '@/utils/peran'
 import { Menu } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 
-const LABEL_PERAN: Record<string, string> = {
-  ADMIN: 'Admin',
-  QS: 'Quantity Surveyor',
-  KONTRAKTOR: 'Kontraktor',
-}
-
-export function Navbar({ onOpenMenu, judul }: { onOpenMenu: () => void; judul: string }) {
-  const { user, logout } = useAuth()
+export function Navbar({ onOpenMenu, onLogout, judul }: { onOpenMenu: () => void; onLogout: () => void; judul: string }) {
+  const { user } = useAuth()
   const [menuAkun, setMenuAkun] = useState(false)
 
   const inisial = (user?.name ?? '')
@@ -49,7 +44,15 @@ export function Navbar({ onOpenMenu, judul }: { onOpenMenu: () => void; judul: s
               <p className="text-sm font-medium text-ink">{user?.name}</p>
               <p className="text-[11px] text-muted">@{user?.username}</p>
             </div>
-            <Button variant="ghost" block className="mt-2 justify-start" onClick={() => void logout()}>
+            <Button
+              variant="ghost"
+              block
+              className="mt-2 justify-start"
+              onClick={() => {
+                setMenuAkun(false)
+                onLogout()
+              }}
+            >
               Keluar
             </Button>
           </div>

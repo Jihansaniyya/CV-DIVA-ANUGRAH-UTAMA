@@ -38,7 +38,9 @@ export function AppRoutes() {
           </Route>
           <Route path="/progres/:id" element={<ProgressDetailPage />} />
 
-          <Route path="/laporan" element={<ReportsPage />} />
+          <Route element={<RoleRoute roles={['ADMIN', 'KONTRAKTOR']} />}>
+            <Route path="/laporan" element={<ReportsPage />} />
+          </Route>
 
           <Route element={<RoleRoute roles={['ADMIN']} />}>
             <Route path="/pengguna" element={<UsersPage />} />

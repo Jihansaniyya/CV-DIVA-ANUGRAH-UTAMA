@@ -7,28 +7,32 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { useDashboard } from '@/hooks/queries'
-import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
+import { QsDashboard } from '@/pages/dashboard/QsDashboard'
 import type { DashboardProjectRow } from '@/types'
-import { angka, persen, tanggalSingkat } from '@/utils/format'
-import { AlertTriangle, ClipboardList, FileText, HardHat, Percent, TrendingUp, Users } from 'lucide-react'
+import { hariIni, persen, tanggal, tanggalSingkat } from '@/utils/format'
+import { AlertTriangle, CalendarDays, ClipboardList, HardHat, Percent, TrendingUp, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function DashboardPage() {
-  const { user } = useAuth()
   const { data, isLoading, error, refetch } = useDashboard()
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
   if (!data) return <EmptyState />
 
+  if (data.peran === 'QS') return <QsDashboard data={data} />
+
   const proyek = data.proyek ?? data.proyek_ditugaskan ?? data.proyek_terbaru ?? []
 
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-lg font-semibold text-ink">Selamat datang, {user?.name}!</h2>
-        <p className="text-xs text-muted">Berikut ringkasan aktivitas proyek Anda hari ini.</p>
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <CalendarDays className="size-3.5" aria-hidden />
+          {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
+        </p>
+        <h2 className="mt-0.5 text-lg font-semibold text-ink">Ringkasan Proyek</h2>
       </div>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -38,15 +42,6 @@ export function DashboardPage() {
             <KpiCard label="Total Pekerjaan" value={data.kpi.total_pekerjaan} icon={HardHat} tone="primary" />
             <KpiCard label="Total Pengguna" value={data.kpi.total_pengguna} icon={Users} tone="success" />
             <KpiCard label="Progres Rata-rata" value={persen(data.kpi.progres_rata_rata)} icon={Percent} tone="warning" />
-          </>
-        )}
-
-        {data.peran === 'QS' && (
-          <>
-            <KpiCard label="Proyek Ditugaskan" value={data.kpi.total_proyek} icon={ClipboardList} tone="navy" />
-            <KpiCard label="Total Pekerjaan" value={data.kpi.total_pekerjaan} icon={HardHat} tone="primary" />
-            <KpiCard label="Laporan Draft" value={data.kpi.laporan_draft} icon={FileText} tone="warning" />
-            <KpiCard label="Laporan Dikirim" value={data.kpi.laporan_dikirim} icon={FileText} tone="success" />
           </>
         )}
 
@@ -83,32 +78,10 @@ export function DashboardPage() {
           </Card>
         )}
 
-        {data.peran === 'QS' && data.pekerjaan_perlu_laporan && (
-          <Card title="Pekerjaan yang Membutuhkan Laporan" className="lg:col-span-2">
-            {data.pekerjaan_perlu_laporan.length === 0 ? (
-              <EmptyState judul="Semua pekerjaan sudah dilaporkan" />
-            ) : (
-              <ul className="flex flex-col divide-y divide-line">
-                {data.pekerjaan_perlu_laporan.map((item) => (
-                  <li key={item.work_item_id} className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-ink">{item.uraian_pekerjaan}</p>
-                      <span className="text-xs text-muted">
-                        Sisa {angka(item.sisa_volume)} {item.satuan}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted">{item.nama_proyek}</p>
-                    <ProgressBar nilai={item.persentase} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        )}
       </section>
 
       <Card
-        title={data.peran === 'QS' ? 'Proyek yang Ditugaskan' : 'Proyek Terbaru'}
+        title="Proyek Terbaru"
         action={
           <Link to="/proyek" className="text-xs font-medium text-primary hover:underline">
             Lihat Semua

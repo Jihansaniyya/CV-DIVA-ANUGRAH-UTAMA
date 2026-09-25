@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom'
 
 export function ProgressPage() {
   const { punyaPeran } = useAuth()
+  const tampilPelapor = !punyaPeran('QS')
   const [page, setPage] = useState(1)
   const [projectId, setProjectId] = useState('')
   const [status, setStatus] = useState('')
@@ -36,11 +37,11 @@ export function ProgressPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-ink">Progres Pekerjaan</h2>
-          <p className="text-xs text-muted">Daftar laporan progres harian beserta status pengirimannya.</p>
+          <p className="text-xs text-muted">Daftar progres harian beserta status pengirimannya.</p>
         </div>
         {punyaPeran('QS', 'ADMIN') && (
           <Link to="/progres/baru">
-            <Button icon={<Plus className="size-4" />}>Input Progres</Button>
+            <Button icon={<Plus className="size-4" />}>Tambah Progres</Button>
           </Link>
         )}
       </div>
@@ -71,7 +72,7 @@ export function ProgressPage() {
             }}
           >
             <option value="">Semua Status</option>
-            <option value="DRAFT">Draft</option>
+            <option value="DRAFT">Draf</option>
             <option value="DIKIRIM">Dikirim</option>
           </Select>
           <DatePicker label="Dari Tanggal" value={dari} onChange={(event) => setDari(event.target.value)} />
@@ -84,36 +85,48 @@ export function ProgressPage() {
           ) : error ? (
             <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
           ) : !data || data.data.length === 0 ? (
-            <EmptyState judul="Belum ada laporan progres" pesan="Laporan yang diinput QS akan tampil di sini." />
+            <EmptyState judul="Belum ada progres" pesan="Progres yang diinput QS akan tampil di sini." />
           ) : (
             <>
               <TableWrap>
                 <Table>
                   <thead>
                     <tr>
-                      <Th>Tanggal</Th>
-                      <Th>Proyek</Th>
-                      <Th>Periode</Th>
-                      <Th>Pelapor</Th>
-                      <Th>Pekerjaan</Th>
-                      <Th align="right">Bobot Realisasi</Th>
-                      <Th align="center">Status</Th>
-                      <Th align="center">Aksi</Th>
+                      <Th className="w-28">Tanggal</Th>
+                      <Th className="min-w-64">Proyek</Th>
+                      <Th className="w-28">Periode</Th>
+                      {tampilPelapor && <Th className="w-40">Pelapor</Th>}
+                      <Th className="w-28">Pekerjaan</Th>
+                      <Th align="right" className="w-32">
+                        Bobot Realisasi
+                      </Th>
+                      <Th align="center" className="w-28">
+                        Status
+                      </Th>
+                      <Th align="center" className="w-20">
+                        Aksi
+                      </Th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.data.map((laporan) => (
                       <tr key={laporan.id} className="hover:bg-surface/60">
                         <Td className="whitespace-nowrap">{tanggalSingkat(laporan.tanggal_laporan)}</Td>
-                        <Td>
-                          <Link to={`/proyek/${laporan.project_id}`} className="font-medium text-ink hover:text-primary">
+                        <Td className="max-w-md">
+                          <Link
+                            to={`/proyek/${laporan.project_id}`}
+                            title={laporan.nama_proyek ?? undefined}
+                            className="line-clamp-2 leading-snug font-medium text-ink hover:text-primary"
+                          >
                             {laporan.nama_proyek}
                           </Link>
                         </Td>
-                        <Td className="text-muted">{laporan.periode ?? '-'}</Td>
-                        <Td className="text-muted">{laporan.pelapor ?? '-'}</Td>
-                        <Td className="text-muted">{laporan.detail?.length ?? 0} pekerjaan</Td>
-                        <Td align="right">{persen(laporan.total_bobot_realisasi)}</Td>
+                        <Td className="whitespace-nowrap text-muted">{laporan.periode ?? 'Di luar periode'}</Td>
+                        {tampilPelapor && <Td className="whitespace-nowrap text-muted">{laporan.pelapor ?? '-'}</Td>}
+                        <Td className="whitespace-nowrap text-muted">{laporan.detail?.length ?? 0} pekerjaan</Td>
+                        <Td align="right" className="whitespace-nowrap">
+                          {laporan.total_bobot_realisasi > 0 && laporan.total_bobot_realisasi < 0.01 ? '< 0,01%' : persen(laporan.total_bobot_realisasi)}
+                        </Td>
                         <Td align="center">
                           <ReportStatusBadge status={laporan.status} />
                         </Td>

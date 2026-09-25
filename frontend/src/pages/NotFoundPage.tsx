@@ -11,7 +11,7 @@ export function NotFoundPage() {
       <h2 className="text-lg font-semibold text-ink">Halaman tidak ditemukan</h2>
       <p className="max-w-sm text-xs text-muted">Periksa kembali alamat halaman yang kamu tuju.</p>
       <Link to="/dashboard">
-        <Button className="mt-2">Kembali ke Dashboard</Button>
+        <Button className="mt-2">Kembali ke Beranda</Button>
       </Link>
     </div>
   )

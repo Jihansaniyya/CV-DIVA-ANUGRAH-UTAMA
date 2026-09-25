@@ -17,13 +17,6 @@ export interface ProgressDetailInput {
   keterangan?: string | null
 }
 
-export interface ProgressMaterialInput {
-  nama_material: string
-  jumlah: number
-  satuan?: string | null
-  keterangan?: string | null
-}
-
 export interface ProgressIssueInput {
   work_item_id?: number | null
   jenis_kendala: string
@@ -41,7 +34,6 @@ export interface ProgressPayload {
   cuaca?: string | null
   status?: 'DRAFT' | 'DIKIRIM'
   details: ProgressDetailInput[]
-  materials?: ProgressMaterialInput[]
   issues?: ProgressIssueInput[]
   photos?: File[]
   photo_captions?: string[]
@@ -60,7 +52,6 @@ function buatFormData(payload: ProgressPayload): FormData {
   if (payload.cuaca) form.append('cuaca', payload.cuaca)
 
   form.append('details', JSON.stringify(payload.details))
-  form.append('materials', JSON.stringify(payload.materials ?? []))
   form.append('issues', JSON.stringify(payload.issues ?? []))
   form.append('photo_captions', JSON.stringify(payload.photo_captions ?? []))
 

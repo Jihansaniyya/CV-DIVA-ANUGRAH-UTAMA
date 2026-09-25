@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { pesanError } from '@/lib/api'
 import { progressService } from '@/services/progressService'
+import { cn } from '@/utils/cn'
 import { angka, persen, tanggal, waktu } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Send, Trash2 } from 'lucide-react'
@@ -29,7 +30,7 @@ export function ProgressDetailPage() {
   const kirim = useMutation({
     mutationFn: () => progressService.submit(laporanId),
     onSuccess: async () => {
-      toast.sukses('Laporan progres berhasil dikirim.')
+      toast.sukses('Progres berhasil dikirim.')
       await queryClient.invalidateQueries({ queryKey: ['progress'] })
       await queryClient.invalidateQueries({ queryKey: qk.dashboard })
 
@@ -43,7 +44,7 @@ export function ProgressDetailPage() {
   const hapus = useMutation({
     mutationFn: () => progressService.remove(laporanId),
     onSuccess: async () => {
-      toast.sukses('Laporan progres berhasil dihapus.')
+      toast.sukses('Progres berhasil dihapus.')
       await queryClient.invalidateQueries({ queryKey: ['progress'] })
       navigate('/progres')
     },
@@ -55,9 +56,10 @@ export function ProgressDetailPage() {
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
-  if (!laporan) return <EmptyState judul="Laporan tidak ditemukan" />
+  if (!laporan) return <EmptyState judul="Progres tidak ditemukan" />
 
   const bolehUbah = punyaPeran('ADMIN') || (laporan.user_id === user?.id && laporan.status === 'DRAFT')
+  const tampilMaterial = !punyaPeran('QS')
 
   return (
     <div className="flex flex-col gap-4">
@@ -68,7 +70,7 @@ export function ProgressDetailPage() {
             Kembali
           </Link>
           <h2 className="mt-1 flex flex-wrap items-center gap-2 text-lg font-semibold text-ink">
-            Laporan {tanggal(laporan.tanggal_laporan)}
+            Progres {tanggal(laporan.tanggal_laporan)}
             <ReportStatusBadge status={laporan.status} />
           </h2>
           <p className="text-xs text-muted">
@@ -83,7 +85,7 @@ export function ProgressDetailPage() {
           <div className="flex gap-2">
             {laporan.status === 'DRAFT' && (
               <Button icon={<Send className="size-4" />} loading={kirim.isPending} onClick={() => kirim.mutate()}>
-                Kirim Laporan
+                Kirim Progres
               </Button>
             )}
             <Button variant="outline" className="text-danger" icon={<Trash2 className="size-4" />} onClick={() => setKonfirmasiHapus(true)}>
@@ -94,14 +96,14 @@ export function ProgressDetailPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Informasi Laporan" className="lg:col-span-2">
+        <Card title="Informasi Progres" className="lg:col-span-2">
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-xs text-muted">Pelapor</dt>
               <dd>{laporan.pelapor ?? '-'}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Waktu Pelaporan</dt>
+              <dt className="text-xs text-muted">Waktu Pengiriman</dt>
               <dd>{laporan.dikirim_pada ? waktu(laporan.dikirim_pada) : 'Belum dikirim'}</dd>
             </div>
             <div>
@@ -121,7 +123,7 @@ export function ProgressDetailPage() {
 
         <Card title="Kontribusi Progres">
           <p className="text-3xl font-semibold text-ink">{persen(laporan.total_bobot_realisasi)}</p>
-          <p className="mt-1 text-xs text-muted">Bobot realisasi dari laporan ini terhadap total progres proyek.</p>
+          <p className="mt-1 text-xs text-muted">Bobot realisasi dari progres ini terhadap total progres proyek.</p>
         </Card>
       </div>
 
@@ -156,35 +158,37 @@ export function ProgressDetailPage() {
         </TableWrap>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Material" bodyClassName="pt-0">
-          {!laporan.material || laporan.material.length === 0 ? (
-            <p className="py-3 text-xs text-muted">Tidak ada material yang dicatat.</p>
-          ) : (
-            <TableWrap>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Nama Material</Th>
-                    <Th align="right">Jumlah</Th>
-                    <Th>Satuan</Th>
-                    <Th>Keterangan</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {laporan.material.map((item) => (
-                    <tr key={item.id}>
-                      <Td>{item.nama_material}</Td>
-                      <Td align="right">{angka(item.jumlah, 2)}</Td>
-                      <Td className="text-muted">{item.satuan ?? '-'}</Td>
-                      <Td className="text-muted">{item.keterangan ?? '-'}</Td>
+      <div className={cn('grid gap-4', tampilMaterial && 'lg:grid-cols-2')}>
+        {tampilMaterial && (
+          <Card title="Material" bodyClassName="pt-0">
+            {!laporan.material || laporan.material.length === 0 ? (
+              <p className="py-3 text-xs text-muted">Tidak ada material yang dicatat.</p>
+            ) : (
+              <TableWrap>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Nama Material</Th>
+                      <Th align="right">Jumlah</Th>
+                      <Th>Satuan</Th>
+                      <Th>Keterangan</Th>
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableWrap>
-          )}
-        </Card>
+                  </thead>
+                  <tbody>
+                    {laporan.material.map((item) => (
+                      <tr key={item.id}>
+                        <Td>{item.nama_material}</Td>
+                        <Td align="right">{angka(item.jumlah, 2)}</Td>
+                        <Td className="text-muted">{item.satuan ?? '-'}</Td>
+                        <Td className="text-muted">{item.keterangan ?? '-'}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableWrap>
+            )}
+          </Card>
+        )}
 
         <Card title="Kendala dan Tindak Lanjut">
           {!laporan.kendala || laporan.kendala.length === 0 ? (
@@ -234,8 +238,12 @@ export function ProgressDetailPage() {
 
       <ConfirmDialog
         open={konfirmasiHapus}
-        title="Hapus Laporan Progres"
-        pesan="Laporan beserta detail, foto, material, dan kendalanya akan dihapus. Lanjutkan?"
+        title="Hapus Progres"
+        pesan={
+          tampilMaterial
+            ? 'Progres beserta detail, foto, material, dan kendalanya akan dihapus. Lanjutkan?'
+            : 'Progres beserta detail, foto, dan kendalanya akan dihapus. Lanjutkan?'
+        }
         loading={hapus.isPending}
         onConfirm={() => hapus.mutate()}
         onClose={() => setKonfirmasiHapus(false)}

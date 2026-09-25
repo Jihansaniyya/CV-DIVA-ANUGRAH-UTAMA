@@ -13,3 +13,10 @@ Thumbs.db
 
 # Cadangan skeleton Laravel bawaan sebelum restrukturisasi
 /.backend-laravel13-skeleton.bak
+
+# Laravel
+/vendor/
+/.env
+
+# Frontend
+/node_modules/

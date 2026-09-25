@@ -11,7 +11,7 @@ export function NotAuthorizedPage() {
       <h2 className="text-lg font-semibold text-ink">Kamu tidak memiliki akses ke halaman ini</h2>
       <p className="max-w-sm text-xs text-muted">Halaman yang kamu tuju hanya dapat diakses oleh peran tertentu.</p>
       <Link to="/dashboard">
-        <Button className="mt-2">Kembali ke Dashboard</Button>
+        <Button className="mt-2">Kembali ke Beranda</Button>
       </Link>
     </div>
   )

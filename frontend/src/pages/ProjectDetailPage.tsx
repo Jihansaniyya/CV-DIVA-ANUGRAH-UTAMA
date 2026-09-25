@@ -4,6 +4,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { ErrorState, LoadingState } from '@/components/ui/State'
 import { Tabs, type TabItem } from '@/components/ui/Tabs'
 import { useProject } from '@/hooks/queries'
+import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
 import { CurveTab } from '@/pages/projects/tabs/CurveTab'
 import { DocumentationTab } from '@/pages/projects/tabs/DocumentationTab'
@@ -26,11 +27,17 @@ const TABS: TabItem[] = [
   { key: 'laporan', label: 'Laporan' },
 ]
 
+const TAB_QS = ['informasi', 'pekerjaan', 'progres', 'dokumentasi']
+
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const projectId = Number(id)
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') ?? 'informasi'
+  const { punyaPeran } = useAuth()
+  const modeQs = punyaPeran('QS')
+  const tabs = modeQs ? TABS.filter((item) => TAB_QS.includes(item.key)) : TABS
+  const tabDiminta = params.get('tab') ?? 'informasi'
+  const tab = tabs.some((item) => item.key === tabDiminta) ? tabDiminta : 'informasi'
 
   const { data: project, isLoading, error, refetch } = useProject(projectId)
 
@@ -57,21 +64,28 @@ export function ProjectDetailPage() {
             </p>
           </div>
 
-          <div className="w-full sm:w-72">
-            <div className="flex items-center justify-between text-[11px] text-muted">
-              <span>Realisasi</span>
-              <span>Rencana {persen(project.progres_rencana)}</span>
+          {modeQs ? (
+            <div className="w-full sm:w-72">
+              <p className="text-[11px] text-muted">Progres Realisasi</p>
+              <ProgressBar nilai={project.progres_aktual ?? 0} />
             </div>
-            <ProgressBar nilai={project.progres_aktual ?? 0} pembanding={project.progres_rencana} />
-            <div className="mt-2 flex items-center gap-2 text-[11px] text-muted">
-              Deviasi <DeviationBadge nilai={project.deviasi ?? null} />
+          ) : (
+            <div className="w-full sm:w-72">
+              <div className="flex items-center justify-between text-[11px] text-muted">
+                <span>Realisasi</span>
+                <span>Rencana {persen(project.progres_rencana)}</span>
+              </div>
+              <ProgressBar nilai={project.progres_aktual ?? 0} pembanding={project.progres_rencana} />
+              <div className="mt-2 flex items-center gap-2 text-[11px] text-muted">
+                Deviasi <DeviationBadge nilai={project.deviasi ?? null} />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </Card>
 
       <Tabs
-        items={TABS}
+        items={tabs}
         active={tab}
         onChange={(key) => {
           params.set('tab', key)
@@ -84,7 +98,7 @@ export function ProjectDetailPage() {
       {tab === 'rencana' && <WorkPlanTab projectId={projectId} />}
       {tab === 'progres' && <ProgressTab projectId={projectId} />}
       {tab === 'kurva-s' && <CurveTab projectId={projectId} />}
-      {tab === 'dokumentasi' && <DocumentationTab projectId={projectId} />}
+      {tab === 'dokumentasi' && <DocumentationTab project={project} />}
       {tab === 'laporan' && <ProjectReportTab projectId={projectId} />}
     </div>
   )

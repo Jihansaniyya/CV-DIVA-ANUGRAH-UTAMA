@@ -2,11 +2,13 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { DatePicker, Input, Select, Textarea } from '@/components/ui/Field'
 import { FileUpload, type FotoTerpilih } from '@/components/ui/FileUpload'
+import { ConfirmDialog } from '@/components/ui/Modal'
 import { EmptyState, LoadingState } from '@/components/ui/State'
 import { qk, useProjects, useWorkItems } from '@/hooks/queries'
 import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { progressService, type ProgressPayload } from '@/services/progressService'
+import { cn } from '@/utils/cn'
 import { angka, hariIni } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Save, Send, Trash2 } from 'lucide-react'
@@ -16,19 +18,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 interface BarisDetail {
   work_item_id: number | ''
   volume_realisasi: number | ''
-  keterangan: string
-}
-
-interface BarisMaterial {
-  nama_material: string
-  jumlah: number | ''
-  satuan: string
-  keterangan: string
 }
 
 interface BarisKendala {
   work_item_id: number | ''
   jenis_kendala: string
+  jenis_lainnya: string
   deskripsi: string
   alasan_keterlambatan: string
   tindak_lanjut: string
@@ -43,26 +38,37 @@ const JENIS_KENDALA = [
   ['LAINNYA', 'Lainnya'],
 ]
 
-/** Form input laporan progres harian oleh QS. */
+const kendalaKosong = (workItemId: number | '' = ''): BarisKendala => ({
+  work_item_id: workItemId,
+  jenis_kendala: 'LAINNYA',
+  jenis_lainnya: '',
+  deskripsi: '',
+  alasan_keterlambatan: '',
+  tindak_lanjut: '',
+})
+
+/** Form input progres harian oleh QS. */
 export function ProgressFormPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [params] = useSearchParams()
+  const workItemAwal: number | '' = params.get('work_item_id') ? Number(params.get('work_item_id')) : ''
 
-  const [projectId, setProjectId] = useState<number | ''>(params.get('project_id') ? Number(params.get('project_id')) : '')
+  const [projectIdDipilih, setProjectId] = useState<number | ''>(params.get('project_id') ? Number(params.get('project_id')) : '')
   const [tanggal, setTanggal] = useState(hariIni())
   const [lokasi, setLokasi] = useState('')
-  const [cuaca, setCuaca] = useState('')
   const [keterangan, setKeterangan] = useState('')
-  const [details, setDetails] = useState<BarisDetail[]>([{ work_item_id: '', volume_realisasi: '', keterangan: '' }])
-  const [materials, setMaterials] = useState<BarisMaterial[]>([])
+  const [details, setDetails] = useState<BarisDetail[]>([{ work_item_id: workItemAwal, volume_realisasi: '' }])
+  const [selesai, setSelesai] = useState<boolean | null>(null)
   const [issues, setIssues] = useState<BarisKendala[]>([])
   const [foto, setFoto] = useState<FotoTerpilih[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [tujuanKeluar, setTujuanKeluar] = useState<string | null>(null)
 
   const { data: projects, isLoading: memuatProyek } = useProjects({ per_page: 100 })
-  const { data: pekerjaan } = useWorkItems(projectId ? Number(projectId) : null)
+  const projectId: number | '' = projectIdDipilih !== '' ? projectIdDipilih : projects?.data.length === 1 ? projects.data[0].id : ''
+  const { data: pekerjaan, isLoading: memuatPekerjaan } = useWorkItems(projectId ? Number(projectId) : null)
 
   useEffect(() => {
     if (!projectId || !projects) return
@@ -74,10 +80,55 @@ export function ProgressFormPage() {
     }
   }, [projectId, projects, lokasi])
 
+  const adaPerubahan =
+    details.some((baris) => baris.volume_realisasi !== '') ||
+    foto.length > 0 ||
+    selesai !== null ||
+    keterangan.trim() !== '' ||
+    issues.some((baris) => baris.deskripsi.trim() !== '')
+
+  /** Peringatkan pengguna saat menutup tab atau memuat ulang halaman selagi ada isian yang belum dikirim. */
+  useEffect(() => {
+    if (!adaPerubahan) return
+
+    const konfirmasiUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', konfirmasiUnload)
+
+    return () => window.removeEventListener('beforeunload', konfirmasiUnload)
+  }, [adaPerubahan])
+
+  /** Cegat navigasi dalam aplikasi (menu, sidebar, tautan Kembali) selagi ada isian yang belum dikirim. */
+  useEffect(() => {
+    if (!adaPerubahan) return
+
+    const cegatNavigasi = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+
+      const tautan = (event.target as HTMLElement)?.closest('a')
+
+      if (!tautan || tautan.target === '_blank') return
+
+      const href = tautan.getAttribute('href')
+
+      if (!href || href.startsWith('#') || href.startsWith('http')) return
+
+      event.preventDefault()
+      setTujuanKeluar(href)
+    }
+
+    document.addEventListener('click', cegatNavigasi, true)
+
+    return () => document.removeEventListener('click', cegatNavigasi, true)
+  }, [adaPerubahan])
+
   const simpan = useMutation({
     mutationFn: (payload: ProgressPayload) => progressService.create(payload),
     onSuccess: async (laporan) => {
-      toast.sukses(laporan.status === 'DIKIRIM' ? 'Laporan progres berhasil dikirim.' : 'Laporan progres tersimpan sebagai draft.')
+      toast.sukses(laporan.status === 'DIKIRIM' ? 'Progres berhasil dikirim.' : 'Progres tersimpan sebagai draf.')
       await queryClient.invalidateQueries({ queryKey: ['progress'] })
       await queryClient.invalidateQueries({ queryKey: qk.dashboard })
       await queryClient.invalidateQueries({ queryKey: qk.curve(laporan.project_id) })
@@ -95,7 +146,7 @@ export function ProgressFormPage() {
     const validasi: Record<string, string> = {}
 
     if (!projectId) validasi.project_id = 'Proyek wajib dipilih.'
-    if (!tanggal) validasi.tanggal_laporan = 'Tanggal laporan wajib diisi.'
+    if (!tanggal) validasi.tanggal_laporan = 'Tanggal progres wajib diisi.'
 
     const detailValid = details.filter((baris) => baris.work_item_id !== '' && baris.volume_realisasi !== '')
 
@@ -103,7 +154,53 @@ export function ProgressFormPage() {
 
     const duplikat = new Set(detailValid.map((baris) => baris.work_item_id)).size !== detailValid.length
 
-    if (duplikat) validasi.details = 'Pekerjaan yang sama tidak boleh diinput dua kali dalam satu laporan.'
+    if (duplikat) validasi.details = 'Pekerjaan yang sama tidak boleh diinput dua kali dalam satu progres.'
+
+    if (details.some((baris) => baris.work_item_id !== '' && baris.volume_realisasi === '')) {
+      validasi.details = 'Volume realisasi wajib diisi untuk setiap pekerjaan yang dipilih.'
+    }
+
+    if (status === 'DIKIRIM') {
+      if (!lokasi.trim()) validasi.lokasi = 'Lokasi wajib diisi.'
+      if (!keterangan.trim()) validasi.keterangan = 'Keterangan pekerjaan wajib diisi.'
+      if (foto.length === 0) validasi.photos = 'Minimal satu foto bukti pekerjaan wajib diunggah.'
+    }
+
+    const kendalaTerisi =
+      selesai === false
+        ? issues
+            .filter((baris) => baris.deskripsi.trim())
+            .map((baris) =>
+              baris.jenis_kendala === 'LAINNYA' && baris.jenis_lainnya.trim()
+                ? { ...baris, deskripsi: `${baris.jenis_lainnya.trim()}: ${baris.deskripsi}` }
+                : baris,
+            )
+        : []
+
+    if (status === 'DIKIRIM') {
+      if (selesai === null) {
+        validasi.selesai = 'Pilih apakah pekerjaan sudah selesai.'
+      } else if (!selesai) {
+        const lengkap =
+          issues.length > 0 &&
+          issues.every(
+            (baris) =>
+              baris.work_item_id !== '' &&
+              baris.deskripsi.trim() &&
+              baris.alasan_keterlambatan.trim() &&
+              baris.tindak_lanjut.trim() &&
+              (baris.jenis_kendala !== 'LAINNYA' || baris.jenis_lainnya.trim()),
+          )
+
+        if (!lengkap) {
+          validasi.issues = issues.some((baris) => baris.work_item_id === '')
+            ? 'Pilih pekerjaan terkait untuk setiap kendala.'
+            : issues.some((baris) => baris.jenis_kendala === 'LAINNYA' && !baris.jenis_lainnya.trim())
+              ? 'Sebutkan jenis kendala untuk pilihan "Lainnya".'
+              : 'Pekerjaan belum selesai: isi kendala, alasan keterlambatan, dan rencana tindak lanjut.'
+        }
+      }
+    }
 
     setErrors(validasi)
 
@@ -117,31 +214,19 @@ export function ProgressFormPage() {
       project_id: Number(projectId),
       tanggal_laporan: tanggal,
       lokasi: lokasi || null,
-      cuaca: cuaca || null,
       keterangan: keterangan || null,
       status,
       details: detailValid.map((baris) => ({
         work_item_id: Number(baris.work_item_id),
         volume_realisasi: Number(baris.volume_realisasi),
-        keterangan: baris.keterangan || null,
       })),
-      materials: materials
-        .filter((baris) => baris.nama_material.trim())
-        .map((baris) => ({
-          nama_material: baris.nama_material,
-          jumlah: Number(baris.jumlah || 0),
-          satuan: baris.satuan || null,
-          keterangan: baris.keterangan || null,
-        })),
-      issues: issues
-        .filter((baris) => baris.deskripsi.trim())
-        .map((baris) => ({
-          work_item_id: baris.work_item_id ? Number(baris.work_item_id) : null,
-          jenis_kendala: baris.jenis_kendala,
-          deskripsi: baris.deskripsi,
-          alasan_keterlambatan: baris.alasan_keterlambatan || null,
-          tindak_lanjut: baris.tindak_lanjut || null,
-        })),
+      issues: kendalaTerisi.map((baris) => ({
+        work_item_id: baris.work_item_id ? Number(baris.work_item_id) : null,
+        jenis_kendala: baris.jenis_kendala,
+        deskripsi: baris.deskripsi,
+        alasan_keterlambatan: baris.alasan_keterlambatan || null,
+        tindak_lanjut: baris.tindak_lanjut || null,
+      })),
       photos: foto.map((item) => item.file),
       photo_captions: foto.map((item) => item.caption),
     })
@@ -156,6 +241,7 @@ export function ProgressFormPage() {
   const daftarPekerjaan = pekerjaan?.data ?? []
 
   return (
+    <>
     <form className="flex flex-col gap-4" onSubmit={(event) => kirim(event, 'DIKIRIM')} noValidate>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -163,19 +249,11 @@ export function ProgressFormPage() {
             <ArrowLeft className="size-4" aria-hidden />
             Kembali
           </Link>
-          <h2 className="mt-1 text-lg font-semibold text-ink">Input Laporan Progres Harian</h2>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" icon={<Save className="size-4" />} loading={simpan.isPending} onClick={(event) => kirim(event, 'DRAFT')}>
-            Simpan Draft
-          </Button>
-          <Button type="submit" icon={<Send className="size-4" />} loading={simpan.isPending}>
-            Kirim Laporan
-          </Button>
+          <h2 className="mt-1 text-lg font-semibold text-ink">Tambah Progres Harian</h2>
         </div>
       </div>
 
-      <Card title="Informasi Laporan">
+      <Card title="Informasi Progres">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Select
             label="Proyek"
@@ -183,7 +261,7 @@ export function ProgressFormPage() {
             value={projectId}
             onChange={(event) => {
               setProjectId(event.target.value ? Number(event.target.value) : '')
-              setDetails([{ work_item_id: '', volume_realisasi: '', keterangan: '' }])
+              setDetails([{ work_item_id: '', volume_realisasi: '' }])
             }}
             error={errors.project_id}
           >
@@ -194,11 +272,19 @@ export function ProgressFormPage() {
               </option>
             ))}
           </Select>
-          <DatePicker label="Tanggal Laporan" required value={tanggal} onChange={(event) => setTanggal(event.target.value)} error={errors.tanggal_laporan} />
-          <Input label="Lokasi" value={lokasi} onChange={(event) => setLokasi(event.target.value)} error={errors.lokasi} placeholder="Lokasi pekerjaan" />
-          <Input label="Cuaca" value={cuaca} onChange={(event) => setCuaca(event.target.value)} error={errors.cuaca} placeholder="Contoh: Cerah berawan" />
+          <DatePicker label="Tanggal" required value={tanggal} onChange={(event) => setTanggal(event.target.value)} error={errors.tanggal_laporan} />
+          <Input
+            label="Lokasi"
+            required
+            wrapClassName="sm:col-span-2 lg:col-span-2"
+            value={lokasi}
+            onChange={(event) => setLokasi(event.target.value)}
+            error={errors.lokasi}
+            placeholder="Lokasi pekerjaan"
+          />
           <Textarea
             label="Keterangan Pekerjaan"
+            required
             wrapClassName="sm:col-span-2 lg:col-span-4"
             value={keterangan}
             onChange={(event) => setKeterangan(event.target.value)}
@@ -209,21 +295,25 @@ export function ProgressFormPage() {
       </Card>
 
       <Card
-        title="Pekerjaan yang Dilaporkan"
-        description="Pilih pekerjaan dan masukkan volume yang terealisasi pada tanggal laporan."
+        title="Progres Pekerjaan"
+        description="Pilih pekerjaan dan masukkan volume yang terealisasi pada tanggal ini."
         action={
           <Button
             variant="outline"
             size="sm"
             icon={<Plus className="size-4" />}
-            onClick={() => setDetails((current) => [...current, { work_item_id: '', volume_realisasi: '', keterangan: '' }])}
+            onClick={() => setDetails((current) => [...current, { work_item_id: '', volume_realisasi: '' }])}
           >
             Tambah Baris
           </Button>
         }
       >
         {!projectId ? (
-          <EmptyState judul="Pilih proyek terlebih dahulu" pesan="Daftar pekerjaan tampil setelah proyek dipilih." />
+          <EmptyState judul="Pilih proyek terlebih dahulu" pesan="Pilih proyek pada bagian Informasi Progres di atas untuk menampilkan daftar pekerjaan." />
+        ) : memuatPekerjaan ? (
+          <LoadingState pesan="Memuat daftar pekerjaan..." />
+        ) : daftarPekerjaan.length === 0 ? (
+          <EmptyState judul="Belum ada data pekerjaan" pesan="Proyek ini belum memiliki data pekerjaan. Hubungi Admin untuk menambahkannya." />
         ) : (
           <ul className="flex flex-col gap-3">
             {details.map((baris, index) => {
@@ -234,7 +324,8 @@ export function ProgressFormPage() {
                 <li key={index} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-12">
                   <Select
                     label="Pekerjaan"
-                    wrapClassName="sm:col-span-5"
+                    required
+                    wrapClassName="sm:col-span-7"
                     value={baris.work_item_id}
                     onChange={(event) =>
                       setDetails((current) =>
@@ -251,7 +342,8 @@ export function ProgressFormPage() {
                   </Select>
                   <Input
                     label="Volume Realisasi"
-                    wrapClassName="sm:col-span-3"
+                    required
+                    wrapClassName="sm:col-span-4"
                     type="number"
                     step="0.001"
                     min="0"
@@ -262,14 +354,6 @@ export function ProgressFormPage() {
                       )
                     }
                     hint={item ? `Satuan ${item.satuan} - sisa ${angka(sisa ?? 0, 2)}` : undefined}
-                  />
-                  <Input
-                    label="Keterangan"
-                    wrapClassName="sm:col-span-3"
-                    value={baris.keterangan}
-                    onChange={(event) =>
-                      setDetails((current) => current.map((row, i) => (i === index ? { ...row, keterangan: event.target.value } : row)))
-                    }
                   />
                   <div className="flex items-end sm:col-span-1">
                     <Button
@@ -289,164 +373,166 @@ export function ProgressFormPage() {
       </Card>
 
       <Card
-        title="Material yang Digunakan"
-        description="Hanya untuk kebutuhan pelaporan progres, bukan pengelolaan persediaan."
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            icon={<Plus className="size-4" />}
-            onClick={() => setMaterials((current) => [...current, { nama_material: '', jumlah: '', satuan: '', keterangan: '' }])}
-          >
-            Tambah Material
-          </Button>
+        title={
+          <>
+            Foto Bukti Pekerjaan<span className="ml-0.5 text-primary">*</span>
+          </>
         }
+        description="Unggah minimal satu foto. Foto ditampilkan sebagai pratinjau sebelum progres dikirim."
       >
-        {materials.length === 0 ? (
-          <p className="text-xs text-muted">Belum ada material yang dicatat.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {materials.map((baris, index) => (
-              <li key={index} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-12">
-                <Input
-                  label="Nama Material"
-                  wrapClassName="sm:col-span-4"
-                  value={baris.nama_material}
-                  onChange={(event) =>
-                    setMaterials((current) => current.map((row, i) => (i === index ? { ...row, nama_material: event.target.value } : row)))
-                  }
-                />
-                <Input
-                  label="Jumlah"
-                  wrapClassName="sm:col-span-2"
-                  type="number"
-                  step="0.001"
-                  min="0"
-                  value={baris.jumlah}
-                  onChange={(event) =>
-                    setMaterials((current) =>
-                      current.map((row, i) => (i === index ? { ...row, jumlah: event.target.value ? Number(event.target.value) : '' } : row)),
-                    )
-                  }
-                />
-                <Input
-                  label="Satuan"
-                  wrapClassName="sm:col-span-2"
-                  value={baris.satuan}
-                  onChange={(event) => setMaterials((current) => current.map((row, i) => (i === index ? { ...row, satuan: event.target.value } : row)))}
-                />
-                <Input
-                  label="Keterangan"
-                  wrapClassName="sm:col-span-3"
-                  value={baris.keterangan}
-                  onChange={(event) =>
-                    setMaterials((current) => current.map((row, i) => (i === index ? { ...row, keterangan: event.target.value } : row)))
-                  }
-                />
-                <div className="flex items-end sm:col-span-1">
-                  <Button
-                    variant="ghost"
-                    className="text-danger"
-                    aria-label="Hapus material"
-                    onClick={() => setMaterials((current) => current.filter((_, i) => i !== index))}
-                    icon={<Trash2 className="size-4" />}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <FileUpload files={foto} onChange={setFoto} error={errors.photos ?? errors['photos.0']} />
       </Card>
 
-      <Card
-        title="Kendala, Alasan Keterlambatan, dan Tindak Lanjut"
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            icon={<Plus className="size-4" />}
-            onClick={() =>
-              setIssues((current) => [
-                ...current,
-                { work_item_id: '', jenis_kendala: 'LAINNYA', deskripsi: '', alasan_keterlambatan: '', tindak_lanjut: '' },
-              ])
-            }
-          >
-            Tambah Kendala
-          </Button>
-        }
-      >
-        {issues.length === 0 ? (
-          <p className="text-xs text-muted">Belum ada kendala yang dicatat.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {issues.map((baris, index) => (
-              <li key={index} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-2">
-                <Select
-                  label="Pekerjaan Terkait"
-                  value={baris.work_item_id}
-                  onChange={(event) =>
-                    setIssues((current) =>
-                      current.map((row, i) => (i === index ? { ...row, work_item_id: event.target.value ? Number(event.target.value) : '' } : row)),
-                    )
-                  }
-                >
-                  <option value="">Tidak spesifik</option>
-                  {daftarPekerjaan.map((pekerjaanItem) => (
-                    <option key={pekerjaanItem.id} value={pekerjaanItem.id}>
-                      {pekerjaanItem.uraian_pekerjaan}
-                    </option>
-                  ))}
-                </Select>
-                <Select
-                  label="Jenis Kendala"
-                  value={baris.jenis_kendala}
-                  onChange={(event) => setIssues((current) => current.map((row, i) => (i === index ? { ...row, jenis_kendala: event.target.value } : row)))}
-                >
-                  {JENIS_KENDALA.map(([nilai, label]) => (
-                    <option key={nilai} value={nilai}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-                <Textarea
-                  label="Deskripsi Kendala"
-                  value={baris.deskripsi}
-                  onChange={(event) => setIssues((current) => current.map((row, i) => (i === index ? { ...row, deskripsi: event.target.value } : row)))}
-                />
-                <Textarea
-                  label="Alasan Keterlambatan"
-                  value={baris.alasan_keterlambatan}
-                  onChange={(event) =>
-                    setIssues((current) => current.map((row, i) => (i === index ? { ...row, alasan_keterlambatan: event.target.value } : row)))
-                  }
-                />
-                <Textarea
-                  label="Rencana Tindak Lanjut"
-                  wrapClassName="sm:col-span-2"
-                  value={baris.tindak_lanjut}
-                  onChange={(event) => setIssues((current) => current.map((row, i) => (i === index ? { ...row, tindak_lanjut: event.target.value } : row)))}
-                />
-                <div className="sm:col-span-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-danger"
-                    onClick={() => setIssues((current) => current.filter((_, i) => i !== index))}
-                    icon={<Trash2 className="size-4" />}
+      <Card title="Apakah pekerjaan sudah selesai?" description="Jika belum selesai, isi kendala, alasan keterlambatan, dan rencana tindak lanjut.">
+        <div className="grid grid-cols-2 gap-2 sm:max-w-sm" role="radiogroup" aria-label="Status pekerjaan">
+          {(
+            [
+              [true, 'Selesai'],
+              [false, 'Belum Selesai'],
+            ] as const
+          ).map(([nilai, label]) => (
+            <button
+              key={label}
+              type="button"
+              role="radio"
+              aria-checked={selesai === nilai}
+              onClick={() => {
+                setSelesai(nilai)
+                if (!nilai && issues.length === 0) setIssues([kendalaKosong(details[0]?.work_item_id ?? '')])
+              }}
+              className={cn(
+                'rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors',
+                selesai === nilai
+                  ? nilai
+                    ? 'border-success bg-success text-white'
+                    : 'border-warning bg-warning text-white'
+                  : 'border-line text-ink hover:bg-surface',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {errors.selesai && <p className="mt-2 text-[11px] font-medium text-danger">{errors.selesai}</p>}
+
+        {selesai === false && (
+          <div className="mt-4 flex flex-col gap-3">
+            <ul className="flex flex-col gap-3">
+              {issues.map((baris, index) => (
+                <li key={index} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-2">
+                  <Select
+                    label="Pekerjaan Terkait"
+                    required
+                    value={baris.work_item_id}
+                    onChange={(event) =>
+                      setIssues((current) =>
+                        current.map((row, i) => (i === index ? { ...row, work_item_id: event.target.value ? Number(event.target.value) : '' } : row)),
+                      )
+                    }
                   >
-                    Hapus kendala
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    <option value="" disabled>
+                      Pilih pekerjaan
+                    </option>
+                    {daftarPekerjaan.map((pekerjaanItem) => (
+                      <option key={pekerjaanItem.id} value={pekerjaanItem.id}>
+                        {pekerjaanItem.uraian_pekerjaan}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    label="Jenis Kendala"
+                    value={baris.jenis_kendala}
+                    onChange={(event) => setIssues((current) => current.map((row, i) => (i === index ? { ...row, jenis_kendala: event.target.value } : row)))}
+                  >
+                    {JENIS_KENDALA.map(([nilai, label]) => (
+                      <option key={nilai} value={nilai}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                  {baris.jenis_kendala === 'LAINNYA' && (
+                    <Input
+                      label="Sebutkan Jenis Kendala"
+                      required
+                      value={baris.jenis_lainnya}
+                      onChange={(event) =>
+                        setIssues((current) => current.map((row, i) => (i === index ? { ...row, jenis_lainnya: event.target.value } : row)))
+                      }
+                      placeholder="Contoh: Perizinan, Akses Lokasi"
+                    />
+                  )}
+                  <Textarea
+                    label="Kendala"
+                    required
+                    wrapClassName={baris.jenis_kendala === 'LAINNYA' ? 'sm:col-span-2' : undefined}
+                    value={baris.deskripsi}
+                    onChange={(event) => setIssues((current) => current.map((row, i) => (i === index ? { ...row, deskripsi: event.target.value } : row)))}
+                  />
+                  <Textarea
+                    label="Alasan Keterlambatan"
+                    required
+                    value={baris.alasan_keterlambatan}
+                    onChange={(event) =>
+                      setIssues((current) => current.map((row, i) => (i === index ? { ...row, alasan_keterlambatan: event.target.value } : row)))
+                    }
+                  />
+                  <Textarea
+                    label="Rencana Tindak Lanjut"
+                    required
+                    wrapClassName="sm:col-span-2"
+                    value={baris.tindak_lanjut}
+                    onChange={(event) => setIssues((current) => current.map((row, i) => (i === index ? { ...row, tindak_lanjut: event.target.value } : row)))}
+                  />
+                  <div className="sm:col-span-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-danger"
+                      onClick={() => setIssues((current) => current.filter((_, i) => i !== index))}
+                      icon={<Trash2 className="size-4" />}
+                    >
+                      Hapus kendala
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              icon={<Plus className="size-4" />}
+              onClick={() => setIssues((current) => [...current, kendalaKosong(details[0]?.work_item_id ?? '')])}
+            >
+              Tambah Kendala
+            </Button>
+            {errors.issues && <p className="text-[11px] font-medium text-danger">{errors.issues}</p>}
+          </div>
         )}
       </Card>
 
-      <Card title="Foto Bukti Pekerjaan" description="Foto ditampilkan sebagai pratinjau sebelum laporan dikirim.">
-        <FileUpload files={foto} onChange={setFoto} error={errors['photos.0']} />
-      </Card>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" icon={<Save className="size-4" />} loading={simpan.isPending} onClick={(event) => kirim(event, 'DRAFT')}>
+          Simpan Draf
+        </Button>
+        <Button type="submit" icon={<Send className="size-4" />} loading={simpan.isPending}>
+          Kirim Progres
+        </Button>
+      </div>
     </form>
+
+    <ConfirmDialog
+      open={tujuanKeluar !== null}
+      title="Keluar dari form progres?"
+      pesan="Isian yang sudah Anda masukkan belum dikirim dan akan hilang jika keluar sekarang."
+      labelKonfirmasi="Ya, Keluar"
+      onConfirm={() => {
+        const tujuan = tujuanKeluar
+        setTujuanKeluar(null)
+        if (tujuan) navigate(tujuan)
+      }}
+      onClose={() => setTujuanKeluar(null)}
+    />
+    </>
   )
 }

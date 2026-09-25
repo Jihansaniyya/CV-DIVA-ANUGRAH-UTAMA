@@ -45,7 +45,7 @@ export function StatusBadge({ status }: { status: ProjectStatus }) {
 }
 
 export function ReportStatusBadge({ status }: { status: ReportStatus }) {
-  return <Badge tone={status === 'DIKIRIM' ? 'success' : 'neutral'}>{status === 'DIKIRIM' ? 'Dikirim' : 'Draft'}</Badge>
+  return <Badge tone={status === 'DIKIRIM' ? 'success' : 'neutral'}>{status === 'DIKIRIM' ? 'Dikirim' : 'Draf'}</Badge>
 }
 
 /** Badge deviasi: positif berarti realisasi mendahului rencana. */

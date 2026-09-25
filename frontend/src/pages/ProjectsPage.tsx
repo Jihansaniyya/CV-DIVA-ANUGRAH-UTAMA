@@ -168,9 +168,18 @@ export function ProjectsPage() {
                           </Td>
                           <Td align="center">
                             <div className="flex items-center justify-center gap-1">
-                              <Link to={`/proyek/${project.id}`} aria-label="Lihat detail" className="rounded-lg p-1.5 text-muted hover:bg-surface hover:text-navy">
-                                <Eye className="size-4" aria-hidden />
-                              </Link>
+                              {adminMode ? (
+                                <Link to={`/proyek/${project.id}`} aria-label="Lihat detail" className="rounded-lg p-1.5 text-muted hover:bg-surface hover:text-navy">
+                                  <Eye className="size-4" aria-hidden />
+                                </Link>
+                              ) : (
+                                <Link
+                                  to={`/proyek/${project.id}`}
+                                  className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink transition-colors hover:border-primary hover:text-primary"
+                                >
+                                  Lihat Detail
+                                </Link>
+                              )}
                               {adminMode && (
                                 <>
                                   <button type="button" onClick={() => bukaEdit(project)} aria-label="Ubah proyek" className="rounded-lg p-1.5 text-muted hover:bg-surface hover:text-navy">
@@ -221,6 +230,14 @@ export function ProjectsPage() {
                         <ProgressBar nilai={project.progres_aktual ?? 0} pembanding={project.progres_rencana} />
                         <p className="mt-1 text-[10px] text-muted">Rencana {persen(project.progres_rencana)}</p>
                       </div>
+                      {!adminMode && (
+                        <Link
+                          to={`/proyek/${project.id}`}
+                          className="mt-3 flex h-8 w-full items-center justify-center rounded-lg border border-line text-xs font-medium text-ink transition-colors hover:border-primary hover:text-primary"
+                        >
+                          Lihat Detail
+                        </Link>
+                      )}
                       {adminMode && (
                         <div className="mt-3 flex gap-2">
                           <Button variant="outline" size="sm" block onClick={() => bukaEdit(project)}>

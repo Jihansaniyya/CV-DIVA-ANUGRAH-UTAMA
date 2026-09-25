@@ -46,7 +46,7 @@ export function FileUpload({ files, onChange, maxFiles = 10, maxSizeMb = 5, erro
       }
 
       if (files.length + diterima.length >= maxFiles) {
-        keluhan = `Maksimal ${maxFiles} foto per laporan.`
+        keluhan = `Maksimal ${maxFiles} foto per progres.`
 
         return
       }
