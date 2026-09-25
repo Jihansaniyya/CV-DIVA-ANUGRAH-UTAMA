@@ -89,7 +89,6 @@ return [
         'uraian_pekerjaan' => 'uraian pekerjaan',
         'volume' => 'volume pekerjaan',
         'harga_satuan' => 'harga satuan',
-        'bobot_manual' => 'bobot manual',
         'project_id' => 'proyek',
         'period_id' => 'periode',
         'tanggal_laporan' => 'tanggal laporan',

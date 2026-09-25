@@ -22,7 +22,6 @@ const KOSONG: WorkItemPayload = {
   uraian_pekerjaan: '',
   volume: 0,
   harga_satuan: null,
-  bobot_manual: null,
   waktu_mulai: null,
   waktu_selesai: null,
   keterangan: null,
@@ -58,7 +57,6 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             uraian_pekerjaan: itemDiedit.uraian_pekerjaan,
             volume: itemDiedit.volume,
             harga_satuan: itemDiedit.harga_satuan,
-            bobot_manual: itemDiedit.bobot_manual,
             waktu_mulai: itemDiedit.waktu_mulai,
             waktu_selesai: itemDiedit.waktu_selesai,
             keterangan: itemDiedit.keterangan,
@@ -122,6 +120,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
     if (!form.uraian_pekerjaan.trim()) validasi.uraian_pekerjaan = 'Uraian pekerjaan wajib diisi.'
     if (!form.unit_id) validasi.unit_id = 'Satuan pekerjaan wajib dipilih.'
     if (!form.volume || form.volume <= 0) validasi.volume = 'Volume harus lebih besar dari 0.'
+    if (form.harga_satuan === null || form.harga_satuan < 0) validasi.harga_satuan = 'Harga satuan wajib diisi.'
 
     setErrors(validasi)
 
@@ -131,8 +130,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
       ...form,
       volume: Number(form.volume),
       unit_id: Number(form.unit_id),
-      harga_satuan: form.harga_satuan ? Number(form.harga_satuan) : null,
-      bobot_manual: form.bobot_manual ? Number(form.bobot_manual) : null,
+      harga_satuan: Number(form.harga_satuan),
       work_category_id: form.work_category_id ? Number(form.work_category_id) : null,
     })
   }
@@ -142,12 +140,21 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
 
   const items = data?.data ?? []
 
+  /**
+   * Pratinjau read-only pada form. Nilai final tetap dihitung backend
+   * (WeightCalculatorService) setelah data disimpan.
+   */
+  const hargaPekerjaan = Math.round(Number(form.volume || 0) * Number(form.harga_satuan || 0) * 100) / 100
+  const hargaLain = items.filter((item) => item.id !== itemDiedit?.id).reduce((total, item) => total + (item.harga_pekerjaan ?? 0), 0)
+  const totalHarga = hargaLain + hargaPekerjaan
+  const pratinjau = { hargaPekerjaan, totalHarga, bobot: totalHarga > 0 ? (hargaPekerjaan / totalHarga) * 100 : 0 }
+
   return (
     <Card
       title="Data Pekerjaan"
       description={
         data
-          ? `Total bobot ${angka(data.meta.total_bobot)}%${data.meta.memakai_harga ? ` - Total harga ${rupiah(data.meta.total_harga_pekerjaan)}` : ' - Bobot diisi manual'}`
+          ? `Total harga ${rupiah(data.meta.total_harga_pekerjaan)} - Total bobot ${angka(data.meta.total_bobot)}% (dihitung otomatis)`
           : undefined
       }
       action={
@@ -243,7 +250,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             <tfoot>
               <tr className="bg-surface/60 font-semibold">
                 <Td colSpan={5}>JUMLAH</Td>
-                <Td align="right">{data?.meta.memakai_harga ? rupiah(data.meta.total_harga_pekerjaan) : '-'}</Td>
+                <Td align="right">{rupiah(data?.meta.total_harga_pekerjaan ?? 0)}</Td>
                 <Td align="right">{angka(data?.meta.total_bobot ?? 0, 4)}</Td>
                 <Td colSpan={adminMode ? 3 : 2} />
               </tr>
@@ -322,21 +329,25 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             type="number"
             step="0.01"
             min="0"
+            required
             value={form.harga_satuan ?? ''}
             onChange={(event) => setForm({ ...form, harga_satuan: event.target.value ? Number(event.target.value) : null })}
             error={errors.harga_satuan}
-            hint="Kosongkan bila proyek tidak memakai data harga."
+            placeholder="Masukkan harga satuan"
           />
           <Input
-            label="Bobot Manual (%)"
-            type="number"
-            step="0.0001"
-            min="0"
-            max="100"
-            value={form.bobot_manual ?? ''}
-            onChange={(event) => setForm({ ...form, bobot_manual: event.target.value ? Number(event.target.value) : null })}
-            error={errors.bobot_manual}
-            hint="Dipakai hanya bila seluruh pekerjaan tanpa harga."
+            label="Harga Pekerjaan (Rp)"
+            readOnly
+            disabled
+            value={rupiah(pratinjau.hargaPekerjaan)}
+            hint="Volume × Harga Satuan"
+          />
+          <Input
+            label="Bobot Pekerjaan (%)"
+            readOnly
+            disabled
+            value={angka(pratinjau.bobot, 4)}
+            hint={`Harga Pekerjaan / Total Harga Proyek (${rupiah(pratinjau.totalHarga)}) × 100%`}
           />
           <DatePicker
             label="Waktu Mulai"

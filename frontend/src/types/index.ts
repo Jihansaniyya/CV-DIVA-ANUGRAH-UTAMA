@@ -83,7 +83,6 @@ export interface WorkItem {
   harga_satuan: number | null
   harga_pekerjaan: number | null
   bobot: number
-  bobot_manual: number | null
   waktu_mulai: string | null
   waktu_selesai: string | null
   urutan: number
@@ -132,6 +131,7 @@ export interface WorkPlanRow {
   bobot: number
   periode: WorkPlanCell[]
   total_target_volume: number
+  total_target_bobot: number
   sisa_volume: number
 }
 
@@ -139,6 +139,8 @@ export interface WorkPlanMatrix {
   periode: Period[]
   baris: WorkPlanRow[]
   total_per_periode: { period_id: number; nama_periode: string; rencana: number; kumulatif: number }[]
+  total_bobot_pekerjaan: number
+  total_bobot_rencana: number
 }
 
 export interface CurvePoint {

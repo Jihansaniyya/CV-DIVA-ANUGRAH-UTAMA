@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\DB;
  *   harga_pekerjaan = volume x harga_satuan
  *   bobot_i         = harga_pekerjaan_i / SUM(harga_pekerjaan) x 100
  *
- * Bila proyek sama sekali tidak memakai data harga (semua harga_satuan kosong),
- * sistem memakai kolom bobot_manual yang diisi Admin. Tidak ada nilai harga
- * maupun bobot yang dibangkitkan secara acak oleh sistem.
+ * Bobot tidak pernah diinput manual oleh Admin. Pekerjaan tanpa harga satuan
+ * dihitung sebagai harga 0 sehingga bobotnya 0. Tidak ada nilai harga maupun
+ * bobot yang dibangkitkan secara acak oleh sistem.
  */
 class WeightCalculatorService
 {
@@ -29,28 +29,17 @@ class WeightCalculatorService
                 return;
             }
 
-            $usesPrice = $items->contains(fn (WorkItem $item) => $item->harga_satuan !== null && (float) $item->harga_satuan > 0);
-
             $total = 0.0;
 
             foreach ($items as $item) {
-                if ($usesPrice) {
-                    $hargaPekerjaan = round((float) $item->volume * (float) ($item->harga_satuan ?? 0), 2);
-                    $item->harga_pekerjaan = $hargaPekerjaan;
-                    $total += $hargaPekerjaan;
-                } else {
-                    $item->harga_pekerjaan = null;
-                }
+                $item->harga_pekerjaan = $this->hargaPekerjaan((float) $item->volume, (float) ($item->harga_satuan ?? 0));
+                $total += (float) $item->harga_pekerjaan;
             }
 
             foreach ($items as $item) {
-                if ($usesPrice) {
-                    $item->bobot = $total > 0
-                        ? round((float) $item->harga_pekerjaan / $total * 100, 4)
-                        : 0;
-                } else {
-                    $item->bobot = round((float) ($item->bobot_manual ?? 0), 4);
-                }
+                $item->bobot = $total > 0
+                    ? round((float) $item->harga_pekerjaan / $total * 100, 4)
+                    : 0;
 
                 $item->saveQuietly();
             }
@@ -60,10 +49,16 @@ class WeightCalculatorService
         });
     }
 
+    /** harga_pekerjaan = volume x harga_satuan */
+    public function hargaPekerjaan(float $volume, float $hargaSatuan): float
+    {
+        return round($volume * $hargaSatuan, 2);
+    }
+
     /** Selaraskan target_bobot rencana dengan bobot pekerjaan terbaru. */
     public function recalculatePlans(Project $project): void
     {
-        $project->loadMissing('workItems');
+        $project->load('workItems');
         $bobotMap = $project->workItems->pluck('bobot', 'id');
         $volumeMap = $project->workItems->pluck('volume', 'id');
 
@@ -82,7 +77,7 @@ class WeightCalculatorService
     /** Selaraskan bobot realisasi pada seluruh detail progres proyek. */
     public function recalculateActuals(Project $project): void
     {
-        $project->loadMissing('workItems');
+        $project->load('workItems');
         $bobotMap = $project->workItems->pluck('bobot', 'id');
         $volumeMap = $project->workItems->pluck('volume', 'id');
 

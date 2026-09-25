@@ -45,8 +45,7 @@ export interface WorkItemPayload {
   unit_id: number
   uraian_pekerjaan: string
   volume: number
-  harga_satuan?: number | null
-  bobot_manual?: number | null
+  harga_satuan: number | null
   waktu_mulai?: string | null
   waktu_selesai?: string | null
   urutan?: number | null

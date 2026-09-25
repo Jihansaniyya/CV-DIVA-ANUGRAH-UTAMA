@@ -20,7 +20,6 @@ class WorkItem extends Model
         'harga_satuan',
         'harga_pekerjaan',
         'bobot',
-        'bobot_manual',
         'waktu_mulai',
         'waktu_selesai',
         'urutan',
@@ -34,7 +33,6 @@ class WorkItem extends Model
             'harga_satuan' => 'decimal:2',
             'harga_pekerjaan' => 'decimal:2',
             'bobot' => 'decimal:4',
-            'bobot_manual' => 'decimal:4',
             'waktu_mulai' => 'date',
             'waktu_selesai' => 'date',
         ];

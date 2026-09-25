@@ -260,8 +260,9 @@ mengembalikan `{ data, links, meta }`, sedangkan aksi tunggal mengembalikan `{ m
 4. **`jangka_waktu_hari` sebagai isian SPK.** Dokumen referensi menyebut 45 hari kalender sementara
    grid pelaksanaannya 6 minggu. Nilai ini karenanya disimpan sebagai data SPK dan tidak dipaksa sama
    dengan selisih tanggal; bila dikosongkan, sistem menghitungnya dari tanggal pelaksanaan.
-5. **Harga bersifat opsional.** Bobot dihitung dari harga bila tersedia; bila tidak, Admin mengisi
-   bobot manual. Sistem tidak pernah mengarang nilai harga.
+5. **Bobot selalu dihitung sistem.** Harga satuan wajib diisi Admin; bobot pekerjaan dihitung dari
+   harga pekerjaan terhadap total harga proyek dan tidak dapat diinput manual. Sistem tidak pernah
+   mengarang nilai harga.
 6. **`projects.qs_user_id` dipertahankan bersama `project_assignments`.** PRD menyebut satu QS
    penanggung jawab per proyek, sedangkan tabel penugasan memberi ruang untuk QS tambahan. Keduanya
    disinkronkan otomatis saat proyek disimpan.

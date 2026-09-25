@@ -9,12 +9,16 @@ use App\Http\Resources\WorkItemResource;
 use App\Models\Project;
 use App\Models\WorkItem;
 use App\Services\WeightCalculatorService;
+use App\Services\WorkPlanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class WorkItemController extends Controller
 {
-    public function __construct(private readonly WeightCalculatorService $weights) {}
+    public function __construct(
+        private readonly WeightCalculatorService $weights,
+        private readonly WorkPlanService $plans,
+    ) {}
 
     public function index(Request $request, Project $project): JsonResponse
     {
@@ -65,6 +69,10 @@ class WorkItemController extends Controller
     public function update(UpdateWorkItemRequest $request, Project $project, WorkItem $workItem): JsonResponse
     {
         abort_unless($workItem->project_id === $project->id, 404);
+
+        if ($request->has('volume')) {
+            $this->plans->ensureVolumeCoversPlans($workItem, (float) $request->validated('volume'));
+        }
 
         $workItem->update($request->validated());
         $this->weights->recalculateProject($project);

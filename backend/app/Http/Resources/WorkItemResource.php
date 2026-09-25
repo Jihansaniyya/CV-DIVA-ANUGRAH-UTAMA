@@ -21,7 +21,6 @@ class WorkItemResource extends JsonResource
             'harga_satuan' => $this->harga_satuan !== null ? (float) $this->harga_satuan : null,
             'harga_pekerjaan' => $this->harga_pekerjaan !== null ? (float) $this->harga_pekerjaan : null,
             'bobot' => (float) $this->bobot,
-            'bobot_manual' => $this->bobot_manual !== null ? (float) $this->bobot_manual : null,
             'waktu_mulai' => $this->waktu_mulai?->toDateString(),
             'waktu_selesai' => $this->waktu_selesai?->toDateString(),
             'urutan' => $this->urutan,

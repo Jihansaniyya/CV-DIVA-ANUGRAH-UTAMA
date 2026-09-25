@@ -94,6 +94,21 @@ class WorkPlanService
         });
     }
 
+    /**
+     * Volume pekerjaan tidak boleh diturunkan di bawah total target volume
+     * yang sudah direncanakan, agar sisa volume tidak bernilai negatif.
+     */
+    public function ensureVolumeCoversPlans(WorkItem $item, float $volumeBaru): void
+    {
+        $totalTarget = (float) $item->workPlans()->sum('target_volume');
+
+        if (round($totalTarget, 3) > round($volumeBaru, 3) + 0.0001) {
+            throw ValidationException::withMessages([
+                'volume' => 'Volume tidak boleh kurang dari total target volume pada rencana pekerjaan ('.number_format($totalTarget, 3, ',', '.').'). Kurangi target rencana terlebih dahulu.',
+            ]);
+        }
+    }
+
     /** Matriks rencana: pekerjaan x periode, siap dipakai tabel rencana di frontend. */
     public function matrix(Project $project): array
     {
@@ -118,6 +133,7 @@ class WorkPlanService
                     'target_bobot' => (float) ($planItem[$p->id]->target_bobot ?? 0),
                 ])->all(),
                 'total_target_volume' => (float) $planItem->sum('target_volume'),
+                'total_target_bobot' => round((float) $planItem->sum('target_bobot'), 4),
                 'sisa_volume' => round((float) $item->volume - (float) $planItem->sum('target_volume'), 3),
             ];
         })->all();
@@ -150,6 +166,8 @@ class WorkPlanService
             ])->all(),
             'baris' => $baris,
             'total_per_periode' => $totalPerPeriode,
+            'total_bobot_pekerjaan' => round((float) $items->sum('bobot'), 4),
+            'total_bobot_rencana' => round((float) $plans->sum('target_bobot'), 4),
         ];
     }
 }

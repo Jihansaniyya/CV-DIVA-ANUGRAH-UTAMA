@@ -15,9 +15,16 @@ type Draft = Record<string, number>
 
 const kunci = (workItemId: number, periodId: number) => `${workItemId}:${periodId}`
 
+/** Bobot rencana = (target volume / volume pekerjaan) x bobot pekerjaan. */
+const bobotRencana = (targetVolume: number, volume: number, bobot: number) => (volume > 0 ? (targetVolume / volume) * bobot : 0)
+
+const TOLERANSI = 0.0005
+
 /**
  * Matriks rencana pekerjaan: baris pekerjaan x kolom periode.
- * Admin mengisi target volume, sistem menghitung target bobot dan kumulatifnya.
+ * Admin hanya mengisi target volume per periode. Bobot rencana mingguan,
+ * rencana kumulatif, dan sisa volume dihitung sistem. Jumlah kolom periode
+ * mengikuti periode proyek dari backend.
  */
 export function WorkPlanTab({ projectId }: { projectId: number }) {
   const { punyaPeran } = useAuth()
@@ -51,7 +58,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
     onError: (err) => toast.gagal(pesanError(err)),
   })
 
-  /** Ringkasan target bobot per periode dihitung ulang saat nilai diubah. */
+  /** Ringkasan bobot rencana per periode dihitung ulang saat nilai diubah. */
   const ringkasan = useMemo(() => {
     if (!data) return []
 
@@ -60,9 +67,8 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
     return data.periode.map((period) => {
       const bobot = data.baris.reduce((total, baris) => {
         const volume = draft[kunci(baris.work_item_id, period.id)] ?? 0
-        const persentase = baris.volume > 0 ? (volume / baris.volume) * 100 : 0
 
-        return total + (persentase * baris.bobot) / 100
+        return total + bobotRencana(volume, baris.volume, baris.bobot)
       }, 0)
 
       kumulatif += bobot
@@ -71,13 +77,38 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
     })
   }, [data, draft])
 
+  /** Total target volume, sisa, dan total bobot rencana per pekerjaan. */
+  const totalBaris = useMemo(() => {
+    const hasil: Record<number, { sisa: number; totalBobot: number }> = {}
+
+    data?.baris.forEach((baris) => {
+      const totalVolume = data.periode.reduce((total, period) => total + (draft[kunci(baris.work_item_id, period.id)] ?? 0), 0)
+
+      hasil[baris.work_item_id] = {
+        sisa: baris.volume - totalVolume,
+        totalBobot: bobotRencana(totalVolume, baris.volume, baris.bobot),
+      }
+    })
+
+    return hasil
+  }, [data, draft])
+
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
   if (!data || data.baris.length === 0) {
     return <EmptyState judul="Belum ada pekerjaan" pesan="Tambahkan pekerjaan terlebih dahulu pada tab Pekerjaan." />
   }
 
+  const barisMelebihi = data.baris.filter((baris) => (totalBaris[baris.work_item_id]?.sisa ?? 0) < -TOLERANSI)
+  const totalBobotRencana = ringkasan.at(-1)?.kumulatif ?? 0
+
   const kirim = () => {
+    if (barisMelebihi.length > 0) {
+      toast.gagal(`Total target volume "${barisMelebihi[0].uraian_pekerjaan}" melebihi volume pekerjaan. Rencana tidak dapat disimpan.`)
+
+      return
+    }
+
     const rows: WorkPlanRowPayload[] = []
 
     data.baris.forEach((baris) => {
@@ -96,10 +127,16 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
   return (
     <Card
       title="Rencana Pekerjaan per Periode"
-      description="Target volume tiap periode menjadi dasar pembentukan Kurva S."
+      description={`Admin mengisi target volume per periode (${data.periode.length} periode). Bobot rencana dan kumulatif dihitung sistem sebagai dasar Kurva S.`}
       action={
         adminMode ? (
-          <Button size="sm" icon={<Save className="size-4" />} loading={simpan.isPending} onClick={kirim}>
+          <Button
+            size="sm"
+            icon={<Save className="size-4" />}
+            loading={simpan.isPending}
+            disabled={barisMelebihi.length > 0}
+            onClick={kirim}
+          >
             Simpan Rencana
           </Button>
         ) : undefined
@@ -118,6 +155,9 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
               <th rowSpan={2}>Bobot (%)</th>
               <th colSpan={data.periode.length}>Target Volume per Periode</th>
               <th rowSpan={2}>Sisa</th>
+              <th rowSpan={2} className="min-w-24">
+                Bobot Rencana (%)
+              </th>
             </tr>
             <tr>
               {data.periode.map((period) => (
@@ -129,8 +169,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
           </thead>
           <tbody>
             {data.baris.map((baris) => {
-              const totalDraft = data.periode.reduce((total, period) => total + (draft[kunci(baris.work_item_id, period.id)] ?? 0), 0)
-              const sisa = baris.volume - totalDraft
+              const { sisa, totalBobot } = totalBaris[baris.work_item_id] ?? { sisa: baris.volume, totalBobot: 0 }
 
               return (
                 <tr key={baris.work_item_id}>
@@ -141,28 +180,39 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
                   <td className="text-center">{baris.satuan}</td>
                   <td className="num">{angka(baris.volume, 2)}</td>
                   <td className="num">{angka(baris.bobot, 4)}</td>
-                  {data.periode.map((period) => (
-                    <td key={period.id} className="p-0">
-                      <input
-                        type="number"
-                        step="0.001"
-                        min="0"
-                        disabled={!adminMode}
-                        className="w-full border-0 bg-transparent px-2 py-1.5 text-right text-xs tabular-nums focus:bg-primary-light disabled:text-muted"
-                        value={draft[kunci(baris.work_item_id, period.id)] || ''}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            [kunci(baris.work_item_id, period.id)]: Number(event.target.value || 0),
-                          }))
-                        }
-                        aria-label={`Target ${baris.uraian_pekerjaan} ${period.nama_periode}`}
-                      />
-                    </td>
-                  ))}
-                  <td className={`num ${sisa < -0.001 ? 'text-danger' : sisa > 0.001 ? 'text-warning' : 'text-success'}`}>
+                  {data.periode.map((period) => {
+                    const target = draft[kunci(baris.work_item_id, period.id)] ?? 0
+
+                    return (
+                      <td key={period.id} className="p-0 align-top">
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          disabled={!adminMode}
+                          className="w-full border-0 bg-transparent px-2 py-1.5 text-right text-xs tabular-nums focus:bg-primary-light disabled:text-muted"
+                          value={target || ''}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              [kunci(baris.work_item_id, period.id)]: Math.max(0, Number(event.target.value || 0)),
+                            }))
+                          }
+                          aria-label={`Target ${baris.uraian_pekerjaan} ${period.nama_periode}`}
+                        />
+                        {target > 0 && (
+                          <span className="block px-2 pb-1 text-right text-[10px] tabular-nums text-muted" title="Bobot rencana (%)">
+                            {angka(bobotRencana(target, baris.volume, baris.bobot), 2)}%
+                          </span>
+                        )}
+                      </td>
+                    )
+                  })}
+                  <td className={`num ${sisa < -TOLERANSI ? 'text-danger' : sisa > TOLERANSI ? 'text-warning' : 'text-success'}`}>
                     {angka(sisa, 2)}
+                    {sisa < -TOLERANSI && <span className="block text-[10px]">Melebihi volume</span>}
                   </td>
+                  <td className="num">{angka(totalBobot, 2)}</td>
                 </tr>
               )
             })}
@@ -178,6 +228,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
                 </td>
               ))}
               <td />
+              <td className="num">{angka(totalBobotRencana, 3)}</td>
             </tr>
             <tr className="font-semibold">
               <td colSpan={4} className="text-right">
@@ -189,17 +240,27 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
                 </td>
               ))}
               <td />
+              <td />
             </tr>
           </tfoot>
         </table>
       </div>
 
-      {adminMode && (
-        <p className="mt-3 text-[11px] text-muted">
-          Total target volume seluruh periode tidak boleh melebihi volume rencana pekerjaan. Kolom Sisa berwarna merah menandakan
-          kelebihan target.
+      <div className="mt-3 space-y-1 text-[11px] text-muted">
+        <p>
+          Bobot rencana per periode = (target volume / volume pekerjaan) × bobot pekerjaan. Total target volume seluruh periode harus sama
+          dengan volume pekerjaan (Sisa = 0) dan tidak boleh melebihinya.
         </p>
-      )}
+        <p>
+          Total bobot rencana {angka(totalBobotRencana, 2)}% dari total bobot pekerjaan {angka(data.total_bobot_pekerjaan, 2)}%.
+        </p>
+        {barisMelebihi.length > 0 && (
+          <p className="font-medium text-danger">
+            Target volume melebihi volume pekerjaan pada: {barisMelebihi.map((baris) => baris.uraian_pekerjaan).join(', ')}. Perbaiki
+            sebelum menyimpan.
+          </p>
+        )}
+      </div>
     </Card>
   )
 }

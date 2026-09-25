@@ -93,7 +93,6 @@ tercatat pada `projects.qs_user_id` dan disinkronkan ke tabel ini.
 | `harga_satuan` | decimal(18,2) nullable | |
 | `harga_pekerjaan` | decimal(18,2) nullable | hasil hitung `volume × harga_satuan` |
 | `bobot` | decimal(9,4) | bobot efektif (%) hasil perhitungan |
-| `bobot_manual` | decimal(9,4) nullable | dipakai bila proyek tanpa data harga |
 | `waktu_mulai`, `waktu_selesai` | date nullable | |
 | `urutan` | smallint | urutan tampil pada laporan |
 
@@ -191,8 +190,9 @@ bobot(i)           = harga_pekerjaan(i) / Σ harga_pekerjaan × 100
 ```
 
 Formula ini mengikuti kolom BOBOT (%) pada laporan mingguan/bulanan CV Diva Anugrah Utama.
-Bila **seluruh** pekerjaan pada proyek tidak memiliki `harga_satuan`, sistem memakai `bobot_manual`
-yang diisi Admin. Sistem tidak pernah membangkitkan nilai harga maupun bobot secara acak.
+`harga_satuan` wajib diisi Admin, sedangkan `harga_pekerjaan` dan `bobot` selalu hasil perhitungan
+(read-only). Bobot tidak dapat diinput manual. Sistem tidak pernah membangkitkan nilai harga maupun
+bobot secara acak.
 
 Perubahan volume atau harga memicu perhitungan ulang bobot sekaligus menyelaraskan `work_plans.target_bobot`
 dan `progress_details.bobot_realisasi` agar data turunan tetap konsisten.
@@ -206,7 +206,15 @@ rencana periode   = Σ target_bobot seluruh pekerjaan pada periode tersebut
 rencana kumulatif = penjumlahan berjalan rencana periode sejak periode pertama
 ```
 
-Batasan: `Σ target_volume` seluruh periode untuk satu pekerjaan tidak boleh melebihi volume rencananya.
+Admin hanya mengisi `target_volume` per periode; `target_persentase` dan `target_bobot` dihitung sistem.
+Setara dengan `target_bobot = target_volume / volume pekerjaan × bobot pekerjaan`, sehingga bila seluruh
+volume sudah direncanakan, `Σ target_bobot` satu pekerjaan sama dengan bobot pekerjaannya.
+Contoh Beton K-250 (volume 23,87 m³, bobot 40,35%): target M-II..M-V = 4 / 8 / 7 / 4,87 m³ menghasilkan
+bobot rencana 6,76 / 13,52 / 11,83 / 8,24 % (total 40,35%).
+
+Batasan: `Σ target_volume` seluruh periode untuk satu pekerjaan tidak boleh melebihi volume rencananya
+(`sisa = volume − Σ target_volume` tidak boleh negatif), dan volume pekerjaan tidak boleh diturunkan di
+bawah total target yang sudah direncanakan. Jumlah periode mengikuti durasi proyek (§4.6).
 
 ### 4.3 Progres aktual — `ProgressService`
 
