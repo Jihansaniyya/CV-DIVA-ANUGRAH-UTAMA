@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+
+/*
+  Palet warna CV Diva Anugrah Utama (mengikuti design-reference.png).
+  Warna logo perusahaan tidak diubah.
+*/
+@theme {
+  --color-primary: #d71920;
+  --color-primary-dark: #b21419;
+  --color-primary-light: #fdecec;
+  --color-navy: #071a52;
+  --color-navy-light: #142a6b;
+  --color-navy-dark: #04123a;
+  --color-surface: #f5f7fa;
+  --color-card: #ffffff;
+  --color-ink: #172033;
+  --color-muted: #64748b;
+  --color-success: #16a344;
+  --color-success-soft: #e8f7ee;
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fef4e2;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fdecec;
+  --color-line: #e2e8f0;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* Target sentuh minimal pada perangkat mobile. */
+  @media (max-width: 767px) {
+    button,
+    a[role='button'],
+    input,
+    select {
+      min-height: 40px;
+    }
+  }
+}
+
+@layer components {
+  .app-card {
+    background-color: var(--color-card);
+    border: 1px solid var(--color-line);
+    border-radius: 0.875rem;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  }
+
+  .app-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-scroll-x::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .app-scroll-x::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+  }
+}
+
+/* Tabel laporan mempertahankan struktur kolom, digulir horizontal pada layar kecil. */
+.report-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #94a3b8;
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+
+.report-table thead th {
+  background-color: #eef2f7;
+  font-weight: 600;
+  text-align: center;
+}
+
+.report-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
