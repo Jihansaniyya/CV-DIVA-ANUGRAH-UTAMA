@@ -111,7 +111,7 @@ class ProgressAndCurveTest extends TestCase
             'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 50]],
         ])->assertCreated();
 
-        $response = $this->actingAs($konteks['qs'])->getJson("/api/projects/{$project->id}/curve-s")->assertOk();
+        $response = $this->actingAs($this->userDenganPeran(RoleCode::KONTRAKTOR))->getJson("/api/projects/{$project->id}/curve-s")->assertOk();
 
         $titik = $response->json('data.titik');
 
@@ -126,6 +126,7 @@ class ProgressAndCurveTest extends TestCase
     {
         $konteks = $this->proyekContoh();
         $this->susunRencana($konteks);
+        $kontraktor = $this->userDenganPeran(RoleCode::KONTRAKTOR);
 
         $this->actingAs($konteks['qs'])->postJson('/api/progress', [
             'project_id' => $konteks['project']->id,
@@ -134,7 +135,7 @@ class ProgressAndCurveTest extends TestCase
             'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 100]],
         ])->assertCreated();
 
-        $sebelum = $this->actingAs($konteks['qs'])->getJson("/api/projects/{$konteks['project']->id}/curve-s")
+        $sebelum = $this->actingAs($kontraktor)->getJson("/api/projects/{$konteks['project']->id}/curve-s")
             ->json('data.ringkasan.progres_aktual');
 
         $this->assertEqualsWithDelta(0.0, $sebelum, 0.0001);
@@ -142,7 +143,7 @@ class ProgressAndCurveTest extends TestCase
         $laporan = ProgressReport::firstOrFail();
         $this->actingAs($konteks['qs'])->patchJson("/api/progress/{$laporan->id}/submit")->assertOk();
 
-        $sesudah = $this->actingAs($konteks['qs'])->getJson("/api/projects/{$konteks['project']->id}/curve-s")
+        $sesudah = $this->actingAs($kontraktor)->getJson("/api/projects/{$konteks['project']->id}/curve-s")
             ->json('data.ringkasan.progres_aktual');
 
         $this->assertEqualsWithDelta(25.0, $sesudah, 0.0001);

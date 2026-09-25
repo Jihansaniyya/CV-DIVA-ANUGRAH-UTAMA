@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\RoleCode;
 use App\Models\ReportDocument;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -14,12 +15,15 @@ class ReportTest extends TestCase
 
     private array $konteks;
 
+    private User $kontraktor;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->seedMasterData();
 
         $this->konteks = $this->proyekContoh();
+        $this->kontraktor = $this->userDenganPeran(RoleCode::KONTRAKTOR);
         $project = $this->konteks['project'];
         $periods = $project->periods()->orderBy('urutan')->get();
         $admin = $this->userDenganPeran(RoleCode::ADMIN);
@@ -48,12 +52,27 @@ class ReportTest extends TestCase
         ])->assertCreated();
     }
 
+    public function test_qs_tidak_dapat_mengakses_laporan(): void
+    {
+        $qs = $this->konteks['qs'];
+        $project = $this->konteks['project'];
+
+        $this->actingAs($qs)->getJson("/api/reports/daily?project_id={$project->id}")->assertForbidden();
+        $this->actingAs($qs)->getJson("/api/reports/weekly?project_id={$project->id}")->assertForbidden();
+        $this->actingAs($qs)->getJson("/api/reports/monthly?project_id={$project->id}")->assertForbidden();
+        $this->actingAs($qs)->getJson("/api/reports/milestone?project_id={$project->id}")->assertForbidden();
+        $this->actingAs($qs)->getJson('/api/reports/documents')->assertForbidden();
+        $this->actingAs($qs)->postJson('/api/reports/export/excel', ['tipe' => 'HARIAN', 'project_id' => $project->id])->assertForbidden();
+        $this->actingAs($qs)->postJson('/api/reports/export/word', ['tipe' => 'HARIAN', 'project_id' => $project->id])->assertForbidden();
+        $this->actingAs($qs)->getJson("/api/projects/{$project->id}/curve-s")->assertForbidden();
+    }
+
     public function test_laporan_mingguan_mengakumulasi_realisasi_minggu_lalu_dan_minggu_ini(): void
     {
         $project = $this->konteks['project'];
         $mingguDua = $project->periods()->where('urutan', 2)->firstOrFail();
 
-        $data = $this->actingAs($this->konteks['qs'])
+        $data = $this->actingAs($this->kontraktor)
             ->getJson("/api/reports/weekly?project_id={$project->id}&period_id={$mingguDua->id}")
             ->assertOk()
             ->json('data');
@@ -81,7 +100,7 @@ class ReportTest extends TestCase
     {
         $project = $this->konteks['project'];
 
-        $data = $this->actingAs($this->konteks['qs'])
+        $data = $this->actingAs($this->kontraktor)
             ->getJson("/api/reports/monthly?project_id={$project->id}&bulan_ke=1")
             ->assertOk()
             ->json('data');
@@ -102,7 +121,7 @@ class ReportTest extends TestCase
     {
         $project = $this->konteks['project'];
 
-        $data = $this->actingAs($this->konteks['qs'])
+        $data = $this->actingAs($this->kontraktor)
             ->getJson("/api/reports/daily?project_id={$project->id}&dari={$project->tanggal_mulai->toDateString()}&sampai={$project->tanggal_selesai->toDateString()}")
             ->assertOk()
             ->json('data');
@@ -118,7 +137,7 @@ class ReportTest extends TestCase
         $project = $this->konteks['project'];
         $periode = $project->periods()->where('urutan', 2)->firstOrFail();
 
-        $this->actingAs($this->konteks['qs'])->postJson('/api/reports/export/excel', [
+        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/excel', [
             'tipe' => 'MINGGUAN',
             'project_id' => $project->id,
             'period_id' => $periode->id,
@@ -133,7 +152,7 @@ class ReportTest extends TestCase
     {
         $project = $this->konteks['project'];
 
-        $this->actingAs($this->konteks['qs'])->postJson('/api/reports/export/word', [
+        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/word', [
             'tipe' => 'BULANAN',
             'project_id' => $project->id,
             'bulan_ke' => 1,

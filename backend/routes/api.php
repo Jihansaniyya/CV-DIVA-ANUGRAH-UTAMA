@@ -80,7 +80,7 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
     });
 
     // Kurva S
-    Route::get('projects/{project}/curve-s', [CurveSController::class, 'show']);
+    Route::get('projects/{project}/curve-s', [CurveSController::class, 'show'])->middleware('role:ADMIN,KONTRAKTOR');
 
     // Progres
     Route::get('progress', [ProgressReportController::class, 'index']);
@@ -93,8 +93,8 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
         Route::delete('progress-photos/{photo}', [ProgressReportController::class, 'destroyPhoto']);
     });
 
-    // Laporan
-    Route::prefix('reports')->group(function () {
+    // Laporan (QS hanya menginput progres, tidak mengakses laporan)
+    Route::prefix('reports')->middleware('role:ADMIN,KONTRAKTOR')->group(function () {
         Route::get('daily', [ReportController::class, 'daily']);
         Route::get('weekly', [ReportController::class, 'weekly']);
         Route::get('monthly', [ReportController::class, 'monthly']);
