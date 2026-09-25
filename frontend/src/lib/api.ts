@@ -2,13 +2,35 @@ import axios, { AxiosError } from 'axios'
 
 export const TOKEN_KEY = 'dau.token'
 
+/**
+ * Token disimpan di localStorage ("Ingat Saya" dicentang, bertahan lintas sesi
+ * browser) atau sessionStorage (tidak dicentang, hilang saat tab ditutup).
+ * Kedua tempat dicek saat membaca supaya urutan login tidak masalah.
+ */
+export const tokenStorage = {
+  get(): string | null {
+    return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY)
+  },
+  set(token: string, ingatSaya: boolean): void {
+    if (ingatSaya) {
+      localStorage.setItem(TOKEN_KEY, token)
+    } else {
+      sessionStorage.setItem(TOKEN_KEY, token)
+    }
+  },
+  clear(): void {
+    localStorage.removeItem(TOKEN_KEY)
+    sessionStorage.removeItem(TOKEN_KEY)
+  },
+}
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000/api',
   headers: { Accept: 'application/json' },
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY)
+  const token = tokenStorage.get()
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -65,7 +87,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
-      localStorage.removeItem(TOKEN_KEY)
+      tokenStorage.clear()
       window.location.assign('/login?expired=1')
     }
 

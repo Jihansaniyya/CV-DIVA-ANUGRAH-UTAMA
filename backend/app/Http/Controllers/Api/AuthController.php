@@ -16,17 +16,17 @@ class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
-        $user = User::with('role')->where('username', $request->string('username'))->first();
+        $user = User::with('role')->where('email', $request->string('email'))->first();
 
         if (! $user || ! Hash::check($request->string('password'), $user->password)) {
             throw ValidationException::withMessages([
-                'username' => 'Nama pengguna atau kata sandi salah.',
+                'email' => 'Email atau kata sandi salah.',
             ]);
         }
 
         if (! $user->is_active) {
             throw ValidationException::withMessages([
-                'username' => 'Akun kamu dinonaktifkan. Hubungi Admin.',
+                'email' => 'Akun kamu dinonaktifkan. Hubungi Admin.',
             ]);
         }
 

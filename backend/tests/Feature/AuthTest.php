@@ -16,11 +16,11 @@ class AuthTest extends TestCase
         $this->seedMasterData();
     }
 
-    public function test_pengguna_dapat_login_dengan_username_dan_password(): void
+    public function test_pengguna_dapat_login_dengan_email_dan_password(): void
     {
-        $this->userDenganPeran(RoleCode::ADMIN, ['username' => 'admin', 'password' => 'password123']);
+        $this->userDenganPeran(RoleCode::ADMIN, ['email' => 'admin.test@example.com', 'password' => 'password123']);
 
-        $response = $this->postJson('/api/login', ['username' => 'admin', 'password' => 'password123']);
+        $response = $this->postJson('/api/login', ['email' => 'admin.test@example.com', 'password' => 'password123']);
 
         $response->assertOk()
             ->assertJsonStructure(['message', 'token', 'user' => ['id', 'name', 'username', 'role_code']])
@@ -29,20 +29,20 @@ class AuthTest extends TestCase
 
     public function test_login_ditolak_saat_password_salah(): void
     {
-        $this->userDenganPeran(RoleCode::QS, ['username' => 'qs.nisa', 'password' => 'password123']);
+        $this->userDenganPeran(RoleCode::QS, ['email' => 'nisa.test@example.com', 'password' => 'password123']);
 
-        $this->postJson('/api/login', ['username' => 'qs.nisa', 'password' => 'salah-sekali'])
+        $this->postJson('/api/login', ['email' => 'nisa.test@example.com', 'password' => 'salah-sekali'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('username');
+            ->assertJsonValidationErrors('email');
     }
 
     public function test_akun_nonaktif_tidak_dapat_login(): void
     {
-        $this->userDenganPeran(RoleCode::QS, ['username' => 'qs.nonaktif', 'password' => 'password123', 'is_active' => false]);
+        $this->userDenganPeran(RoleCode::QS, ['email' => 'nonaktif.test@example.com', 'password' => 'password123', 'is_active' => false]);
 
-        $this->postJson('/api/login', ['username' => 'qs.nonaktif', 'password' => 'password123'])
+        $this->postJson('/api/login', ['email' => 'nonaktif.test@example.com', 'password' => 'password123'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('username');
+            ->assertJsonValidationErrors('email');
     }
 
     public function test_endpoint_terproteksi_menolak_permintaan_tanpa_token(): void

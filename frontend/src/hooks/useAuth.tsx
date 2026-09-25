@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 interface AuthContextValue {
   user: User | null
   siap: boolean
-  login: (username: string, password: string) => Promise<User>
+  login: (email: string, password: string, ingatSaya: boolean) => Promise<User>
   logout: () => Promise<void>
   punyaPeran: (...peran: RoleCode[]) => boolean
 }
@@ -47,8 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(
-    async (username: string, password: string) => {
-      const data = await authService.login({ username, password })
+    async (email: string, password: string, ingatSaya: boolean) => {
+      const data = await authService.login({ email, password, ingatSaya })
       setUser(data)
       queryClient.clear()
 

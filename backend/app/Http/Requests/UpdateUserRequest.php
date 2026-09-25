@@ -20,7 +20,8 @@ class UpdateUserRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'username' => ['sometimes', 'required', 'string', 'max:50', 'alpha_dash', Rule::unique('users', 'username')->ignore($id)],
-            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)],
+            // Login memakai email, sehingga tidak boleh dikosongkan agar akun tidak terkunci.
+            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)],
             'phone' => ['nullable', 'string', 'max:30'],
             'password' => ['nullable', 'confirmed', Password::min(8)],
             'role_id' => ['sometimes', 'required', 'exists:roles,id'],

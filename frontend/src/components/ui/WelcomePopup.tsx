@@ -1,4 +1,4 @@
-import { TOKEN_KEY } from '@/lib/api'
+import { tokenStorage } from '@/lib/api'
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -7,7 +7,7 @@ const DURASI_MS = 4000
 /** Kunci per sesi login memakai ID token (bagian sebelum "|"), bukan token rahasianya. */
 function kunciSambutan(): string | null {
   try {
-    const idToken = localStorage.getItem(TOKEN_KEY)?.split('|')[0]
+    const idToken = tokenStorage.get()?.split('|')[0]
 
     return idToken ? `dau.sambutan.${idToken}` : null
   } catch {

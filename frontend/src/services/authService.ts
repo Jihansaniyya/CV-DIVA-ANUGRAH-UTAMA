@@ -1,15 +1,16 @@
-import { api, TOKEN_KEY } from '@/lib/api'
+import { api, tokenStorage } from '@/lib/api'
 import type { User } from '@/types'
 
 export interface LoginPayload {
-  username: string
+  email: string
   password: string
+  ingatSaya: boolean
 }
 
 export const authService = {
-  async login(payload: LoginPayload): Promise<User> {
-    const { data } = await api.post<{ token: string; user: User }>('/login', payload)
-    localStorage.setItem(TOKEN_KEY, data.token)
+  async login({ email, password, ingatSaya }: LoginPayload): Promise<User> {
+    const { data } = await api.post<{ token: string; user: User }>('/login', { email, password })
+    tokenStorage.set(data.token, ingatSaya)
 
     return data.user
   },
@@ -24,11 +25,11 @@ export const authService = {
     try {
       await api.post('/logout')
     } finally {
-      localStorage.removeItem(TOKEN_KEY)
+      tokenStorage.clear()
     }
   },
 
   token(): string | null {
-    return localStorage.getItem(TOKEN_KEY)
+    return tokenStorage.get()
   },
 }

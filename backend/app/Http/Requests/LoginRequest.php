@@ -14,13 +14,13 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'username' => ['required', 'string', 'max:50'],
+            'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string'],
         ];
     }
 
     public function attributes(): array
     {
-        return ['username' => 'nama pengguna', 'password' => 'kata sandi'];
+        return ['email' => 'email', 'password' => 'kata sandi'];
     }
 }
