@@ -50,7 +50,7 @@ class ReportService
     public function daily(Project $project, string $dari, string $sampai): array
     {
         $reports = $project->progressReports()
-            ->with(['user', 'period', 'details.workItem.unit', 'photos', 'materials.unit', 'issues.workItem'])
+            ->with(['user', 'period', 'details.workItem.unit', 'photos', 'issues.workItem'])
             ->whereBetween('tanggal_laporan', [$dari, $sampai])
             ->orderBy('tanggal_laporan')
             ->get();
@@ -76,12 +76,6 @@ class ReportService
                     'persentase_realisasi' => (float) $d->persentase_realisasi,
                     'bobot_realisasi' => (float) $d->bobot_realisasi,
                     'keterangan' => $d->keterangan,
-                ])->all(),
-                'material' => $report->materials->map(fn ($m) => [
-                    'nama_material' => $m->nama_material,
-                    'jumlah' => (float) $m->jumlah,
-                    'satuan' => $m->unit?->code ?? $m->satuan,
-                    'keterangan' => $m->keterangan,
                 ])->all(),
                 'kendala' => $report->issues->map(fn ($i) => [
                     'jenis_kendala' => $i->jenis_kendala,

@@ -27,7 +27,6 @@ class ProgressReportResource extends JsonResource
             'total_bobot_realisasi' => round((float) $this->details->sum('bobot_realisasi'), 4),
             'detail' => ProgressDetailResource::collection($this->whenLoaded('details')),
             'foto' => ProgressPhotoResource::collection($this->whenLoaded('photos')),
-            'material' => ProgressMaterialResource::collection($this->whenLoaded('materials')),
             'kendala' => ProgressIssueResource::collection($this->whenLoaded('issues')),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

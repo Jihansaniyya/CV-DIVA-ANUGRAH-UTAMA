@@ -59,11 +59,6 @@ class ProgressReport extends Model
         return $this->hasMany(ProgressPhoto::class);
     }
 
-    public function materials(): HasMany
-    {
-        return $this->hasMany(ProgressMaterial::class);
-    }
-
     public function issues(): HasMany
     {
         return $this->hasMany(ProgressIssue::class);

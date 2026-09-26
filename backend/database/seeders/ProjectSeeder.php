@@ -415,10 +415,6 @@ class ProjectSeeder extends Seeder
             'cuaca' => 'Cerah berawan',
             'status' => ReportStatus::DIKIRIM->value,
             'details' => $details,
-            'materials' => [
-                ['nama_material' => 'Semen PCC 50 kg', 'jumlah' => 40, 'satuan' => 'sak', 'keterangan' => 'Digunakan untuk pekerjaan beton.'],
-                ['nama_material' => 'Pasir Beton', 'jumlah' => 6, 'satuan' => 'm3', 'keterangan' => 'Material lokal Bontang.'],
-            ],
         ];
 
         if ($denganKendala) {

@@ -12,7 +12,7 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             [RoleCode::ADMIN, 'Admin', 'Mengelola pengguna, proyek, pekerjaan, rencana, dan target progres.'],
-            [RoleCode::QS, 'Quantity Surveyor', 'Menginput progres aktual, dokumentasi, material, dan kendala pekerjaan.'],
+            [RoleCode::QS, 'Quantity Surveyor', 'Menginput progres aktual, dokumentasi, dan kendala pekerjaan.'],
             [RoleCode::KONTRAKTOR, 'Kontraktor', 'Memantau progres, Kurva S, deviasi, dan laporan proyek.'],
         ];
 

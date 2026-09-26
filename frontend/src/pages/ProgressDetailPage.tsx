@@ -75,7 +75,6 @@ export function ProgressDetailPage() {
   if (!laporan) return <EmptyState judul="Progres tidak ditemukan" />
 
   const bolehUbah = punyaPeran('ADMIN') || (laporan.user_id === user?.id && laporan.status === 'DRAFT')
-  const tampilMaterial = !punyaPeran('QS')
   const kontraktor = punyaPeran('KONTRAKTOR')
 
   const foto = laporan.foto ?? []
@@ -290,37 +289,6 @@ export function ProgressDetailPage() {
         </Card>
       </div>
 
-      {tampilMaterial && (
-        <Card title="Material" flush>
-          {!laporan.material || laporan.material.length === 0 ? (
-            <p className="px-4 py-4 text-sm text-muted sm:px-5">Tidak ada material yang dicatat.</p>
-          ) : (
-            <TableWrap flush>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Nama Material</Th>
-                    <Th align="right">Jumlah</Th>
-                    <Th>Satuan</Th>
-                    <Th>Keterangan</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {laporan.material.map((item) => (
-                    <tr key={item.id}>
-                      <Td>{item.nama_material}</Td>
-                      <Td align="right">{angka(item.jumlah, 2)}</Td>
-                      <Td className="text-muted">{item.satuan ?? '-'}</Td>
-                      <Td className="text-muted">{item.keterangan ?? '-'}</Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableWrap>
-          )}
-        </Card>
-      )}
-
       <Modal
         open={fotoTerpilih !== null && fotoTerpilih !== undefined}
         onClose={() => setFotoAktif(null)}
@@ -352,11 +320,7 @@ export function ProgressDetailPage() {
       <ConfirmDialog
         open={konfirmasiHapus}
         title="Hapus Progres"
-        pesan={
-          tampilMaterial
-            ? 'Progres beserta detail, foto, material, dan kendalanya akan dihapus. Lanjutkan?'
-            : 'Progres beserta detail, foto, dan kendalanya akan dihapus. Lanjutkan?'
-        }
+        pesan="Progres beserta detail, foto, dan kendalanya akan dihapus. Lanjutkan?"
         loading={hapus.isPending}
         onConfirm={() => hapus.mutate()}
         onClose={() => setKonfirmasiHapus(false)}

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
-/** Menyimpan laporan progres harian QS beserta detail, foto, material, dan kendala. */
+/** Menyimpan laporan progres harian QS beserta detail, foto, dan kendala. */
 class ProgressService
 {
     public function __construct(
@@ -43,7 +43,6 @@ class ProgressService
             ]);
 
             $this->syncDetails($report, $data['details'] ?? []);
-            $this->syncMaterials($report, $data['materials'] ?? []);
             $this->syncIssues($report, $data['issues'] ?? []);
             $this->storePhotos($report, $photos, $data['photo_captions'] ?? []);
 
@@ -82,11 +81,6 @@ class ProgressService
             if (array_key_exists('details', $data)) {
                 $report->details()->delete();
                 $this->syncDetails($report, $data['details']);
-            }
-
-            if (array_key_exists('materials', $data)) {
-                $report->materials()->delete();
-                $this->syncMaterials($report, $data['materials']);
             }
 
             if (array_key_exists('issues', $data)) {
@@ -136,7 +130,7 @@ class ProgressService
     /** @return array<int,string> */
     private function relations(): array
     {
-        return ['details.workItem.unit', 'photos', 'materials.unit', 'issues.workItem', 'period', 'user', 'project'];
+        return ['details.workItem.unit', 'photos', 'issues.workItem', 'period', 'user', 'project'];
     }
 
     /** @param array<int,array<string,mixed>> $details */
@@ -174,20 +168,6 @@ class ProgressService
         if ($volume > $sisa + 0.0001) {
             throw ValidationException::withMessages([
                 'details' => 'Volume realisasi pekerjaan "'.$item->uraian_pekerjaan.'" melebihi sisa volume rencana (sisa '.number_format($sisa, 2, ',', '.').').',
-            ]);
-        }
-    }
-
-    /** @param array<int,array<string,mixed>> $materials */
-    private function syncMaterials(ProgressReport $report, array $materials): void
-    {
-        foreach ($materials as $row) {
-            $report->materials()->create([
-                'nama_material' => $row['nama_material'],
-                'jumlah' => $row['jumlah'] ?? 0,
-                'unit_id' => $row['unit_id'] ?? null,
-                'satuan' => $row['satuan'] ?? null,
-                'keterangan' => $row['keterangan'] ?? null,
             ]);
         }
     }

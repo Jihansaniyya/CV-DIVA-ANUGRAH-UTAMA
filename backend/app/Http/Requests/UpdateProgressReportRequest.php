@@ -25,7 +25,7 @@ class UpdateProgressReportRequest extends FormRequest
     /** Field bersarang dikirim sebagai JSON string ketika memakai multipart/form-data. */
     protected function prepareForValidation(): void
     {
-        foreach (['details', 'materials', 'issues', 'photo_captions'] as $key) {
+        foreach (['details', 'issues', 'photo_captions'] as $key) {
             $nilai = $this->input($key);
 
             if (is_string($nilai)) {
@@ -53,13 +53,6 @@ class UpdateProgressReportRequest extends FormRequest
             'details.*.volume_realisasi' => ['required', 'numeric', 'min:0'],
             'details.*.keterangan' => ['nullable', 'string'],
 
-            'materials' => ['nullable', 'array'],
-            'materials.*.nama_material' => ['required', 'string', 'max:150'],
-            'materials.*.jumlah' => ['required', 'numeric', 'min:0'],
-            'materials.*.unit_id' => ['nullable', 'exists:units,id'],
-            'materials.*.satuan' => ['nullable', 'string', 'max:30'],
-            'materials.*.keterangan' => ['nullable', 'string'],
-
             'issues' => ['nullable', 'array'],
             'issues.*.work_item_id' => ['nullable', 'integer', 'exists:work_items,id'],
             'issues.*.jenis_kendala' => ['nullable', 'in:CUACA,MATERIAL,TENAGA_KERJA,PERALATAN,TEKNIS,LAINNYA'],
@@ -85,7 +78,6 @@ class UpdateProgressReportRequest extends FormRequest
             'details.*.volume_realisasi' => 'volume realisasi',
             'photos.*' => 'foto dokumentasi',
             'issues.*.deskripsi' => 'deskripsi kendala',
-            'materials.*.nama_material' => 'nama material',
         ];
     }
 

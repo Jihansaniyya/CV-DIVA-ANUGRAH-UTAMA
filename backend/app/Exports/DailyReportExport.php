@@ -14,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 /** Export Excel laporan harian (rekap laporan progres QS per tanggal). */
 class DailyReportExport implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
-    private const KOLOM = 10;
+    private const KOLOM = 9;
 
     private int $barisTabelMulai = 10;
 
@@ -43,22 +43,19 @@ class DailyReportExport implements FromArray, WithColumnWidths, WithEvents, With
 
         $rows[] = $this->row([
             'Tanggal', 'Pelapor', 'Uraian Pekerjaan', 'Satuan', 'Volume Realisasi',
-            'Bobot Realisasi (%)', 'Keterangan', 'Material', 'Kendala', 'Tindak Lanjut',
+            'Bobot Realisasi (%)', 'Keterangan', 'Kendala', 'Tindak Lanjut',
         ]);
 
         $this->barisTabelMulai = count($rows) + 1;
 
         foreach ($this->data['laporan'] as $laporan) {
-            $material = collect($laporan['material'])
-                ->map(fn ($m) => $m['nama_material'].' '.$m['jumlah'].' '.($m['satuan'] ?? ''))
-                ->implode('; ');
             $kendala = collect($laporan['kendala'])->map(fn ($k) => $k['deskripsi'])->implode('; ');
             $tindak = collect($laporan['kendala'])->map(fn ($k) => $k['tindak_lanjut'])->filter()->implode('; ');
 
             if (empty($laporan['detail'])) {
                 $rows[] = $this->row([
                     ReportFormatter::tanggal($laporan['tanggal_laporan']), $laporan['pelapor'],
-                    '-', null, null, null, $laporan['keterangan'], $material, $kendala, $tindak,
+                    '-', null, null, null, $laporan['keterangan'], $kendala, $tindak,
                 ]);
 
                 continue;
@@ -73,7 +70,6 @@ class DailyReportExport implements FromArray, WithColumnWidths, WithEvents, With
                     $detail['volume_realisasi'],
                     $detail['bobot_realisasi'],
                     $detail['keterangan'] ?? $laporan['keterangan'],
-                    $index === 0 ? $material : null,
                     $index === 0 ? $kendala : null,
                     $index === 0 ? $tindak : null,
                 ]);
@@ -95,7 +91,7 @@ class DailyReportExport implements FromArray, WithColumnWidths, WithEvents, With
 
     public function columnWidths(): array
     {
-        return ['A' => 14, 'B' => 20, 'C' => 38, 'D' => 9, 'E' => 15, 'F' => 16, 'G' => 30, 'H' => 30, 'I' => 30, 'J' => 30];
+        return ['A' => 14, 'B' => 20, 'C' => 38, 'D' => 9, 'E' => 15, 'F' => 16, 'G' => 30, 'H' => 30, 'I' => 30];
     }
 
     public function registerEvents(): array
@@ -106,19 +102,19 @@ class DailyReportExport implements FromArray, WithColumnWidths, WithEvents, With
                 $sheet = $event->sheet->getDelegate();
                 $headerRow = $this->barisTabelMulai - 1;
 
-                $sheet->mergeCells('A1:J1');
+                $sheet->mergeCells('A1:I1');
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
                 $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 $sheet->getStyle('A3:A6')->getFont()->setBold(true);
 
-                $sheet->getStyle('A'.$headerRow.':J'.$headerRow)->getFont()->setBold(true);
-                $sheet->getStyle('A'.$headerRow.':J'.$headerRow)->getAlignment()
+                $sheet->getStyle('A'.$headerRow.':I'.$headerRow)->getFont()->setBold(true);
+                $sheet->getStyle('A'.$headerRow.':I'.$headerRow)->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
 
-                $sheet->getStyle('A'.$headerRow.':J'.$this->barisTabelSelesai)
+                $sheet->getStyle('A'.$headerRow.':I'.$this->barisTabelSelesai)
                     ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-                $sheet->getStyle('G'.$this->barisTabelMulai.':J'.$this->barisTabelSelesai)
+                $sheet->getStyle('G'.$this->barisTabelMulai.':I'.$this->barisTabelSelesai)
                     ->getAlignment()->setWrapText(true);
 
                 $sheet->getPageSetup()->setOrientation('landscape');

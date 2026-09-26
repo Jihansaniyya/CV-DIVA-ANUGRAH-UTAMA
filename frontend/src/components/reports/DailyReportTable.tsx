@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/ui/State'
 import type { DailyReport } from '@/types'
 import { angka, rentangTanggal, tanggal, waktu } from '@/utils/format'
 
-/** Laporan harian: rincian pekerjaan, material, kendala, dan foto per tanggal laporan. */
+/** Laporan harian: rincian pekerjaan, kendala, dan foto per tanggal laporan. */
 export function DailyReportTable({ data }: { data: DailyReport }) {
   return (
     <div className="bg-white p-4 sm:p-6">
@@ -74,40 +74,22 @@ export function DailyReportTable({ data }: { data: DailyReport }) {
                 </table>
               </div>
 
-              <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                <section>
-                  <h4 className="mb-1 text-xs font-semibold text-ink">Material</h4>
-                  {laporan.material.length === 0 ? (
-                    <p className="text-[11px] text-muted">Tidak ada material yang dicatat.</p>
-                  ) : (
-                    <ul className="flex flex-col gap-1 text-[11px] text-muted">
-                      {laporan.material.map((item, index) => (
-                        <li key={index}>
-                          {item.nama_material} - {angka(item.jumlah, 2)} {item.satuan ?? ''}
-                          {item.keterangan ? ` (${item.keterangan})` : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-
-                <section>
-                  <h4 className="mb-1 text-xs font-semibold text-ink">Kendala dan Tindak Lanjut</h4>
-                  {laporan.kendala.length === 0 ? (
-                    <p className="text-[11px] text-muted">Tidak ada kendala yang dicatat.</p>
-                  ) : (
-                    <ul className="flex flex-col gap-1.5 text-[11px] text-muted">
-                      {laporan.kendala.map((item, index) => (
-                        <li key={index}>
-                          <span className="font-medium text-ink">{item.jenis_kendala.replace('_', ' ')}:</span> {item.deskripsi}
-                          {item.alasan_keterlambatan ? ` - Alasan: ${item.alasan_keterlambatan}` : ''}
-                          {item.tindak_lanjut ? ` - Tindak lanjut: ${item.tindak_lanjut}` : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              </div>
+              <section className="mt-3">
+                <h4 className="mb-1 text-xs font-semibold text-ink">Kendala dan Tindak Lanjut</h4>
+                {laporan.kendala.length === 0 ? (
+                  <p className="text-[11px] text-muted">Tidak ada kendala yang dicatat.</p>
+                ) : (
+                  <ul className="flex flex-col gap-1.5 text-[11px] text-muted">
+                    {laporan.kendala.map((item, index) => (
+                      <li key={index}>
+                        <span className="font-medium text-ink">{item.jenis_kendala.replace('_', ' ')}:</span> {item.deskripsi}
+                        {item.alasan_keterlambatan ? ` - Alasan: ${item.alasan_keterlambatan}` : ''}
+                        {item.tindak_lanjut ? ` - Tindak lanjut: ${item.tindak_lanjut}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
 
               {laporan.foto.length > 0 && (
                 <section className="mt-3">

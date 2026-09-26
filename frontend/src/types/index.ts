@@ -206,15 +206,6 @@ export interface ProgressPhoto {
   diunggah_pada: string | null
 }
 
-export interface ProgressMaterial {
-  id: number
-  nama_material: string
-  jumlah: number
-  unit_id: number | null
-  satuan: string | null
-  keterangan: string | null
-}
-
 export interface ProgressIssue {
   id: number
   work_item_id: number | null
@@ -244,7 +235,6 @@ export interface ProgressReport {
   total_bobot_realisasi: number
   detail?: ProgressDetail[]
   foto?: ProgressPhoto[]
-  material?: ProgressMaterial[]
   kendala?: ProgressIssue[]
   created_at: string | null
 }
@@ -429,7 +419,6 @@ export interface DailyReport {
       bobot_realisasi: number
       keterangan: string | null
     }[]
-    material: { nama_material: string; jumlah: number; satuan: string | null; keterangan: string | null }[]
     kendala: {
       jenis_kendala: string
       pekerjaan: string | null

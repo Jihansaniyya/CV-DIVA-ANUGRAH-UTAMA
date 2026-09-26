@@ -34,7 +34,7 @@ class ProgressAndCurveTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_qs_dapat_menyimpan_laporan_progres_beserta_foto_material_dan_kendala(): void
+    public function test_qs_dapat_menyimpan_laporan_progres_beserta_foto_dan_kendala(): void
     {
         Storage::fake('public');
         $konteks = $this->proyekContoh();
@@ -46,7 +46,6 @@ class ProgressAndCurveTest extends TestCase
             'lokasi' => 'Bontang',
             'status' => 'DIKIRIM',
             'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 50]],
-            'materials' => [['nama_material' => 'Semen PCC', 'jumlah' => 20, 'satuan' => 'sak']],
             'issues' => [[
                 'jenis_kendala' => 'CUACA',
                 'deskripsi' => 'Hujan deras sore hari.',
@@ -58,12 +57,11 @@ class ProgressAndCurveTest extends TestCase
 
         $response->assertCreated();
 
-        $laporan = ProgressReport::with(['details', 'materials', 'issues', 'photos'])->firstOrFail();
+        $laporan = ProgressReport::with(['details', 'issues', 'photos'])->firstOrFail();
 
         // Bobot galian 25%, realisasi 50/100 -> kontribusi 12,5%
         $this->assertEqualsWithDelta(50.0, (float) $laporan->details->first()->persentase_realisasi, 0.0001);
         $this->assertEqualsWithDelta(12.5, (float) $laporan->details->first()->bobot_realisasi, 0.0001);
-        $this->assertSame(1, $laporan->materials->count());
         $this->assertSame(1, $laporan->issues->count());
         $this->assertSame(1, $laporan->photos->count());
         $this->assertNotNull($laporan->period_id);

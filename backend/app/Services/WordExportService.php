@@ -33,10 +33,9 @@ class WordExportService
         ]);
 
         $tabel = $section->addTable(self::GAYA_TABEL);
-        $this->barisHeader($tabel, ['Tanggal', 'Pelapor', 'Uraian Pekerjaan', 'Satuan', 'Volume Realisasi', 'Bobot Realisasi (%)', 'Keterangan', 'Material', 'Kendala', 'Tindak Lanjut']);
+        $this->barisHeader($tabel, ['Tanggal', 'Pelapor', 'Uraian Pekerjaan', 'Satuan', 'Volume Realisasi', 'Bobot Realisasi (%)', 'Keterangan', 'Kendala', 'Tindak Lanjut']);
 
         foreach ($data['laporan'] as $laporan) {
-            $material = collect($laporan['material'])->map(fn ($m) => $m['nama_material'].' '.$m['jumlah'].' '.($m['satuan'] ?? ''))->implode('; ');
             $kendala = collect($laporan['kendala'])->map(fn ($k) => $k['deskripsi'])->implode('; ');
             $tindak = collect($laporan['kendala'])->map(fn ($k) => $k['tindak_lanjut'])->filter()->implode('; ');
             $detail = $laporan['detail'] ?: [[]];
@@ -50,7 +49,6 @@ class WordExportService
                     isset($d['volume_realisasi']) ? $this->angka($d['volume_realisasi'], 2) : '',
                     isset($d['bobot_realisasi']) ? $this->angka($d['bobot_realisasi'], 2) : '',
                     $d['keterangan'] ?? $laporan['keterangan'] ?? '',
-                    $index === 0 ? $material : '',
                     $index === 0 ? $kendala : '',
                     $index === 0 ? $tindak : '',
                 ]);
