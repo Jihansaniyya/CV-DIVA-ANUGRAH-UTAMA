@@ -23,19 +23,15 @@ class ProgressReportPolicy
         return $user->is_active && $report->project->isAccessibleBy($user);
     }
 
-    /** Hanya QS yang ditugaskan pada proyek (atau Admin) yang boleh membuat laporan. */
+    /** Hanya QS yang boleh membuat laporan; Admin hanya memantau. */
     public function create(User $user): bool
     {
-        return $user->isQs() || $user->isAdmin();
+        return $user->isQs();
     }
 
-    /** Laporan yang sudah dikirim tidak dapat diubah kecuali oleh Admin. */
+    /** QS hanya dapat mengubah laporan miliknya yang masih draf. */
     public function update(User $user, ProgressReport $report): bool
     {
-        if ($user->isAdmin()) {
-            return true;
-        }
-
         return $user->isQs()
             && $report->user_id === $user->id
             && $report->status === ReportStatus::DRAFT;
@@ -48,6 +44,6 @@ class ProgressReportPolicy
 
     public function submit(User $user, ProgressReport $report): bool
     {
-        return $user->isAdmin() || ($user->isQs() && $report->user_id === $user->id);
+        return $user->isQs() && $report->user_id === $user->id;
     }
 }

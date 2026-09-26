@@ -74,7 +74,7 @@ export function ProgressDetailPage() {
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
   if (!laporan) return <EmptyState judul="Progres tidak ditemukan" />
 
-  const bolehUbah = punyaPeran('ADMIN') || (laporan.user_id === user?.id && laporan.status === 'DRAFT')
+  const bolehUbah = punyaPeran('QS') && laporan.user_id === user?.id && laporan.status === 'DRAFT'
   const kontraktor = punyaPeran('KONTRAKTOR')
 
   const foto = laporan.foto ?? []

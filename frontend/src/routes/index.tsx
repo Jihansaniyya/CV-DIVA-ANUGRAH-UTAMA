@@ -35,12 +35,12 @@ export function AppRoutes() {
           </Route>
 
           <Route path="/progres" element={<ProgressPage />} />
-          <Route element={<RoleRoute roles={['ADMIN', 'QS']} />}>
+          <Route element={<RoleRoute roles={['QS']} />}>
             <Route path="/progres/baru" element={<ProgressFormPage />} />
           </Route>
           <Route path="/progres/:id" element={<ProgressDetailPage />} />
 
-          <Route element={<RoleRoute roles={['ADMIN', 'KONTRAKTOR']} />}>
+          <Route element={<RoleRoute roles={['KONTRAKTOR']} />}>
             <Route path="/laporan" element={<ReportsPage />} />
           </Route>
 

@@ -9,7 +9,6 @@ import { pesanError } from '@/lib/api'
 import { CurveTab } from '@/pages/projects/tabs/CurveTab'
 import { DocumentationTab } from '@/pages/projects/tabs/DocumentationTab'
 import { InfoTab } from '@/pages/projects/tabs/InfoTab'
-import { ProjectReportTab } from '@/pages/projects/tabs/ProjectReportTab'
 import { ProgressTab } from '@/pages/projects/tabs/ProgressTab'
 import { WorkItemsTab } from '@/pages/projects/tabs/WorkItemsTab'
 import { WorkPlanTab } from '@/pages/projects/tabs/WorkPlanTab'
@@ -24,7 +23,6 @@ const TABS: TabItem[] = [
   { key: 'progres', label: 'Progres' },
   { key: 'kurva-s', label: 'Kurva S' },
   { key: 'dokumentasi', label: 'Dokumentasi' },
-  { key: 'laporan', label: 'Laporan' },
 ]
 
 const TAB_QS = ['informasi', 'pekerjaan', 'progres', 'dokumentasi']
@@ -99,7 +97,6 @@ export function ProjectDetailPage() {
       {tab === 'progres' && <ProgressTab projectId={projectId} />}
       {tab === 'kurva-s' && <CurveTab projectId={projectId} />}
       {tab === 'dokumentasi' && <DocumentationTab project={project} />}
-      {tab === 'laporan' && <ProjectReportTab projectId={projectId} />}
     </div>
   )
 }

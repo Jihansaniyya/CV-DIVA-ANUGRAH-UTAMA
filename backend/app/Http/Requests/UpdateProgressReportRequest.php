@@ -13,7 +13,7 @@ class UpdateProgressReportRequest extends FormRequest
     {
         $user = $this->user();
 
-        if (! $user || (! $user->isQs() && ! $user->isAdmin())) {
+        if (! $user || ! $user->isQs()) {
             return false;
         }
 

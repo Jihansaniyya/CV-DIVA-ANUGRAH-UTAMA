@@ -22,7 +22,7 @@ export function ProgressTab({ projectId }: { projectId: number }) {
       title="Progres Harian"
       description="Progres harian yang diinput QS untuk proyek ini."
       action={
-        punyaPeran('QS', 'ADMIN') ? (
+        punyaPeran('QS') ? (
           <Link to={`/progres/baru?project_id=${projectId}`}>
             <Button size="sm" icon={<Plus className="size-4" />}>
               Tambah Progres

@@ -1,5 +1,5 @@
+import loginBg from '@/assets/login-bg.png'
 import logo from '@/assets/logo.png'
-import { ConstructionScene } from '@/components/login/ConstructionScene'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 import { errorValidasi, pesanError } from '@/lib/api'
@@ -95,27 +95,18 @@ export function LoginPage() {
   }
 
   return (
-    <div
-      className="relative min-h-screen overflow-hidden"
-      style={{
-        background:
-          'linear-gradient(180deg, color-mix(in srgb, var(--color-navy) 11%, white) 0%, color-mix(in srgb, var(--color-navy) 4%, white) 55%, var(--color-surface) 100%)',
-      }}
-    >
+    <div className="relative min-h-screen overflow-hidden bg-surface">
       {/* ---------- Dekorasi latar ---------- */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        {/* Bidang diagonal terang di sisi kanan */}
-        <div className="absolute -top-1/4 right-[-12%] h-[150%] w-[38%] rotate-[28deg] bg-white/45" />
-        <div className="absolute -top-1/4 right-[14%] h-[150%] w-[10%] rotate-[28deg] bg-white/30" />
+        {/* Foto proyek konstruksi sebagai latar */}
+        <img src={loginBg} alt="" className="absolute inset-0 size-full object-cover object-center" />
 
-        {/* Ilustrasi konstruksi, memudar ke kanan dan ke atas */}
-        <ConstructionScene
-          className="absolute bottom-0 left-0 h-[46%] w-full opacity-30 sm:h-[52%] lg:aspect-[1000/640] lg:h-[calc(100%-24rem)] lg:min-h-80 lg:w-auto lg:max-w-[68%] lg:opacity-85"
+        {/* Lapisan gradasi agar judul dan form tetap terbaca di atas foto */}
+        <div
+          className="absolute inset-0"
           style={{
-            maskImage: 'linear-gradient(to right, #000 55%, transparent 98%), linear-gradient(to top, #000 55%, transparent 100%)',
-            maskComposite: 'intersect',
-            WebkitMaskImage: 'linear-gradient(to right, #000 55%, transparent 98%), linear-gradient(to top, #000 55%, transparent 100%)',
-            WebkitMaskComposite: 'source-in',
+            background:
+              'linear-gradient(90deg, color-mix(in srgb, white 90%, transparent) 0%, color-mix(in srgb, white 65%, transparent) 40%, color-mix(in srgb, var(--color-navy) 25%, transparent) 100%)',
           }}
         />
 

@@ -95,6 +95,32 @@ class AuthorizationTest extends TestCase
         ])->assertStatus(403);
     }
 
+    public function test_admin_hanya_dapat_melihat_progres_dan_tidak_mengakses_laporan(): void
+    {
+        ['project' => $project, 'items' => $items, 'qs' => $qs] = $this->proyekContoh();
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+
+        $progres = $this->actingAs($qs)->postJson('/api/progress', [
+            'project_id' => $project->id,
+            'tanggal_laporan' => now()->toDateString(),
+            'details' => [['work_item_id' => $items[0]->id, 'volume_realisasi' => 10]],
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($admin)->getJson('/api/progress')->assertOk();
+        $this->actingAs($admin)->getJson("/api/progress/{$progres}")->assertOk();
+
+        $this->actingAs($admin)->postJson('/api/progress', [
+            'project_id' => $project->id,
+            'tanggal_laporan' => now()->toDateString(),
+            'details' => [['work_item_id' => $items[0]->id, 'volume_realisasi' => 10]],
+        ])->assertForbidden();
+        $this->actingAs($admin)->patchJson("/api/progress/{$progres}/submit")->assertForbidden();
+        $this->actingAs($admin)->deleteJson("/api/progress/{$progres}")->assertForbidden();
+
+        $this->actingAs($admin)->getJson("/api/reports/daily?project_id={$project->id}")->assertForbidden();
+        $this->actingAs($admin)->getJson('/api/reports/documents')->assertForbidden();
+    }
+
     public function test_akun_nonaktif_ditolak_pada_seluruh_endpoint(): void
     {
         $user = $this->userDenganPeran(RoleCode::ADMIN, ['is_active' => false]);

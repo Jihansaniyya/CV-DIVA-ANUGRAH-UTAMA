@@ -81,7 +81,7 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
     // Progres
     Route::get('progress', [ProgressReportController::class, 'index']);
     Route::get('progress/{progress}', [ProgressReportController::class, 'show']);
-    Route::middleware('role:ADMIN,QS')->group(function () {
+    Route::middleware('role:QS')->group(function () {
         Route::post('progress', [ProgressReportController::class, 'store']);
         Route::post('progress/{progress}', [ProgressReportController::class, 'update']);
         Route::patch('progress/{progress}/submit', [ProgressReportController::class, 'submit']);
@@ -90,7 +90,7 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
     });
 
     // Laporan (QS hanya menginput progres, tidak mengakses laporan)
-    Route::prefix('reports')->middleware('role:ADMIN,KONTRAKTOR')->group(function () {
+    Route::prefix('reports')->middleware('role:KONTRAKTOR')->group(function () {
         Route::get('daily', [ReportController::class, 'daily']);
         Route::get('weekly', [ReportController::class, 'weekly']);
         Route::get('monthly', [ReportController::class, 'monthly']);
