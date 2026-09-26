@@ -1,4 +1,5 @@
 import { ReportHeader, ReportSignature } from '@/components/reports/ReportHeader'
+import { ReportSummary } from '@/components/reports/ReportSummary'
 import type { MonthlyReport } from '@/types'
 import { angka, rentangTanggal } from '@/utils/format'
 import { Fragment } from 'react'
@@ -215,24 +216,15 @@ export function MonthlyReportTable({ data }: { data: MonthlyReport }) {
         </table>
       </div>
 
-      <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-        <div className="app-card p-3">
-          <dt className="text-muted">Realisasi bulan lalu</dt>
-          <dd className="text-base font-semibold text-ink">{angka(data.rekap.realisasi_bulan_lalu, 2)}%</dd>
-        </div>
-        <div className="app-card p-3">
-          <dt className="text-muted">Realisasi bulan ini</dt>
-          <dd className="text-base font-semibold text-ink">{angka(data.rekap.realisasi_bulan_ini, 2)}%</dd>
-        </div>
-        <div className="app-card p-3">
-          <dt className="text-muted">Realisasi s/d bulan ini</dt>
-          <dd className="text-base font-semibold text-ink">{angka(data.rekap.realisasi_sd_bulan_ini, 2)}%</dd>
-        </div>
-        <div className="app-card p-3">
-          <dt className="text-muted">Rencana s/d bulan ini</dt>
-          <dd className="text-base font-semibold text-ink">{angka(data.rekap.rencana_sd_bulan_ini, 2)}%</dd>
-        </div>
-      </dl>
+      <ReportSummary
+        baris={[
+          { label: 'Realisasi bulan lalu', nilai: data.rekap.realisasi_bulan_lalu },
+          { label: 'Realisasi bulan ini', nilai: data.rekap.realisasi_bulan_ini },
+          { label: 'Realisasi s/d bulan ini', nilai: data.rekap.realisasi_sd_bulan_ini },
+          { label: 'Rencana s/d bulan ini', nilai: data.rekap.rencana_sd_bulan_ini },
+          { label: 'Deviasi s/d bulan ini', nilai: data.rekap.deviasi, deviasi: true },
+        ]}
+      />
 
       <ReportSignature header={data.header} tanggalDokumen={data.periode.tanggal_selesai} />
     </div>

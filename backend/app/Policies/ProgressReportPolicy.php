@@ -13,8 +13,13 @@ class ProgressReportPolicy
         return $user->is_active;
     }
 
+    /** Kontraktor hanya memantau laporan yang sudah dikirim QS. */
     public function view(User $user, ProgressReport $report): bool
     {
+        if ($user->isKontraktor() && $report->status !== ReportStatus::DIKIRIM) {
+            return false;
+        }
+
         return $user->is_active && $report->project->isAccessibleBy($user);
     }
 

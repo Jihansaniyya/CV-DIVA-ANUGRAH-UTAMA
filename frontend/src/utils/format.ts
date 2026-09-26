@@ -21,6 +21,15 @@ export function persen(nilai: number | null | undefined, desimal = 2): string {
   return `${angka(nilai, desimal)}%`
 }
 
+/** Deviasi bertanda: positif berarti realisasi mendahului rencana. */
+export function deviasi(nilai: number | null | undefined, desimal = 2): string {
+  if (nilai === null || nilai === undefined) {
+    return '-'
+  }
+
+  return `${nilai > 0.005 ? '+' : ''}${angka(nilai, desimal)}%`
+}
+
 export function rupiah(nilai: number | null | undefined): string {
   if (nilai === null || nilai === undefined) {
     return '-'

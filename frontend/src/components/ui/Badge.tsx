@@ -48,6 +48,15 @@ export function ReportStatusBadge({ status }: { status: ReportStatus }) {
   return <Badge tone={status === 'DIKIRIM' ? 'success' : 'neutral'}>{status === 'DIKIRIM' ? 'Dikirim' : 'Draf'}</Badge>
 }
 
+/** Warna teks deviasi: merah bila tertinggal, hijau bila mendahului, netral bila sesuai rencana. */
+export function warnaDeviasi(nilai: number | null | undefined): string {
+  if (nilai === null || nilai === undefined) return 'text-muted'
+  if (nilai < -0.005) return 'text-danger'
+  if (nilai > 0.005) return 'text-success'
+
+  return 'text-ink'
+}
+
 /** Badge deviasi: positif berarti realisasi mendahului rencana. */
 export function DeviationBadge({ nilai }: { nilai: number | null }) {
   if (nilai === null) {

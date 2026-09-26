@@ -17,10 +17,18 @@ const JUDUL: Record<string, string> = {
   '/pengaturan': 'Pengaturan',
 }
 
-function judulHalaman(pathname: string): string {
-  const cocok = Object.keys(JUDUL).find((awalan) => pathname === awalan || pathname.startsWith(`${awalan}/`))
+const DESKRIPSI: Record<string, string> = {
+  '/dashboard': 'Ringkasan monitoring proyek',
+  '/proyek': 'Data proyek, pekerjaan, dan rencana pelaksanaan',
+  '/kurva-s': 'Perbandingan progres rencana dan realisasi',
+  '/progres': 'Laporan progres pekerjaan yang dikirim QS',
+  '/laporan': 'Pembuatan laporan progres mingguan dan bulanan',
+  '/pengguna': 'Pengelolaan akun dan peran pengguna',
+  '/pengaturan': 'Pengaturan aplikasi',
+}
 
-  return cocok ? JUDUL[cocok] : 'CV Diva Anugrah Utama'
+function awalanHalaman(pathname: string): string | undefined {
+  return Object.keys(JUDUL).find((awalan) => pathname === awalan || pathname.startsWith(`${awalan}/`))
 }
 
 export function AppLayout() {
@@ -29,6 +37,9 @@ export function AppLayout() {
   const [sedangKeluar, setSedangKeluar] = useState(false)
   const { pathname } = useLocation()
   const { user, logout } = useAuth()
+  const awalan = awalanHalaman(pathname)
+  const deskripsi =
+    awalan === '/progres' && user?.role_code === 'QS' ? 'Input dan riwayat progres pekerjaan' : awalan ? DESKRIPSI[awalan] : undefined
 
   const keluar = async () => {
     setSedangKeluar(true)
@@ -46,7 +57,12 @@ export function AppLayout() {
       <Sidebar open={menuTerbuka} onClose={() => setMenuTerbuka(false)} onLogout={() => setKonfirmasiKeluar(true)} />
 
       <div className="lg:pl-64">
-        <Navbar onOpenMenu={() => setMenuTerbuka(true)} onLogout={() => setKonfirmasiKeluar(true)} judul={judulHalaman(pathname)} />
+        <Navbar
+          onOpenMenu={() => setMenuTerbuka(true)}
+          onLogout={() => setKonfirmasiKeluar(true)}
+          judul={awalan ? JUDUL[awalan] : 'CV Diva Anugrah Utama'}
+          deskripsi={deskripsi}
+        />
         <main className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">
           <Outlet />
         </main>

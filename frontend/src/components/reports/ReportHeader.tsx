@@ -48,7 +48,7 @@ export function ReportHeader({ judul, header, kanan }: ReportHeaderProps) {
 /** Blok tanda tangan sesuai dokumen laporan asli. */
 export function ReportSignature({ header, tanggalDokumen }: { header: ReportHeaderData; tanggalDokumen: string }) {
   return (
-    <div className="mt-8 grid gap-8 text-center text-xs sm:grid-cols-2">
+    <div className="report-section mt-8 grid gap-8 text-center text-xs sm:grid-cols-2">
       <div>
         <p>Diperiksa,</p>
         <p>Konsultan Pengawas</p>

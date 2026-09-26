@@ -2,31 +2,40 @@ import { cn } from '@/utils/cn'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+type Tone = 'primary' | 'navy' | 'success' | 'warning' | 'danger' | 'neutral'
+
 interface KpiCardProps {
   label: string
   value: ReactNode
   icon: LucideIcon
   hint?: ReactNode
-  tone?: 'primary' | 'navy' | 'success' | 'warning'
+  tone?: Tone
+  valueClassName?: string
+  className?: string
 }
 
-const TONE = {
+const TONE: Record<Tone, string> = {
   primary: 'bg-primary-light text-primary',
-  navy: 'bg-[#e8edfb] text-navy',
+  navy: 'bg-navy/8 text-navy',
   success: 'bg-success-soft text-success',
   warning: 'bg-warning-soft text-[#b45309]',
+  danger: 'bg-danger-soft text-danger',
+  neutral: 'bg-surface text-muted',
 }
 
-export function KpiCard({ label, value, icon: Icon, hint, tone = 'navy' }: KpiCardProps) {
+/** Kartu ringkasan: label kecil di atas, angka utama paling menonjol, ikon hanya sebagai penanda. */
+export function KpiCard({ label, value, icon: Icon, hint, tone = 'navy', valueClassName, className }: KpiCardProps) {
   return (
-    <article className="app-card flex items-start gap-3 p-4">
-      <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', TONE[tone])}>
-        <Icon className="size-5" aria-hidden />
-      </span>
+    <article className={cn('app-card flex flex-col justify-between gap-3 p-4', className)}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs leading-snug font-medium text-muted">{label}</p>
+        <span className={cn('grid size-8 shrink-0 place-items-center rounded-lg', TONE[tone])}>
+          <Icon className="size-4" aria-hidden />
+        </span>
+      </div>
       <div className="min-w-0">
-        <p className="truncate text-xs text-muted">{label}</p>
-        <p className="mt-0.5 text-2xl leading-tight font-semibold text-ink">{value}</p>
-        {hint && <div className="mt-1 text-[11px] text-muted">{hint}</div>}
+        <p className={cn('text-2xl leading-none font-semibold text-ink', valueClassName)}>{value}</p>
+        {hint && <div className="mt-2 text-[11px] leading-snug text-muted">{hint}</div>}
       </div>
     </article>
   )

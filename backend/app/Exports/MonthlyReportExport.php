@@ -15,6 +15,10 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 /** Export Excel laporan bulanan mengikuti struktur laporan-bulanan.png. */
 class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
+    private int $barisRingkasanMulai = 12;
+
+    private int $barisRingkasanSelesai = 12;
+
     private int $jumlahKolom;
 
     private int $jumlahPeriode;
@@ -121,6 +125,16 @@ class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, Wi
 
         $this->barisTabelSelesai = count($rows);
 
+        $r = $this->data['rekap'];
+        $rows[] = $kosong;
+        $this->barisRingkasanMulai = count($rows) + 1;
+        $rows[] = $this->row([null, 'REALISASI BULAN LALU (%)', $r['realisasi_bulan_lalu']]);
+        $rows[] = $this->row([null, 'REALISASI BULAN INI (%)', $r['realisasi_bulan_ini']]);
+        $rows[] = $this->row([null, 'REALISASI S/D BULAN INI (%)', $r['realisasi_sd_bulan_ini']]);
+        $rows[] = $this->row([null, 'RENCANA S/D BULAN INI (%)', $r['rencana_sd_bulan_ini']]);
+        $rows[] = $this->row([null, 'DEVIASI (%)', $r['deviasi']]);
+        $this->barisRingkasanSelesai = count($rows);
+
         $rows[] = $kosong;
         $rows[] = $kosong;
         $rows[] = $this->rowWithRight([null, 'Diperiksa,'], $kolomKanan, ['Dibuat Oleh']);
@@ -213,6 +227,12 @@ class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, Wi
 
                 $sheet->getStyle('A3:A8')->getFont()->setBold(true);
                 $sheet->getStyle('B'.$this->barisRekapMulai.':'.$kolomTerakhir.$this->barisTabelSelesai)->getFont()->setBold(true);
+
+                $ringkasan = 'B'.$this->barisRingkasanMulai.':C'.$this->barisRingkasanSelesai;
+                $sheet->getStyle($ringkasan)->getFont()->setBold(true);
+                $sheet->getStyle($ringkasan)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getStyle('C'.$this->barisRingkasanMulai.':C'.$this->barisRingkasanSelesai)
+                    ->getNumberFormat()->setFormatCode('#,##0.00');
 
                 $sheet->getPageSetup()->setOrientation('landscape');
                 $sheet->getPageSetup()->setFitToWidth(1);

@@ -141,7 +141,8 @@ class ReportService
             ->whereHas('period', fn ($q) => $q->where('urutan', '<=', $period->urutan))
             ->sum('target_bobot'), 4);
 
-        $realisasiSd = round((float) collect($kategori)->flatMap(fn ($k) => $k['items'])->sum(fn ($i) => $i['realisasi_sd']['bobot']), 4);
+        $total = $this->totalOf($kategori, ['realisasi_lalu', 'realisasi_ini', 'realisasi_sd']);
+        $realisasiSd = $total['realisasi_sd']['bobot'];
 
         return [
             'header' => $this->header($project),
@@ -156,8 +157,10 @@ class ReportService
                 'tanggal_selesai' => $selesai->toDateString(),
             ],
             'kategori' => $kategori,
-            'total' => $this->totalOf($kategori, ['realisasi_lalu', 'realisasi_ini', 'realisasi_sd']),
+            'total' => $total,
             'rekap' => [
+                'realisasi_minggu_lalu' => $total['realisasi_lalu']['bobot'],
+                'realisasi_minggu_ini' => $total['realisasi_ini']['bobot'],
                 'realisasi_sd_minggu_ini' => $realisasiSd,
                 'rencana_kumulatif_sd_minggu_ini' => $rencanaKumulatif,
                 'deviasi' => round($realisasiSd - $rencanaKumulatif, 4),
@@ -251,6 +254,11 @@ class ReportService
             ];
         }
 
+        $realisasiSdBulanIni = $total['realisasi_sd_bulan_ini']['bobot'] ?? 0;
+        $rencanaSdBulanIni = round((float) $project->workPlans()
+            ->whereHas('period', fn ($q) => $q->where('bulan_ke', '<=', $bulanKe))
+            ->sum('target_bobot'), 4);
+
         return [
             'header' => $this->header($project),
             'periode' => [
@@ -274,10 +282,9 @@ class ReportService
             'rekap' => [
                 'realisasi_bulan_lalu' => $total['realisasi_bulan_lalu']['bobot'] ?? 0,
                 'realisasi_bulan_ini' => $total['realisasi_bulan_ini']['bobot'] ?? 0,
-                'realisasi_sd_bulan_ini' => $total['realisasi_sd_bulan_ini']['bobot'] ?? 0,
-                'rencana_sd_bulan_ini' => round((float) $project->workPlans()
-                    ->whereHas('period', fn ($q) => $q->where('bulan_ke', '<=', $bulanKe))
-                    ->sum('target_bobot'), 4),
+                'realisasi_sd_bulan_ini' => $realisasiSdBulanIni,
+                'rencana_sd_bulan_ini' => $rencanaSdBulanIni,
+                'deviasi' => round($realisasiSdBulanIni - $rencanaSdBulanIni, 4),
             ],
         ];
     }
@@ -286,28 +293,36 @@ class ReportService
     public function milestone(Project $project): array
     {
         $kurva = $this->curve->build($project);
-        $titikPerPeriode = collect($kurva['titik'])->keyBy('period_id');
 
         return [
             'header' => $this->header($project),
-            'milestone' => $project->milestones()->with('period')->get()->map(function ($m) use ($titikPerPeriode) {
-                $titik = $m->period_id ? $titikPerPeriode->get($m->period_id) : null;
-                $aktual = $titik['aktual_kumulatif'] ?? null;
-
-                return [
-                    'id' => $m->id,
-                    'nama' => $m->nama,
-                    'deskripsi' => $m->deskripsi,
-                    'periode' => $m->period?->nama_periode,
-                    'tanggal_target' => $m->tanggal_target->toDateString(),
-                    'target_persentase' => (float) $m->target_persentase,
-                    'realisasi_persentase' => $aktual,
-                    'deviasi' => $aktual === null ? null : round($aktual - (float) $m->target_persentase, 4),
-                    'status' => $m->status,
-                ];
-            })->all(),
+            'milestone' => $this->milestoneRows($project, $kurva),
             'kurva' => $kurva,
         ];
+    }
+
+    /** Capaian tiap milestone dibandingkan realisasi kumulatif Kurva S pada periodenya. */
+    private function milestoneRows(Project $project, array $kurva): array
+    {
+        $titikPerPeriode = collect($kurva['titik'])->keyBy('period_id');
+        $periodeMilestone = collect($kurva['milestones'])->pluck('period_id', 'id');
+
+        return $project->milestones()->get()->map(function ($m) use ($titikPerPeriode, $periodeMilestone) {
+            $titik = $titikPerPeriode->get($periodeMilestone[$m->id] ?? null);
+            $aktual = $titik['aktual_kumulatif'] ?? null;
+
+            return [
+                'id' => $m->id,
+                'nama' => $m->nama,
+                'deskripsi' => $m->deskripsi,
+                'periode' => $titik['nama_periode'] ?? null,
+                'tanggal_target' => $m->tanggal_target->toDateString(),
+                'target_persentase' => (float) $m->target_persentase,
+                'realisasi_persentase' => $aktual,
+                'deviasi' => $aktual === null ? null : round($aktual - (float) $m->target_persentase, 4),
+                'status' => $m->status,
+            ];
+        })->all();
     }
 
     /**

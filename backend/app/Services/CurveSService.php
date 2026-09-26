@@ -74,7 +74,9 @@ class CurveSService
             'milestones' => $project->milestones()->get()->map(fn ($m) => [
                 'id' => $m->id,
                 'nama' => $m->nama,
-                'period_id' => $m->period_id,
+                'period_id' => $m->period_id ?? $periods->first(
+                    fn ($p) => $m->tanggal_target->betweenIncluded($p->tanggal_mulai, $p->tanggal_selesai)
+                )?->id,
                 'tanggal_target' => $m->tanggal_target->toDateString(),
                 'target_persentase' => (float) $m->target_persentase,
                 'status' => $m->status,

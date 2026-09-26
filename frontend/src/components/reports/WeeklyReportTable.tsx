@@ -1,4 +1,5 @@
 import { ReportHeader, ReportSignature } from '@/components/reports/ReportHeader'
+import { ReportSummary } from '@/components/reports/ReportSummary'
 import type { WeeklyReport } from '@/types'
 import { angka, rentangTanggal } from '@/utils/format'
 import { Fragment } from 'react'
@@ -132,6 +133,20 @@ export function WeeklyReportTable({ data }: { data: WeeklyReport }) {
             </tr>
             <tr>
               <td colSpan={12} className="text-right font-semibold">
+                REALISASI MINGGU LALU
+              </td>
+              <td className="num font-semibold">{angka(data.rekap.realisasi_minggu_lalu, 2)}</td>
+              <td />
+            </tr>
+            <tr>
+              <td colSpan={12} className="text-right font-semibold">
+                REALISASI MINGGU INI
+              </td>
+              <td className="num font-semibold">{angka(data.rekap.realisasi_minggu_ini, 2)}</td>
+              <td />
+            </tr>
+            <tr>
+              <td colSpan={12} className="text-right font-semibold">
                 REALISASI SAMPAI DENGAN MINGGU INI
               </td>
               <td className="num font-semibold">{angka(data.rekap.realisasi_sd_minggu_ini, 2)}</td>
@@ -156,6 +171,17 @@ export function WeeklyReportTable({ data }: { data: WeeklyReport }) {
           </tfoot>
         </table>
       </div>
+
+      <ReportSummary
+        hanyaLayar
+        baris={[
+          { label: 'Realisasi minggu lalu', nilai: data.rekap.realisasi_minggu_lalu },
+          { label: 'Realisasi minggu ini', nilai: data.rekap.realisasi_minggu_ini },
+          { label: 'Realisasi s/d minggu ini', nilai: data.rekap.realisasi_sd_minggu_ini },
+          { label: 'Rencana kumulatif s/d minggu ini', nilai: data.rekap.rencana_kumulatif_sd_minggu_ini },
+          { label: 'Deviasi', nilai: data.rekap.deviasi, deviasi: true },
+        ]}
+      />
 
       <ReportSignature header={data.header} tanggalDokumen={data.periode.tanggal_selesai} />
     </div>

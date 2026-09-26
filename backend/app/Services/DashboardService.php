@@ -120,6 +120,11 @@ class DashboardService
             ],
             'status_proyek' => $this->statusSummary($projects),
             'proyek' => $rows,
+            'grafik_progres' => $rows->map(fn ($p) => [
+                'nama_proyek' => $p['nama_proyek'],
+                'rencana' => $p['progres_rencana'],
+                'aktual' => $p['progres_aktual'],
+            ])->all(),
             'laporan_terbaru' => $this->latestReports(),
         ];
     }

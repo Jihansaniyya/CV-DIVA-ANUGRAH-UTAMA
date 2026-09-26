@@ -25,8 +25,10 @@ export function AppRoutes() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
 
-          <Route path="/proyek" element={<ProjectsPage />} />
-          <Route path="/proyek/:id" element={<ProjectDetailPage />} />
+          <Route element={<RoleRoute roles={['ADMIN', 'QS']} />}>
+            <Route path="/proyek" element={<ProjectsPage />} />
+            <Route path="/proyek/:id" element={<ProjectDetailPage />} />
+          </Route>
 
           <Route element={<RoleRoute roles={['ADMIN', 'KONTRAKTOR']} />}>
             <Route path="/kurva-s" element={<CurveSPage />} />

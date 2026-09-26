@@ -23,11 +23,11 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <!-- Pengujian memakai database MySQL terpisah agar identik dengan produksi. -->
+        <!-- Pengujian memakai database yang sama dengan development (RefreshDatabase mengosongkan tabel tiap test). -->
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="3307"/>
-        <env name="DB_DATABASE" value="cv_diva_anugrah_utama_test"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="cv_diva_anugrah_utama"/>
         <env name="DB_USERNAME" value="root"/>
         <env name="DB_PASSWORD" value=""/>
         <env name="DB_URL" value=""/>

@@ -133,6 +133,8 @@ class WordExportService
         $section->addTextBreak(1);
         $rekap = $section->addTable(self::GAYA_TABEL);
         $r = $data['rekap'];
+        $this->barisDuaKolom($rekap, 'REALISASI MINGGU LALU', $this->angka($r['realisasi_minggu_lalu'], 2).' %');
+        $this->barisDuaKolom($rekap, 'REALISASI MINGGU INI', $this->angka($r['realisasi_minggu_ini'], 2).' %');
         $this->barisDuaKolom($rekap, 'REALISASI SAMPAI DENGAN MINGGU INI', $this->angka($r['realisasi_sd_minggu_ini'], 2).' %');
         $this->barisDuaKolom($rekap, 'RENCANA KOMULATIF SAMPAI DENGAN MINGGU INI', $this->angka($r['rencana_kumulatif_sd_minggu_ini'], 2).' %');
         $this->barisDuaKolom($rekap, 'DEVIASI', $this->angka($r['deviasi'], 2).' %');
@@ -221,7 +223,7 @@ class WordExportService
         $this->barisDuaKolom($ringkas, 'Realisasi bulan ini', $this->angka($data['rekap']['realisasi_bulan_ini'], 2).' %');
         $this->barisDuaKolom($ringkas, 'Realisasi s/d bulan ini', $this->angka($data['rekap']['realisasi_sd_bulan_ini'], 2).' %');
         $this->barisDuaKolom($ringkas, 'Rencana s/d bulan ini', $this->angka($data['rekap']['rencana_sd_bulan_ini'], 2).' %');
-        $this->barisDuaKolom($ringkas, 'Deviasi', $this->angka($data['rekap']['realisasi_sd_bulan_ini'] - $data['rekap']['rencana_sd_bulan_ini'], 2).' %');
+        $this->barisDuaKolom($ringkas, 'Deviasi', $this->angka($data['rekap']['deviasi'], 2).' %');
 
         $this->tandaTangan($section, $h);
 

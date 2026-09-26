@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ReportStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProgressReportRequest;
 use App\Http\Requests\UpdateProgressReportRequest;
@@ -29,6 +30,7 @@ class ProgressReportController extends Controller
         $reports = ProgressReport::with(self::RELASI)
             ->whereHas('project', fn ($q) => $q->visibleTo($user))
             ->when($user->isQs(), fn ($q) => $q->where('user_id', $user->id))
+            ->when($user->isKontraktor(), fn ($q) => $q->where('status', ReportStatus::DIKIRIM->value))
             ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->integer('project_id')))
             ->when($request->filled('period_id'), fn ($q) => $q->where('period_id', $request->integer('period_id')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))

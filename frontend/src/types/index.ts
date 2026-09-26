@@ -356,6 +356,8 @@ export interface WeeklyReport {
   kategori: ReportCategory<WeeklyReportItem>[]
   total: Record<string, number | { bobot: number }>
   rekap: {
+    realisasi_minggu_lalu: number
+    realisasi_minggu_ini: number
     realisasi_sd_minggu_ini: number
     rencana_kumulatif_sd_minggu_ini: number
     deviasi: number
@@ -401,6 +403,7 @@ export interface MonthlyReport {
     realisasi_bulan_ini: number
     realisasi_sd_bulan_ini: number
     rencana_sd_bulan_ini: number
+    deviasi: number
   }
 }
 
@@ -440,19 +443,21 @@ export interface DailyReport {
   ringkasan: { jumlah_laporan: number; jumlah_dikirim: number; bobot_realisasi: number }
 }
 
+export interface ReportMilestone {
+  id: number
+  nama: string
+  deskripsi: string | null
+  periode: string | null
+  tanggal_target: string
+  target_persentase: number
+  realisasi_persentase: number | null
+  deviasi: number | null
+  status: string
+}
+
 export interface MilestoneReport {
   header: ReportHeaderData
-  milestone: {
-    id: number
-    nama: string
-    deskripsi: string | null
-    periode: string | null
-    tanggal_target: string
-    target_persentase: number
-    realisasi_persentase: number | null
-    deviasi: number | null
-    status: string
-  }[]
+  milestone: ReportMilestone[]
   kurva: CurveData
 }
 
