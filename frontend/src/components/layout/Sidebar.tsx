@@ -3,10 +3,12 @@ import { useAuth } from '@/hooks/useAuth'
 import type { RoleCode } from '@/types'
 import { cn } from '@/utils/cn'
 import {
+  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   FileText,
   LayoutDashboard,
+  LayoutGrid,
   LineChart,
   LogOut,
   Settings,
@@ -49,29 +51,52 @@ export function Sidebar({ open, onClose, onLogout }: SidebarProps) {
 
   return (
     <>
-      {open && <button type="button" aria-label="Tutup menu" className="fixed inset-0 z-40 bg-ink/40 lg:hidden" onClick={onClose} />}
+      {open && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          className="fixed inset-0 z-40 bg-navy-dark/50 backdrop-blur-[1px] lg:hidden"
+          onClick={onClose}
+        />
+      )}
 
       <aside
         className={cn(
-          'no-print fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-navy text-white transition-transform duration-200 lg:translate-x-0',
-          open ? 'translate-x-0 shadow-xl' : '-translate-x-full',
+          'no-print fixed inset-y-0 left-0 z-50 flex w-64 flex-col overflow-hidden bg-gradient-to-b from-navy to-navy-dark text-white transition-transform duration-200 lg:translate-x-0',
+          open ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
         )}
       >
-        <div className="flex items-start gap-2 border-b border-white/10 px-4 pt-4 pb-3">
-          <div className="min-w-0 flex-1">
-            <div className="rounded-lg bg-white px-2 py-1.5">
-              <img src={logo} alt="Logo CV Diva Anugrah Utama" className="mx-auto h-14 w-auto max-w-full object-contain" />
-            </div>
-            <p className="mt-2 text-center text-[11px] tracking-wide text-white/55">Manajemen &amp; Monitoring Proyek</p>
+        {/* Area logo putih dengan garis diagonal merah di tepi bawah. */}
+        <div className="relative shrink-0 pb-2.5">
+          <span aria-hidden className="absolute inset-0 bg-primary [clip-path:polygon(0_0,100%_0,100%_calc(100%-10px),0_100%)]" />
+          <div className="relative flex items-center justify-center bg-white px-5 pt-2.5 pb-4 [clip-path:polygon(0_0,100%_0,100%_calc(100%-12px),0_calc(100%-2px))]">
+            {/* logo.png punya ruang putih bawaan di atas/bawah; margin negatif memadatkannya tanpa memotong isi logo. */}
+            <img src={logo} alt="Logo CV Diva Anugrah Utama" className="-my-3 h-auto w-full min-w-0 object-contain" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-2 right-2 grid size-8 place-items-center rounded-lg text-muted hover:bg-surface hover:text-ink lg:hidden"
+              aria-label="Tutup menu"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 lg:hidden" aria-label="Tutup menu">
-            <X className="size-5" aria-hidden />
-          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Menu utama">
-          <p className="mb-2 px-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase">Menu</p>
-          <ul className="flex flex-col gap-1">
+        <div className="flex shrink-0 items-center gap-3 px-6 pt-2.5 pb-4">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/5">
+            <LayoutGrid className="size-[18px] text-white/85" aria-hidden />
+          </span>
+          <p className="text-[13px] leading-snug font-medium text-white/90">
+            Manajemen &amp;
+            <br />
+            Monitoring Proyek
+          </p>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-4 pb-4" aria-label="Menu utama">
+          <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.14em] text-white/45 uppercase">Menu</p>
+          <ul className="flex flex-col gap-1.5">
             {menu.map((item) => (
               <li key={item.to}>
                 <NavLink
@@ -79,31 +104,45 @@ export function Sidebar({ open, onClose, onLogout }: SidebarProps) {
                   onClick={onClose}
                   className={({ isActive }) =>
                     cn(
-                      'relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors',
+                      'group flex h-11 items-center gap-3 rounded-xl px-3.5 text-sm transition-colors',
                       isActive
-                        ? 'bg-white/10 font-semibold text-white before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary'
-                        : 'font-medium text-white/70 hover:bg-white/5 hover:text-white',
+                        ? 'bg-primary font-semibold text-white shadow-[0_6px_14px_-8px_rgb(215_25_32/0.9)]'
+                        : 'font-medium text-white/75 hover:bg-white/[0.07] hover:text-white',
                     )
                   }
                 >
-                  <item.icon className="size-[18px] shrink-0" aria-hidden />
-                  {item.label}
+                  {({ isActive }) => (
+                    <>
+                      <item.icon className="size-[19px] shrink-0" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {isActive && <ChevronRight className="size-4 shrink-0 text-white/90" aria-hidden />}
+                    </>
+                  )}
                 </NavLink>
               </li>
             ))}
           </ul>
         </nav>
 
-        <div className="border-t border-white/10 px-3 py-3">
+        <div className="relative shrink-0 border-t border-white/10 px-4 py-4">
+          {/* Aksen diagonal halus di pojok bawah, senada dengan area logo. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-0 bottom-0 h-20 w-28 bg-primary/80 [clip-path:polygon(100%_0,100%_100%,0_100%)]"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-0 bottom-0 h-24 w-36 bg-white/[0.06] [clip-path:polygon(100%_0,100%_100%,0_100%)]"
+          />
           <button
             type="button"
             onClick={() => {
               onClose()
               onLogout()
             }}
-            className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+            className="relative flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/[0.07] hover:text-white"
           >
-            <LogOut className="size-[18px]" aria-hidden />
+            <LogOut className="size-[19px]" aria-hidden />
             Keluar
           </button>
         </div>

@@ -23,10 +23,27 @@
   --color-danger: #dc2626;
   --color-danger-soft: #fdecec;
   --color-line: #e2e8f0;
+  --color-header: #f7faff;
+  --color-header-end: #eef4fc;
+  --color-header-shade: #e8eef7;
+  --color-header-band: #dce5f2;
+  --color-header-line: #dfe7f2;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --animate-muncul: muncul 220ms ease-out;
+  --animate-sambut: sambut 320ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes sambut {
+    from {
+      opacity: 0;
+      transform: translateY(-16px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
 
   @keyframes muncul {
     from {
