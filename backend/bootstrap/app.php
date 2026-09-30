@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureUserHasRole;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -34,6 +35,13 @@ return Application::configure(basePath: dirname(__DIR__))
             // Error validasi ditangani Laravel agar tetap mengembalikan daftar error per field.
             if ($e instanceof ValidationException) {
                 return null;
+            }
+
+            // Database tidak dapat dihubungi (mis. MySQL belum dijalankan).
+            if ($e instanceof QueryException && str_contains($e->getMessage(), '[2002]')) {
+                return response()->json([
+                    'message' => 'Server sedang tidak dapat terhubung ke database. Coba lagi beberapa saat atau hubungi Admin.',
+                ], 503);
             }
 
             $status = match (true) {

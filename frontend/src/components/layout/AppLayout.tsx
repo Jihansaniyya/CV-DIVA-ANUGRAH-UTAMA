@@ -3,7 +3,6 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { ConfirmDialog } from '@/components/ui/Modal'
 import { WelcomePopup } from '@/components/ui/WelcomePopup'
 import { useAuth } from '@/hooks/useAuth'
-import { LABEL_PERAN } from '@/utils/peran'
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
@@ -68,7 +67,7 @@ export function AppLayout() {
         </main>
       </div>
 
-      <WelcomePopup nama={user?.name} keterangan={LABEL_PERAN[user?.role_code ?? '']} />
+      <WelcomePopup nama={user?.name} />
 
       <ConfirmDialog
         open={konfirmasiKeluar}

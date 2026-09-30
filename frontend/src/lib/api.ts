@@ -62,10 +62,11 @@ export function pesanError(error: unknown): string {
       return dariServer ?? 'Periksa kembali data yang kamu masukkan.'
     case 429:
       return 'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.'
+    case 503:
+      return dariServer ?? 'Server sedang tidak tersedia. Coba lagi beberapa saat.'
     case 500:
     case 502:
-    case 503:
-      return 'Terjadi kesalahan pada server.'
+      return 'Terjadi kendala pada server. Coba lagi beberapa saat atau hubungi Admin.'
     default:
       return dariServer ?? 'Permintaan tidak dapat diproses.'
   }

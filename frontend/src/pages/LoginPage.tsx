@@ -4,20 +4,21 @@ import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { cn } from '@/utils/cn'
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { CircleAlert, Eye, EyeOff } from 'lucide-react'
 import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 
-interface IconFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+interface LoginFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   id: string
   label: string
-  icon: ReactNode
   error?: string
+  /** Menandai field merah tanpa pesan sendiri (mis. saat email/kata sandi salah). */
+  invalid?: boolean
   trailing?: ReactNode
 }
 
-/** Field login dengan kotak ikon di sisi kiri; label tetap tersedia untuk pembaca layar. */
-function IconField({ id, label, icon, error, trailing, ...props }: IconFieldProps) {
+/** Field login polos tanpa ikon; label tetap tersedia untuk pembaca layar. */
+function LoginField({ id, label, error, invalid, trailing, ...props }: LoginFieldProps) {
   return (
     <div>
       <label htmlFor={id} className="sr-only">
@@ -25,14 +26,13 @@ function IconField({ id, label, icon, error, trailing, ...props }: IconFieldProp
       </label>
       <div
         className={cn(
-          'flex overflow-hidden rounded-lg border bg-white transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15',
-          error ? 'border-danger' : 'border-line',
+          'flex overflow-hidden rounded-lg border bg-white transition-colors focus-within:border-navy focus-within:ring-2 focus-within:ring-navy/15',
+          error || invalid ? 'border-danger' : 'border-line',
         )}
       >
-        <span className="grid w-12 shrink-0 place-items-center border-r border-line bg-surface text-ink/70">{icon}</span>
         <input
           id={id}
-          aria-invalid={Boolean(error)}
+          aria-invalid={Boolean(error) || invalid}
           aria-describedby={error ? `${id}-error` : undefined}
           className="h-11 min-w-0 flex-1 bg-transparent px-3.5 text-sm text-ink placeholder:text-muted/70 focus-visible:outline-none"
           {...props}
@@ -58,15 +58,22 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [pesan, setPesan] = useState<string | null>(params.get('expired') ? 'Sesi kamu telah berakhir. Silakan login kembali.' : null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [gagalLogin, setGagalLogin] = useState(false)
 
   if (siap && user) {
     return <Navigate to="/dashboard" replace />
+  }
+
+  const bersihkanPesan = () => {
+    setPesan(null)
+    setGagalLogin(false)
   }
 
   const kirim = async (event: FormEvent) => {
     event.preventDefault()
     setErrors({})
     setPesan(null)
+    setGagalLogin(false)
 
     const validasi: Record<string, string> = {}
     if (!email.trim()) validasi.email = 'Email wajib diisi.'
@@ -83,12 +90,10 @@ export function LoginPage() {
     try {
       await login(email.trim(), password, ingatSaya)
     } catch (error) {
-      const dariServer = errorValidasi(error)
-      setErrors(dariServer)
-
-      if (Object.keys(dariServer).length === 0) {
-        setPesan(pesanError(error))
-      }
+      // Email/kata sandi salah: kedua field ditandai merah dan pesan tampil di bawah password.
+      const [pesanServer] = Object.values(errorValidasi(error))
+      setGagalLogin(Boolean(pesanServer))
+      setPesan(pesanServer ?? pesanError(error))
     } finally {
       setLoading(false)
     }
@@ -106,7 +111,7 @@ export function LoginPage() {
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(90deg, color-mix(in srgb, white 90%, transparent) 0%, color-mix(in srgb, white 65%, transparent) 40%, color-mix(in srgb, var(--color-navy) 25%, transparent) 100%)',
+              'linear-gradient(90deg, color-mix(in srgb, white 70%, transparent) 0%, color-mix(in srgb, white 35%, transparent) 40%, transparent 70%)',
           }}
         />
 
@@ -154,36 +159,36 @@ export function LoginPage() {
             <p className="mt-1 text-sm text-muted">Silakan masuk untuk melanjutkan</p>
           </div>
 
-          {pesan && (
-            <p role="alert" className="mt-5 rounded-lg bg-danger-soft px-3 py-2 text-xs font-medium text-danger">
-              {pesan}
-            </p>
-          )}
-
           <form className="mt-7 flex flex-col gap-4" onSubmit={kirim} noValidate>
-            <IconField
+            <LoginField
               id="login-email"
               label="Email"
               type="email"
               placeholder="Email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value)
+                bersihkanPesan()
+              }}
               error={errors.email}
+              invalid={gagalLogin}
               autoComplete="email"
-              icon={<Mail className="size-[18px]" aria-hidden />}
               required
             />
 
-            <IconField
+            <LoginField
               id="login-password"
               label="Password"
               type={lihatSandi ? 'text' : 'password'}
               placeholder="Password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value)
+                bersihkanPesan()
+              }}
               error={errors.password}
+              invalid={gagalLogin}
               autoComplete="current-password"
-              icon={<Lock className="size-[18px]" aria-hidden />}
               required
               trailing={
                 <button
@@ -197,19 +202,25 @@ export function LoginPage() {
               }
             />
 
+            {pesan && (
+              <p role="alert" className="-mt-1.5 flex items-start gap-1.5 text-[13px] leading-snug font-medium text-danger">
+                <CircleAlert className="mt-px size-4 shrink-0" aria-hidden />
+                {pesan}
+              </p>
+            )}
+
             <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-ink/80">
               <input
                 type="checkbox"
                 checked={ingatSaya}
                 onChange={(event) => setIngatSaya(event.target.checked)}
-                className="size-4 min-h-0 cursor-pointer rounded border-line accent-primary"
+                className="size-4 min-h-0 cursor-pointer rounded border-line accent-navy"
               />
               Ingat saya
             </label>
 
-            <Button type="submit" block size="lg" loading={loading} className="mt-2 gap-2.5">
+            <Button type="submit" variant="secondary" block size="lg" loading={loading} className="mt-2">
               Login
-              {!loading && <ArrowRight className="size-[18px]" aria-hidden />}
             </Button>
           </form>
         </section>
