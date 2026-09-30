@@ -33,7 +33,7 @@ class WordExportService
         ]);
 
         $tabel = $section->addTable(self::GAYA_TABEL);
-        $this->barisHeader($tabel, ['Tanggal', 'Pelapor', 'Uraian Pekerjaan', 'Satuan', 'Volume Realisasi', 'Bobot Realisasi (%)', 'Keterangan', 'Kendala', 'Tindak Lanjut']);
+        $this->barisHeader($tabel, ['Tanggal', 'Pelapor', 'Uraian Pekerjaan', 'Satuan', 'Volume Realisasi', 'Bobot Realisasi (%)', 'Keterangan', 'Kendala & Alasan Keterlambatan', 'Tindak Lanjut']);
 
         foreach ($data['laporan'] as $laporan) {
             $kendala = collect($laporan['kendala'])->map(fn ($k) => $k['deskripsi'])->implode('; ');

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ReportStatus;
+use App\Models\Period;
 use App\Models\ProgressDetail;
 use App\Models\ProgressPhoto;
 use App\Models\ProgressReport;
@@ -29,11 +30,11 @@ class ProgressService
     public function create(Project $project, User $user, array $data, array $photos = []): ProgressReport
     {
         return DB::transaction(function () use ($project, $user, $data, $photos) {
-            $period = $this->schedule->resolvePeriod($project, $data['tanggal_laporan']);
+            $period = $this->periodeLaporan($project, $data['tanggal_laporan']);
 
             $report = $project->progressReports()->create([
                 'user_id' => $user->id,
-                'period_id' => $period?->id,
+                'period_id' => $period->id,
                 'tanggal_laporan' => $data['tanggal_laporan'],
                 'keterangan' => $data['keterangan'] ?? null,
                 'lokasi' => $data['lokasi'] ?? $project->lokasi,
@@ -58,8 +59,8 @@ class ProgressService
     {
         return DB::transaction(function () use ($report, $data, $photos) {
             if (isset($data['tanggal_laporan'])) {
-                $period = $this->schedule->resolvePeriod($report->project, $data['tanggal_laporan']);
-                $report->period_id = $period?->id;
+                $period = $this->periodeLaporan($report->project, $data['tanggal_laporan']);
+                $report->period_id = $period->id;
                 $report->tanggal_laporan = $data['tanggal_laporan'];
             }
 
@@ -127,6 +128,25 @@ class ProgressService
         });
     }
 
+    /**
+     * Tanggal laporan wajib berada di dalam salah satu periode (minggu) proyek. Laporan di luar
+     * jadwal tidak masuk kurva S dan membuat progres terlihat tidak bertambah.
+     */
+    private function periodeLaporan(Project $project, string $tanggal): Period
+    {
+        $period = $this->schedule->resolvePeriod($project, $tanggal);
+
+        if ($period === null) {
+            throw ValidationException::withMessages([
+                'tanggal_laporan' => 'Tanggal progres berada di luar jadwal proyek ('
+                    .$project->tanggal_mulai->translatedFormat('d M Y').' s/d '
+                    .$project->tanggal_selesai->translatedFormat('d M Y').').',
+            ]);
+        }
+
+        return $period;
+    }
+
     /** @return array<int,string> */
     private function relations(): array
     {
@@ -172,6 +192,26 @@ class ProgressService
         }
     }
 
+    /**
+     * Kendala dan alasan keterlambatan ditampilkan sebagai satu narasi. Data lama yang masih
+     * menyimpan alasan terpisah digabungkan ke belakang deskripsi kendalanya.
+     */
+    public static function gabungKendala(?string $deskripsi, ?string $alasan): string
+    {
+        $deskripsi = trim((string) $deskripsi);
+        $alasan = trim((string) $alasan);
+
+        if ($alasan === '' || $alasan === $deskripsi) {
+            return $deskripsi;
+        }
+
+        if ($deskripsi === '') {
+            return $alasan;
+        }
+
+        return rtrim($deskripsi, " \t\n\r\0\x0B.").'. '.$alasan;
+    }
+
     /** @param array<int,array<string,mixed>> $issues */
     private function syncIssues(ProgressReport $report, array $issues): void
     {
@@ -179,8 +219,9 @@ class ProgressService
             $report->issues()->create([
                 'work_item_id' => $row['work_item_id'] ?? null,
                 'jenis_kendala' => $row['jenis_kendala'] ?? 'LAINNYA',
-                'deskripsi' => $row['deskripsi'],
-                'alasan_keterlambatan' => $row['alasan_keterlambatan'] ?? null,
+                // Alasan keterlambatan tidak lagi disimpan terpisah; digabung ke deskripsi kendala.
+                'deskripsi' => self::gabungKendala($row['deskripsi'], $row['alasan_keterlambatan'] ?? null),
+                'alasan_keterlambatan' => null,
                 'tindak_lanjut' => $row['tindak_lanjut'] ?? null,
                 'status' => $row['status'] ?? 'TERBUKA',
             ]);

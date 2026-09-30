@@ -420,8 +420,7 @@ class ProjectSeeder extends Seeder
         if ($denganKendala) {
             $data['issues'] = [[
                 'jenis_kendala' => 'CUACA',
-                'deskripsi' => 'Hujan pada sore hari sehingga pengecoran dihentikan lebih awal.',
-                'alasan_keterlambatan' => 'Curah hujan tinggi selama 2 hari kerja.',
+                'deskripsi' => 'Hujan pada sore hari sehingga pengecoran dihentikan lebih awal. Curah hujan tinggi selama 2 hari kerja.',
                 'tindak_lanjut' => 'Penambahan jam kerja pada minggu berikutnya.',
                 'status' => 'DALAM_PENANGANAN',
             ]];

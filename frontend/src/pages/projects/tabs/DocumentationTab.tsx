@@ -72,18 +72,20 @@ export function DocumentationTab({ project }: { project: Project }) {
         {perTanggal.size === 0 ? (
           <EmptyState judul="Belum ada dokumentasi" pesan="Foto yang diunggah QS saat tambah progres akan tampil di kalender ini." />
         ) : (
-          <div className="flex flex-col gap-8">
-            {daftarBulan(awal, akhir).map((bulan) => (
-              <KalenderBulan
-                key={bulan.toISOString()}
-                bulan={bulan}
-                perTanggal={perTanggal}
-                mulai={mulai}
-                selesai={selesai}
-                hari={hari}
-                onPilih={setTanggalDipilih}
-              />
-            ))}
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
+              {daftarBulan(awal, akhir).map((bulan) => (
+                <KalenderBulan
+                  key={bulan.toISOString()}
+                  bulan={bulan}
+                  perTanggal={perTanggal}
+                  mulai={mulai}
+                  selesai={selesai}
+                  hari={hari}
+                  onPilih={setTanggalDipilih}
+                />
+              ))}
+            </div>
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-4 text-[11px] text-muted">
               <span className="flex items-center gap-1.5">
@@ -124,8 +126,8 @@ function KalenderBulan({ bulan, perTanggal, mulai, selesai, hari, onPilih }: Kal
 
   return (
     <section>
-      <h3 className="mb-3 text-sm font-semibold text-ink capitalize">{format(bulan, 'MMMM yyyy', { locale: localeId })}</h3>
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+      <h3 className="mb-2 text-sm font-semibold text-ink capitalize">{format(bulan, 'MMMM yyyy', { locale: localeId })}</h3>
+      <div className="grid grid-cols-7 gap-1">
         {NAMA_HARI.map((nama) => (
           <div key={nama} className="pb-1 text-center text-[10px] font-semibold tracking-wide text-muted uppercase">
             {nama}
@@ -146,10 +148,10 @@ function KalenderBulan({ bulan, perTanggal, mulai, selesai, hari, onPilih }: Kal
             const dalamProyek = kunci >= mulai && kunci <= selesai
 
             return (
-              <div key={kunci} className="grid aspect-[3/4] place-items-center">
+              <div key={kunci} className="grid aspect-square place-items-center">
                 <span
                   className={cn(
-                    'grid size-7 place-items-center rounded-full text-sm tabular-nums sm:size-8',
+                    'grid size-6 place-items-center rounded-full text-xs tabular-nums',
                     hariIniKah ? 'bg-navy font-semibold text-white' : dalamProyek ? 'text-ink' : 'text-muted/40',
                   )}
                 >
@@ -169,9 +171,9 @@ function KalenderBulan({ bulan, perTanggal, mulai, selesai, hari, onPilih }: Kal
               onClick={() => onPilih(kunci)}
               aria-label={`Lihat progres ${tanggal(kunci)}`}
               className={cn(
-                'group relative grid aspect-[3/4] place-items-center overflow-hidden rounded-lg transition-shadow hover:shadow-md',
+                'group relative grid aspect-square place-items-center overflow-hidden rounded-lg transition-shadow hover:shadow-md',
                 sampul ? 'bg-ink' : 'border border-line bg-surface hover:border-primary/40',
-                hariIniKah && 'ring-2 ring-navy ring-offset-2',
+                hariIniKah && 'ring-2 ring-navy ring-offset-1',
               )}
             >
               {sampul && (
@@ -185,11 +187,11 @@ function KalenderBulan({ bulan, perTanggal, mulai, selesai, hari, onPilih }: Kal
                   <span className="absolute inset-0 bg-ink/35 transition-colors group-hover:bg-ink/20" aria-hidden />
                 </>
               )}
-              <span className={cn('relative text-base font-semibold tabular-nums sm:text-lg', sampul ? 'text-white drop-shadow' : 'text-ink')}>{nomor}</span>
+              <span className={cn('relative text-xs font-semibold tabular-nums', sampul ? 'text-white drop-shadow' : 'text-ink')}>{nomor}</span>
               {foto.length > 1 && (
-                <span className="absolute top-1 right-1 rounded-full bg-black/55 px-1.5 text-[10px] leading-4 font-medium text-white">{foto.length}</span>
+                <span className="absolute top-0.5 right-0.5 rounded-full bg-black/55 px-1 text-[9px] leading-3.5 font-medium text-white">{foto.length}</span>
               )}
-              {!sampul && <span className="absolute bottom-2 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-primary" aria-hidden />}
+              {!sampul && <span className="absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary" aria-hidden />}
             </button>
           )
         })}
@@ -263,7 +265,7 @@ function DetailHari({ kunci, laporan, onClose }: { kunci: string; laporan: Progr
 
             {item.kendala && item.kendala.length > 0 && (
               <div>
-                <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted uppercase">Kendala</p>
+                <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted uppercase">Kendala & Alasan Keterlambatan</p>
                 <ul className="flex flex-col gap-2">
                   {item.kendala.map((kendala) => (
                     <li key={kendala.id} className="rounded-lg border border-warning/30 bg-warning-soft/60 px-3 py-2 text-xs text-ink">

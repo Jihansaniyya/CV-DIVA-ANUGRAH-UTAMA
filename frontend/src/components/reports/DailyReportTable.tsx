@@ -75,7 +75,7 @@ export function DailyReportTable({ data }: { data: DailyReport }) {
               </div>
 
               <section className="mt-3">
-                <h4 className="mb-1 text-xs font-semibold text-ink">Kendala dan Tindak Lanjut</h4>
+                <h4 className="mb-1 text-xs font-semibold text-ink">Kendala & Alasan Keterlambatan serta Tindak Lanjut</h4>
                 {laporan.kendala.length === 0 ? (
                   <p className="text-[11px] text-muted">Tidak ada kendala yang dicatat.</p>
                 ) : (
@@ -83,7 +83,6 @@ export function DailyReportTable({ data }: { data: DailyReport }) {
                     {laporan.kendala.map((item, index) => (
                       <li key={index}>
                         <span className="font-medium text-ink">{item.jenis_kendala.replace('_', ' ')}:</span> {item.deskripsi}
-                        {item.alasan_keterlambatan ? ` - Alasan: ${item.alasan_keterlambatan}` : ''}
                         {item.tindak_lanjut ? ` - Tindak lanjut: ${item.tindak_lanjut}` : ''}
                       </li>
                     ))}

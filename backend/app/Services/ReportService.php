@@ -80,8 +80,7 @@ class ReportService
                 'kendala' => $report->issues->map(fn ($i) => [
                     'jenis_kendala' => $i->jenis_kendala,
                     'pekerjaan' => $i->workItem?->uraian_pekerjaan,
-                    'deskripsi' => $i->deskripsi,
-                    'alasan_keterlambatan' => $i->alasan_keterlambatan,
+                    'deskripsi' => ProgressService::gabungKendala($i->deskripsi, $i->alasan_keterlambatan),
                     'tindak_lanjut' => $i->tindak_lanjut,
                     'status' => $i->status,
                 ])->all(),

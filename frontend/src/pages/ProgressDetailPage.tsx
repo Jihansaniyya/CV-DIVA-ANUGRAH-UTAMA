@@ -79,7 +79,6 @@ export function ProgressDetailPage() {
 
   const foto = laporan.foto ?? []
   const kendala = laporan.kendala ?? []
-  const keterlambatan = kendala.filter((item) => item.alasan_keterlambatan)
   const fotoTerpilih = fotoAktif === null ? null : foto[fotoAktif]
 
   return (
@@ -249,45 +248,28 @@ export function ProgressDetailPage() {
         )}
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Kendala" action={kendala.length > 0 ? <Badge tone="warning">{kendala.length} kendala</Badge> : undefined}>
-          {kendala.length === 0 ? (
-            <p className="text-sm text-muted">Tidak ada kendala yang dicatat pada laporan ini.</p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {kendala.map((item) => (
-                <li key={item.id} className="rounded-lg border border-line p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="warning">{item.jenis_kendala.replace('_', ' ')}</Badge>
-                    {item.pekerjaan && <span className="text-xs text-muted">{item.pekerjaan}</span>}
-                  </div>
-                  <p className="mt-2 text-sm text-ink">{item.deskripsi}</p>
-                  {item.tindak_lanjut && (
-                    <p className="mt-1.5 text-xs text-muted">
-                      <span className="font-medium text-ink">Tindak lanjut:</span> {item.tindak_lanjut}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card title="Alasan Keterlambatan">
-          {keterlambatan.length === 0 ? (
-            <p className="text-sm text-muted">Tidak ada alasan keterlambatan yang dilaporkan.</p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {keterlambatan.map((item) => (
-                <li key={item.id} className="rounded-lg border-l-[3px] border-danger bg-danger-soft/50 px-3 py-2.5">
-                  {item.pekerjaan && <p className="text-xs font-medium text-muted">{item.pekerjaan}</p>}
-                  <p className="text-sm text-ink">{item.alasan_keterlambatan}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      <Card title="Kendala & Alasan Keterlambatan" action={kendala.length > 0 ? <Badge tone="warning">{kendala.length} kendala</Badge> : undefined}>
+        {kendala.length === 0 ? (
+          <p className="text-sm text-muted">Tidak ada kendala yang dicatat pada laporan ini.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {kendala.map((item) => (
+              <li key={item.id} className="rounded-lg border border-line p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="warning">{item.jenis_kendala.replace('_', ' ')}</Badge>
+                  {item.pekerjaan && <span className="text-xs text-muted">{item.pekerjaan}</span>}
+                </div>
+                <p className="mt-2 text-sm text-ink">{item.deskripsi}</p>
+                {item.tindak_lanjut && (
+                  <p className="mt-1.5 text-xs text-muted">
+                    <span className="font-medium text-ink">Tindak lanjut:</span> {item.tindak_lanjut}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Modal
         open={fotoTerpilih !== null && fotoTerpilih !== undefined}

@@ -137,6 +137,11 @@ Unique `(progress_report_id, work_item_id)`.
 `deskripsi`, `alasan_keterlambatan`, `tindak_lanjut`,
 `status` enum(`TERBUKA`,`DALAM_PENANGANAN`,`SELESAI`).
 
+Kendala dan alasan keterlambatan diisi sebagai **satu narasi** pada `deskripsi`. Kolom
+`alasan_keterlambatan` hanya dipertahankan untuk data lama: saat disimpan nilainya selalu `null`
+(jika klien masih mengirimnya, isinya digabung ke `deskripsi`), dan saat ditampilkan maupun diexport
+data lama digabung oleh `ProgressService::gabungKendala()`.
+
 ### `report_documents`
 `id`, `project_id` FK, `user_id` FK nullable, `tipe_laporan` enum(`HARIAN`,`MINGGUAN`,`BULANAN`,`MILESTONE`),
 `format` enum(`EXCEL`,`WORD`), `periode_mulai`, `periode_selesai`, `file_path`, `file_name`, `digenerate_pada`.

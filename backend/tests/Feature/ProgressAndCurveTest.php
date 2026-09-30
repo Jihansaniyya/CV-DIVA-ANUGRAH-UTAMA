@@ -63,9 +63,25 @@ class ProgressAndCurveTest extends TestCase
         $this->assertEqualsWithDelta(50.0, (float) $laporan->details->first()->persentase_realisasi, 0.0001);
         $this->assertEqualsWithDelta(12.5, (float) $laporan->details->first()->bobot_realisasi, 0.0001);
         $this->assertSame(1, $laporan->issues->count());
+        // Alasan keterlambatan yang masih dikirim terpisah digabung ke deskripsi kendala.
+        $this->assertSame('Hujan deras sore hari. Curah hujan tinggi.', $laporan->issues->first()->deskripsi);
+        $this->assertNull($laporan->issues->first()->alasan_keterlambatan);
         $this->assertSame(1, $laporan->photos->count());
         $this->assertNotNull($laporan->period_id);
         Storage::disk('public')->assertExists($laporan->photos->first()->file_path);
+    }
+
+    public function test_tanggal_progres_di_luar_jadwal_proyek_ditolak(): void
+    {
+        $konteks = $this->proyekContoh();
+
+        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+            'project_id' => $konteks['project']->id,
+            'tanggal_laporan' => $konteks['project']->tanggal_mulai->subDay()->toDateString(),
+            'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 10]],
+        ])->assertStatus(422)->assertJsonValidationErrors('tanggal_laporan');
+
+        $this->assertSame(0, ProgressReport::count());
     }
 
     public function test_volume_realisasi_tidak_boleh_melebihi_volume_rencana(): void

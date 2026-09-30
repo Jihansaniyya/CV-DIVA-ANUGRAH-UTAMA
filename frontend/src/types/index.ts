@@ -212,7 +212,6 @@ export interface ProgressIssue {
   pekerjaan: string | null
   jenis_kendala: string
   deskripsi: string
-  alasan_keterlambatan: string | null
   tindak_lanjut: string | null
   status: string
 }
@@ -423,7 +422,6 @@ export interface DailyReport {
       jenis_kendala: string
       pekerjaan: string | null
       deskripsi: string
-      alasan_keterlambatan: string | null
       tindak_lanjut: string | null
       status: string
     }[]

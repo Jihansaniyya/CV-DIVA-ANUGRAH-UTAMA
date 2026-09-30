@@ -19,9 +19,10 @@ export interface ProgressDetailInput {
 
 export interface ProgressIssueInput {
   work_item_id?: number | null
-  jenis_kendala: string
+  /** Null hanya untuk draf yang jenis kendalanya belum dipilih; backend mengisi LAINNYA. */
+  jenis_kendala?: string | null
+  /** Kendala sekaligus alasan keterlambatan dalam satu narasi. */
   deskripsi: string
-  alasan_keterlambatan?: string | null
   tindak_lanjut?: string | null
   status?: string
 }

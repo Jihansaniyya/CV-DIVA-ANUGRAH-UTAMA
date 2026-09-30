@@ -43,7 +43,7 @@ class DailyReportExport implements FromArray, WithColumnWidths, WithEvents, With
 
         $rows[] = $this->row([
             'Tanggal', 'Pelapor', 'Uraian Pekerjaan', 'Satuan', 'Volume Realisasi',
-            'Bobot Realisasi (%)', 'Keterangan', 'Kendala', 'Tindak Lanjut',
+            'Bobot Realisasi (%)', 'Keterangan', 'Kendala & Alasan Keterlambatan', 'Tindak Lanjut',
         ]);
 
         $this->barisTabelMulai = count($rows) + 1;
