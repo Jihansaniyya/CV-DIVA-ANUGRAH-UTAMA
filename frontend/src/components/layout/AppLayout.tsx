@@ -1,8 +1,9 @@
 import { Navbar } from '@/components/layout/Navbar'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { ConfirmDialog } from '@/components/ui/Modal'
+import { AlertDialog } from '@/components/ui/Modal'
 import { WelcomePopup } from '@/components/ui/WelcomePopup'
 import { useAuth } from '@/hooks/useAuth'
+import { LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
@@ -69,15 +70,18 @@ export function AppLayout() {
 
       <WelcomePopup nama={user?.name} />
 
-      <ConfirmDialog
+      <AlertDialog
         open={konfirmasiKeluar}
+        icon={<LogOut className="size-5" aria-hidden />}
         title="Keluar dari aplikasi?"
-        pesan={`Anda akan keluar dari akun ${user?.name ?? ''}. Anda perlu login kembali untuk melanjutkan.`}
-        labelKonfirmasi="Ya, Keluar"
+        labelKonfirmasi="Keluar"
         loading={sedangKeluar}
         onConfirm={() => void keluar()}
         onClose={() => setKonfirmasiKeluar(false)}
-      />
+      >
+        Sesi <span className="font-medium text-ink">{user?.name}</span> akan diakhiri. Silakan login kembali untuk
+        melanjutkan pekerjaan.
+      </AlertDialog>
     </div>
   )
 }

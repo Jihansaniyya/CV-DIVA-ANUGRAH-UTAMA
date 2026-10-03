@@ -20,7 +20,8 @@ const SIZE = {
   xl: 'max-w-5xl',
 }
 
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+/** Menutup dialog dengan Escape dan mengunci scroll halaman selama dialog terbuka. */
+function useDialog(open: boolean, onClose: () => void) {
   useEffect(() => {
     if (!open) return
 
@@ -36,6 +37,10 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       document.body.style.overflow = ''
     }
   }, [open, onClose])
+}
+
+export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+  useDialog(open, onClose)
 
   if (!open) return null
 
@@ -102,5 +107,53 @@ export function ConfirmDialog({
     >
       <p className="text-sm text-muted">{pesan}</p>
     </Modal>
+  )
+}
+
+interface AlertDialogProps {
+  open: boolean
+  icon: ReactNode
+  title: string
+  children: ReactNode
+  labelKonfirmasi: string
+  loading?: boolean
+  onConfirm: () => void
+  onClose: () => void
+}
+
+/** Dialog konfirmasi ringkas untuk aksi non-destruktif, misalnya keluar dari aplikasi. */
+export function AlertDialog({ open, icon, title, children, labelKonfirmasi, loading, onConfirm, onClose }: AlertDialogProps) {
+  const tutup = () => {
+    if (!loading) onClose()
+  }
+
+  useDialog(open, tutup)
+
+  if (!open) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      role="alertdialog"
+      aria-modal
+      aria-labelledby="alert-dialog-title"
+    >
+      <button type="button" aria-label="Tutup" className="absolute inset-0 cursor-default" onClick={tutup} />
+      <div className="relative w-full max-w-sm rounded-xl border border-line bg-white p-6 shadow-xl">
+        <div className="flex size-10 items-center justify-center rounded-full bg-surface text-navy">{icon}</div>
+        <h2 id="alert-dialog-title" className="mt-4 text-base font-semibold text-ink">
+          {title}
+        </h2>
+        <div className="mt-1.5 text-sm leading-relaxed text-muted">{children}</div>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={tutup} disabled={loading}>
+            Batal
+          </Button>
+          <Button variant="secondary" onClick={onConfirm} loading={loading}>
+            {labelKonfirmasi}
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }

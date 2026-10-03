@@ -27,7 +27,7 @@ export function FieldWrap({ label, error, hint, required, className, children }:
 }
 
 const BASE =
-  'w-full rounded-lg border bg-white px-3 py-2 text-sm text-ink placeholder:text-muted/70 transition-colors focus:border-primary disabled:bg-surface disabled:text-muted'
+  'w-full rounded-lg border bg-white px-3 py-2 text-sm text-ink placeholder:text-muted/70 transition-colors disabled:bg-surface disabled:text-muted'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -40,7 +40,7 @@ export function Input({ label, error, hint, required, wrapClassName, className, 
   return (
     <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName}>
       <input
-        className={cn(BASE, error ? 'border-danger' : 'border-line', className)}
+        className={cn(BASE, error ? 'border-danger' : 'border-line focus:border-navy-light/45', className)}
         aria-invalid={Boolean(error)}
         required={required}
         {...props}
@@ -60,7 +60,7 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ label, error, hint, required, wrapClassName, className, children, ...props }: SelectProps) {
   return (
     <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName}>
-      <select className={cn(BASE, error ? 'border-danger' : 'border-line', className)} required={required} {...props}>
+      <select className={cn(BASE, error ? 'border-danger' : 'border-line focus:border-navy-light/45', className)} required={required} {...props}>
         {children}
       </select>
     </FieldWrap>
@@ -79,7 +79,7 @@ export function Textarea({ label, error, hint, required, wrapClassName, classNam
     <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName}>
       <textarea
         rows={3}
-        className={cn(BASE, 'resize-y', error ? 'border-danger' : 'border-line', className)}
+        className={cn(BASE, 'resize-y', error ? 'border-danger' : 'border-line focus:border-navy-light/45', className)}
         required={required}
         {...props}
       />

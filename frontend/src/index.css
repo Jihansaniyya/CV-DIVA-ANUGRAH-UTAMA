@@ -77,6 +77,15 @@
     outline-offset: 2px;
   }
 
+  /* Isian form cukup ditandai perubahan warna tepi, tanpa outline merah atau shadow. */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+    border-color: color-mix(in srgb, var(--color-navy-light) 45%, var(--color-line));
+    box-shadow: none;
+  }
+
   /* Target sentuh minimal pada perangkat mobile. */
   @media (max-width: 767px) {
     button,
