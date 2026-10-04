@@ -1,7 +1,6 @@
 import { Navbar } from '@/components/layout/Navbar'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { AlertDialog } from '@/components/ui/Modal'
-import { WelcomePopup } from '@/components/ui/WelcomePopup'
 import { useAuth } from '@/hooks/useAuth'
 import { LogOut } from 'lucide-react'
 import { useState } from 'react'
@@ -67,8 +66,6 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
-
-      <WelcomePopup nama={user?.name} />
 
       <AlertDialog
         open={konfirmasiKeluar}
