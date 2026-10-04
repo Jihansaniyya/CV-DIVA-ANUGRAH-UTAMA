@@ -12,7 +12,7 @@ export function ToastViewport({ items, onDismiss }: { items: ToastItem[]; onDism
   if (items.length === 0) return null
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col gap-2 sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-auto sm:w-96">
+    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col gap-2 sm:inset-x-auto sm:top-24 sm:right-4 sm:bottom-auto sm:w-96">
       {items.map((item) => {
         const { cls, Icon } = TONE[item.tone]
 
