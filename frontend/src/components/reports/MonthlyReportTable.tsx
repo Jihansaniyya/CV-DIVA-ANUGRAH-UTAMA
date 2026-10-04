@@ -155,7 +155,7 @@ export function MonthlyReportTable({ data }: { data: MonthlyReport }) {
               </td>
               {data.rekap_periode.map((item) => (
                 <td key={item.period_id} className="num">
-                  {angka(item.rencana_mingguan, 3)}
+                  {angka(item.rencana_mingguan, 2)}
                 </td>
               ))}
               <td />
@@ -166,7 +166,7 @@ export function MonthlyReportTable({ data }: { data: MonthlyReport }) {
               </td>
               {data.rekap_periode.map((item) => (
                 <td key={item.period_id} className="num">
-                  {angka(item.rencana_kumulatif, 3)}
+                  {angka(item.rencana_kumulatif, 2)}
                 </td>
               ))}
               <td />
@@ -181,7 +181,7 @@ export function MonthlyReportTable({ data }: { data: MonthlyReport }) {
               </td>
               {data.rekap_periode.map((item) => (
                 <td key={item.period_id} className="num">
-                  {item.realisasi_mingguan === null ? '' : angka(item.realisasi_mingguan, 3)}
+                  {item.realisasi_mingguan === null ? '' : angka(item.realisasi_mingguan, 2)}
                 </td>
               ))}
               <td />
@@ -192,7 +192,7 @@ export function MonthlyReportTable({ data }: { data: MonthlyReport }) {
               </td>
               {data.rekap_periode.map((item) => (
                 <td key={item.period_id} className="num">
-                  {item.realisasi_kumulatif === null ? '' : angka(item.realisasi_kumulatif, 3)}
+                  {item.realisasi_kumulatif === null ? '' : angka(item.realisasi_kumulatif, 2)}
                 </td>
               ))}
               <td />
@@ -207,7 +207,7 @@ export function MonthlyReportTable({ data }: { data: MonthlyReport }) {
                   key={item.period_id}
                   className={`num font-semibold ${item.deviasi !== null && item.deviasi < 0 ? 'text-danger' : 'text-success'}`}
                 >
-                  {item.deviasi === null ? '' : angka(item.deviasi, 3)}
+                  {item.deviasi === null ? '' : angka(item.deviasi, 2)}
                 </td>
               ))}
               <td />

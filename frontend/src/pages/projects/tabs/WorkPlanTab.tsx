@@ -245,11 +245,11 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
               </td>
               {ringkasan.map((item) => (
                 <td key={item.period_id} className="num">
-                  {angka(item.bobot, 3)}
+                  {angka(item.bobot, 2)}
                 </td>
               ))}
               <td />
-              <td className="num">{angka(totalBobotRencana, 3)}</td>
+              <td className="num">{angka(totalBobotRencana, 2)}</td>
             </tr>
             <tr className="font-semibold">
               <td colSpan={4} className="text-right">
@@ -257,7 +257,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
               </td>
               {ringkasan.map((item) => (
                 <td key={item.period_id} className="num">
-                  {angka(item.kumulatif, 3)}
+                  {angka(item.kumulatif, 2)}
                 </td>
               ))}
               <td />

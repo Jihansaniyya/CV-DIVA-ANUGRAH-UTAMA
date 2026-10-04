@@ -199,7 +199,7 @@ export function ProgressDetailPage() {
                     </Td>
                     <Td align="right">{angka(detail.persentase_realisasi, 2)}</Td>
                     <Td align="right" className="font-semibold">
-                      {angka(detail.bobot_realisasi, 4)}
+                      {angka(detail.bobot_realisasi, 2)}
                     </Td>
                     <Td className="text-muted">{detail.keterangan ?? '-'}</Td>
                   </tr>

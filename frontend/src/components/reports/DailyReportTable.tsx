@@ -66,7 +66,7 @@ export function DailyReportTable({ data }: { data: DailyReport }) {
                         <td className="num">{angka(detail.volume_rencana, 2)}</td>
                         <td className="num">{angka(detail.volume_realisasi, 2)}</td>
                         <td className="num">{angka(detail.persentase_realisasi, 2)}</td>
-                        <td className="num">{angka(detail.bobot_realisasi, 4)}</td>
+                        <td className="num">{angka(detail.bobot_realisasi, 2)}</td>
                         <td>{detail.keterangan ?? '-'}</td>
                       </tr>
                     ))}
