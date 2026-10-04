@@ -2,10 +2,11 @@ import loginBg from '@/assets/login-bg.png'
 import logo from '@/assets/logo.png'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { cn } from '@/utils/cn'
 import { CircleAlert, Eye, EyeOff } from 'lucide-react'
-import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 
 interface LoginFieldProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -50,6 +51,7 @@ function LoginField({ id, label, error, invalid, trailing, ...props }: LoginFiel
 
 export function LoginPage() {
   const { user, siap, login } = useAuth()
+  const toast = useToast()
   const [params] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -59,6 +61,14 @@ export function LoginPage() {
   const [pesan, setPesan] = useState<string | null>(params.get('expired') ? 'Sesi kamu telah berakhir. Silakan login kembali.' : null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [gagalLogin, setGagalLogin] = useState(false)
+  const [toastShown, setToastShown] = useState(false)
+
+  useEffect(() => {
+    if (siap && user && !toastShown) {
+      toast.sukses(`Selamat Datang, ${user.name}! Login berhasil. Selamat bekerja.`)
+      setToastShown(true)
+    }
+  }, [siap, user, toastShown, toast])
 
   if (siap && user) {
     return <Navigate to="/dashboard" replace />

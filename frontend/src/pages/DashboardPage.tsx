@@ -6,9 +6,7 @@ import { KpiCard } from '@/components/ui/KpiCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
-import { WelcomeModal } from '@/components/WelcomeModal'
 import { useDashboard } from '@/hooks/queries'
-import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
 import { QsDashboard } from '@/pages/dashboard/QsDashboard'
 import type { DashboardData, DashboardProjectRow } from '@/types'
@@ -26,7 +24,6 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const tautan = 'inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:text-primary-dark hover:underline'
@@ -266,21 +263,7 @@ function LaporanTerbaru({ laporan, tampilLihatSemua }: { laporan: NonNullable<Da
 }
 
 export function DashboardPage() {
-  const { user } = useAuth()
   const { data, isLoading, error, refetch } = useDashboard()
-  const [welcomeOpen, setWelcomeOpen] = useState(false)
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem('welcome-modal-dismissed')
-    if (!dismissed) {
-      setWelcomeOpen(true)
-    }
-  }, [])
-
-  const handleCloseWelcome = () => {
-    setWelcomeOpen(false)
-    localStorage.setItem('welcome-modal-dismissed', 'true')
-  }
 
   if (isLoading) return <LoadingState pesan="Memuat ringkasan proyek..." />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
@@ -292,9 +275,7 @@ export function DashboardPage() {
   const kontraktor = data.peran === 'KONTRAKTOR'
 
   return (
-    <>
-      <WelcomeModal open={welcomeOpen} nama={user?.name} onClose={handleCloseWelcome} />
-      <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <p className="flex items-center gap-1.5 text-xs text-muted">
         <CalendarDays className="size-3.5" aria-hidden />
         Data per {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
@@ -365,7 +346,6 @@ export function DashboardPage() {
       {data.laporan_terbaru && data.laporan_terbaru.length > 0 && (
         <LaporanTerbaru laporan={data.laporan_terbaru} tampilLihatSemua={kontraktor} />
       )}
-      </div>
-    </>
+    </div>
   )
 }
