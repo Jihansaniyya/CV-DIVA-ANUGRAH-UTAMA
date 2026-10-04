@@ -186,7 +186,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
                   </td>
                   <td className="text-center">{baris.satuan}</td>
                   <td className="num">{angka(baris.volume, 2)}</td>
-                  <td className="num">{angka(baris.bobot, 4)}</td>
+                  <td className="num">{angka(baris.bobot, 2)}</td>
                   {data.periode.map((period) => {
                     const target = draft[kunci(baris.work_item_id, period.id)] ?? 0
                     const aktif = baris.periode.find((sel) => sel.period_id === period.id)?.aktif ?? false

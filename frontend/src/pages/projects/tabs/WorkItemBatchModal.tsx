@@ -262,7 +262,7 @@ export function WorkItemBatchModal({ open, projectId, units, categories, periods
                     label="Harga Pekerjaan / Bobot"
                     readOnly
                     disabled
-                    value={`${rupiah(harga)} · ${angka(totalHarga > 0 ? (harga / totalHarga) * 100 : 0, 4)}%`}
+                    value={`${rupiah(harga)} · ${angka(totalHarga > 0 ? (harga / totalHarga) * 100 : 0, 2)}%`}
                     hint="Dihitung otomatis"
                   />
                   <Select

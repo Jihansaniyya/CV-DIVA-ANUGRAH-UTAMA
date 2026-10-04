@@ -188,7 +188,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
                   <Td align="right">{angka(item.volume, 2)}</Td>
                   <Td align="right">{item.harga_satuan ? rupiah(item.harga_satuan) : '-'}</Td>
                   <Td align="right">{item.harga_pekerjaan ? rupiah(item.harga_pekerjaan) : '-'}</Td>
-                  <Td align="right">{angka(item.bobot, 4)}</Td>
+                  <Td align="right">{angka(item.bobot, 2)}</Td>
                   <Td className="text-muted whitespace-nowrap">
                     {item.periode_mulai ? `${item.periode_mulai} s/d ${item.periode_selesai ?? item.periode_mulai}` : '-'}
                   </Td>
@@ -230,7 +230,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
               <tr className="bg-surface/60 font-semibold">
                 <Td colSpan={5}>JUMLAH</Td>
                 <Td align="right">{rupiah(data?.meta.total_harga_pekerjaan ?? 0)}</Td>
-                <Td align="right">{angka(data?.meta.total_bobot ?? 0, 4)}</Td>
+                <Td align="right">{angka(data?.meta.total_bobot ?? 0, 2)}</Td>
                 <Td colSpan={adminMode ? 3 : 2} />
               </tr>
             </tfoot>
@@ -325,7 +325,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             label="Bobot Pekerjaan (%)"
             readOnly
             disabled
-            value={angka(pratinjau.bobot, 4)}
+            value={angka(pratinjau.bobot, 2)}
             hint={`Harga Pekerjaan / Total Harga Proyek (${rupiah(pratinjau.totalHarga)}) × 100%`}
           />
           <Select
