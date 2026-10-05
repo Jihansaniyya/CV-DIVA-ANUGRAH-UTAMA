@@ -20,7 +20,7 @@ class UserController extends Controller
         $users = User::with('role')
             ->when($request->filled('q'), function ($query) use ($request) {
                 $q = '%'.$request->string('q').'%';
-                $query->where(fn ($sub) => $sub->where('name', 'like', $q)->orWhere('username', 'like', $q));
+                $query->where(fn ($sub) => $sub->where('name', 'like', $q)->orWhere('email', 'like', $q));
             })
             ->when($request->filled('role'), fn ($query) => $query->whereHas('role', fn ($r) => $r->where('code', $request->string('role'))))
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->string('status') === 'aktif'))

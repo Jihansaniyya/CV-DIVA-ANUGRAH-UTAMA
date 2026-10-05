@@ -23,11 +23,11 @@ export function QsDashboard({ data }: { data: DashboardData }) {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <h2 className="text-lg font-semibold text-ink">Beranda</h2>
           <p className="flex items-center gap-1.5 text-xs text-muted">
             <CalendarDays className="size-3.5" aria-hidden />
-            {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
+            Ringkasan pekerjaan per {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
           </p>
-          <h2 className="mt-0.5 text-lg font-semibold text-ink">Ringkasan Pekerjaan</h2>
         </div>
         <Link to="/progres/baru" className={tautanUtama}>
           <Plus className="size-4" aria-hidden />

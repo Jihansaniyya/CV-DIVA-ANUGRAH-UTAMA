@@ -36,9 +36,9 @@ class ProjectSeeder extends Seeder
 
     public function run(): void
     {
-        $admin = User::where('username', 'admin')->firstOrFail();
-        $nisa = User::where('username', 'qs.nisa')->firstOrFail();
-        $jihan = User::where('username', 'qs.jihan')->firstOrFail();
+        $admin = User::where('email', 'admin@divaanugrahutama.co.id')->firstOrFail();
+        $nisa = User::where('email', 'nisa@divaanugrahutama.co.id')->firstOrFail();
+        $jihan = User::where('email', 'jihan@divaanugrahutama.co.id')->firstOrFail();
         $units = Unit::pluck('id', 'code');
 
         $this->proyekPenutupParit($admin, $nisa, $units);

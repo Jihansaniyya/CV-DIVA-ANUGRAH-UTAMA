@@ -11,7 +11,6 @@ export interface UserFilter {
 
 export interface UserPayload {
   name: string
-  username: string
   email?: string | null
   phone?: string | null
   password?: string

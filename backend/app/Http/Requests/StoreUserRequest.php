@@ -16,7 +16,6 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'max:50', 'alpha_dash', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:30'],
             'password' => ['required', 'confirmed', Password::min(8)],
@@ -28,7 +27,7 @@ class StoreUserRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'name' => 'nama', 'username' => 'nama pengguna', 'password' => 'kata sandi',
+            'name' => 'nama', 'password' => 'kata sandi',
             'role_id' => 'peran', 'is_active' => 'status akun', 'email' => 'email', 'phone' => 'nomor telepon',
         ];
     }

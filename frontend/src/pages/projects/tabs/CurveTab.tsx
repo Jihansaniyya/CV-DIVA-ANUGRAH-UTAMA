@@ -34,22 +34,10 @@ export function CurveTab({ projectId }: { projectId: number }) {
   const titikPerPeriode = new Map(data.titik.map((titik) => [titik.period_id, titik]))
 
   return (
-    <div className="flex flex-col gap-4">
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <KpiCard label="Progres Rencana" value={persen(ringkasan.progres_rencana)} icon={Target} tone="navy" hint="Rencana kumulatif s/d hari ini" />
-        <KpiCard label="Progres Realisasi" value={persen(ringkasan.progres_aktual)} icon={TrendingUp} tone="primary" hint="Akumulasi laporan QS terkirim" />
-        <KpiCard
-          label="Deviasi"
-          value={deviasi(ringkasan.deviasi)}
-          valueClassName={warnaDeviasi(ringkasan.deviasi)}
-          icon={LineChart}
-          tone={ringkasan.deviasi < -0.005 ? 'danger' : 'success'}
-          hint={ringkasan.deviasi < -0.005 ? 'Realisasi tertinggal dari rencana' : 'Realisasi sesuai atau mendahului rencana'}
-          className="col-span-2 sm:col-span-1"
-        />
-      </section>
-
+    // `print-area` membuat tab ini ikut tercetak; grafik Kurva S menempati halaman sendiri, komponen di bawahnya mulai di halaman berikutnya.
+    <div className="print-area flex flex-col gap-4 print:block print:space-y-4">
       <Card
+        className="print:break-after-page print:break-inside-avoid"
         title="Grafik Kurva S"
         description="Rencana kumulatif dibandingkan realisasi kumulatif per periode."
         action={
@@ -60,7 +48,7 @@ export function CurveTab({ projectId }: { projectId: number }) {
           )
         }
       >
-        <CurveSChart data={data} tinggi={380} />
+        <CurveSChart data={data} tinggi={340} />
 
         {data.milestones.length > 0 && (
           <div className="mt-5 border-t border-line pt-4">
@@ -91,6 +79,20 @@ export function CurveTab({ projectId }: { projectId: number }) {
           </div>
         )}
       </Card>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <KpiCard label="Progres Rencana" value={persen(ringkasan.progres_rencana)} icon={Target} tone="navy" hint="Rencana kumulatif s/d hari ini" />
+        <KpiCard label="Progres Realisasi" value={persen(ringkasan.progres_aktual)} icon={TrendingUp} tone="primary" hint="Akumulasi laporan QS terkirim" />
+        <KpiCard
+          label="Deviasi"
+          value={deviasi(ringkasan.deviasi)}
+          valueClassName={warnaDeviasi(ringkasan.deviasi)}
+          icon={LineChart}
+          tone={ringkasan.deviasi < -0.005 ? 'danger' : 'success'}
+          hint={ringkasan.deviasi < -0.005 ? 'Realisasi tertinggal dari rencana' : 'Realisasi sesuai atau mendahului rencana'}
+          className="col-span-2 sm:col-span-1"
+        />
+      </section>
 
       <Card title="Rincian per Periode" description="Nilai dalam persen bobot terhadap total proyek." flush>
         <TableWrap flush>

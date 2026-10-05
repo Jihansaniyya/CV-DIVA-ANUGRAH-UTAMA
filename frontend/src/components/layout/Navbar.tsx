@@ -7,7 +7,7 @@ import { useState } from 'react'
 interface NavbarProps {
   onOpenMenu: () => void
   onLogout: () => void
-  judul: string
+  judul?: string
   deskripsi?: string
 }
 
@@ -62,8 +62,8 @@ export function Navbar({ onOpenMenu, onLogout, judul, deskripsi }: NavbarProps) 
       </button>
 
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base leading-tight font-semibold text-navy sm:text-[17px]">{judul}</h1>
-        {deskripsi && <p className="mt-px truncate text-xs leading-tight text-muted">{deskripsi}</p>}
+        {judul && <h1 className="truncate text-base leading-tight font-semibold text-navy sm:text-[17px]">{judul}</h1>}
+        {judul && deskripsi && <p className="mt-px truncate text-xs leading-tight text-muted">{deskripsi}</p>}
       </div>
 
       <div className="relative shrink-0">

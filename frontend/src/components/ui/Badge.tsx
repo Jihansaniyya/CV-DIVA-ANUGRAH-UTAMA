@@ -33,13 +33,22 @@ const STATUS_PROYEK: Record<ProjectStatus, { label: string; tone: Tone }> = {
   TERLAMBAT: { label: 'Terlambat', tone: 'danger' },
 }
 
-export function StatusBadge({ status }: { status: ProjectStatus }) {
+/** `bertumpuk` memecah label dua kata (mis. "Belum Dimulai") menjadi dua baris agar kolom status tetap ramping. */
+export function StatusBadge({ status, bertumpuk = false }: { status: ProjectStatus; bertumpuk?: boolean }) {
   const info = STATUS_PROYEK[status] ?? STATUS_PROYEK.BELUM_DIMULAI
 
   return (
-    <Badge tone={info.tone}>
-      <span className="size-1.5 rounded-full bg-current" aria-hidden />
-      {info.label}
+    <Badge tone={info.tone} className={bertumpuk ? 'rounded-xl text-left leading-tight' : undefined}>
+      <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+      {bertumpuk ? (
+        <span className="flex flex-col">
+          {info.label.split(' ').map((kata) => (
+            <span key={kata}>{kata}</span>
+          ))}
+        </span>
+      ) : (
+        info.label
+      )}
     </Badge>
   )
 }

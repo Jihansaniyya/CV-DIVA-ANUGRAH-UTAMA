@@ -9,14 +9,17 @@ function nilaiAtauStrip(nilai: number | null): string {
 /** Kurva S rencana vs realisasi beserta titik dan tabel capaian milestone pada laporan. */
 export function ReportCurveSection({ kurva, milestone }: { kurva: CurveData; milestone: ReportMilestone[] }) {
   return (
-    <section className="report-section mt-6">
-      <h3 className="mb-2 text-sm font-bold text-ink">KURVA S DAN MILESTONE PROYEK</h3>
+    <section className="mt-6">
+      {/* Saat dicetak, judul dan grafik Kurva S berada di satu halaman; tabel milestone dimulai di halaman berikutnya. */}
+      <div className="report-section print:break-after-page">
+        <h3 className="mb-2 text-sm font-bold text-ink">KURVA S DAN MILESTONE PROYEK</h3>
 
-      {kurva.titik.length > 0 && (
-        <div className="report-chart">
-          <CurveSChart data={kurva} tinggi={300} />
-        </div>
-      )}
+        {kurva.titik.length > 0 && (
+          <div className="report-chart">
+            <CurveSChart data={kurva} tinggi={300} />
+          </div>
+        )}
+      </div>
 
       <div className="app-scroll-x mt-3">
         <table className="report-table min-w-max">

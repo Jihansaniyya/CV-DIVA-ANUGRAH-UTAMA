@@ -1,4 +1,4 @@
-import { DeviationBadge, StatusBadge } from '@/components/ui/Badge'
+import { StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { ErrorState, LoadingState } from '@/components/ui/State'
@@ -12,7 +12,6 @@ import { InfoTab } from '@/pages/projects/tabs/InfoTab'
 import { ProgressTab } from '@/pages/projects/tabs/ProgressTab'
 import { WorkItemsTab } from '@/pages/projects/tabs/WorkItemsTab'
 import { WorkPlanTab } from '@/pages/projects/tabs/WorkPlanTab'
-import { persen } from '@/utils/format'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
@@ -62,21 +61,10 @@ export function ProjectDetailPage() {
             </p>
           </div>
 
-          {modeQs ? (
+          {modeQs && (
             <div className="w-full sm:w-72">
               <p className="text-[11px] text-muted">Progres Realisasi</p>
               <ProgressBar nilai={project.progres_aktual ?? 0} />
-            </div>
-          ) : (
-            <div className="w-full sm:w-72">
-              <div className="flex items-center justify-between text-[11px] text-muted">
-                <span>Realisasi</span>
-                <span>Rencana {persen(project.progres_rencana)}</span>
-              </div>
-              <ProgressBar nilai={project.progres_aktual ?? 0} pembanding={project.progres_rencana} />
-              <div className="mt-2 flex items-center gap-2 text-[11px] text-muted">
-                Deviasi <DeviationBadge nilai={project.deviasi ?? null} />
-              </div>
             </div>
           )}
         </div>

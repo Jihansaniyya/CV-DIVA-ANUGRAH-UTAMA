@@ -43,8 +43,7 @@ laporan yang pernah digenerate.
 | `id` | PK | |
 | `role_id` | FK → `roles.id` | `restrictOnDelete` |
 | `name` | varchar | |
-| `username` | varchar(50) unique | dipakai untuk login |
-| `email` | varchar unique nullable | |
+| `email` | varchar unique nullable | dipakai untuk login; wajib diisi melalui aplikasi |
 | `phone` | varchar(30) nullable | |
 | `password` | varchar | hash bcrypt |
 | `is_active` | boolean | mengaktifkan/menonaktifkan akun |

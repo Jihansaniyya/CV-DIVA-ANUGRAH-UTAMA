@@ -19,7 +19,6 @@ class UpdateUserRequest extends FormRequest
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'username' => ['sometimes', 'required', 'string', 'max:50', 'alpha_dash', Rule::unique('users', 'username')->ignore($id)],
             // Login memakai email, sehingga tidak boleh dikosongkan agar akun tidak terkunci.
             'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)],
             'phone' => ['nullable', 'string', 'max:30'],
@@ -32,7 +31,7 @@ class UpdateUserRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'name' => 'nama', 'username' => 'nama pengguna', 'password' => 'kata sandi',
+            'name' => 'nama', 'password' => 'kata sandi',
             'role_id' => 'peran', 'is_active' => 'status akun',
         ];
     }

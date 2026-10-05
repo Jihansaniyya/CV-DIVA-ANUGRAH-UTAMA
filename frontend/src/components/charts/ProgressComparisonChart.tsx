@@ -3,17 +3,18 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 
 interface ProgressComparisonChartProps {
   data: { nama_proyek: string; rencana: number; aktual: number }[]
+  tinggi?: number
 }
 
 /** Perbandingan progres rencana dan aktual antar proyek. */
-export function ProgressComparisonChart({ data }: ProgressComparisonChartProps) {
+export function ProgressComparisonChart({ data, tinggi = 280 }: ProgressComparisonChartProps) {
   const titik = data.map((item) => ({
     ...item,
     nama: item.nama_proyek.length > 22 ? `${item.nama_proyek.slice(0, 22)}...` : item.nama_proyek,
   }))
 
   return (
-    <div style={{ width: '100%', height: 280 }}>
+    <div style={{ width: '100%', height: tinggi }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={titik} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />

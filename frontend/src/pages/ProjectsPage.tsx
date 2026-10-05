@@ -1,10 +1,11 @@
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input, Select } from '@/components/ui/Field'
+import { LegendaLevel, RencanaRealisasiBar } from '@/components/ui/LevelBar'
 import { ConfirmDialog } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
-import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { ProjectFormModal } from '@/pages/projects/ProjectFormModal'
@@ -14,14 +15,20 @@ import { useToast } from '@/hooks/useToast'
 import { pesanError } from '@/lib/api'
 import { projectService } from '@/services/projectService'
 import type { Project } from '@/types'
-import { persen, tanggalSingkat } from '@/utils/format'
+import { tanggalSingkat } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Eye, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+
+/** Tanggal selesai hanya ditampilkan bila proyek sudah berstatus Selesai. */
+function tanggalSelesai(project: Project): string {
+  return project.status === 'SELESAI' ? tanggalSingkat(project.tanggal_selesai) : '-'
+}
 
 export function ProjectsPage() {
   const { punyaPeran } = useAuth()
+  const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
   const adminMode = punyaPeran('ADMIN')
@@ -57,6 +64,16 @@ export function ProjectsPage() {
     setProyekDiedit(project)
     setFormTerbuka(true)
   }
+
+  const aksiProyek = (project: Project): ActionMenuItem[] => [
+    { label: 'Lihat Detail', icon: <Eye className="size-4" aria-hidden />, onSelect: () => navigate(`/proyek/${project.id}`) },
+    ...(adminMode
+      ? [
+          { label: 'Ubah', icon: <Pencil className="size-4" aria-hidden />, onSelect: () => bukaEdit(project) },
+          { label: 'Hapus', icon: <Trash2 className="size-4" aria-hidden />, onSelect: () => setProyekDihapus(project), danger: true },
+        ]
+      : []),
+  ]
 
   return (
     <div className="flex flex-col gap-4">
@@ -130,67 +147,44 @@ export function ProjectsPage() {
           ) : (
             data && (
               <>
-                {/* Tampilan tabel untuk layar besar */}
-                <TableWrap className="hidden md:block">
-                  <Table>
+                {/* Tampilan tabel untuk layar lebar: lebar kolom tetap agar tabel muat tanpa digulir ke samping */}
+                <TableWrap className="hidden xl:block">
+                  <Table className="w-full table-fixed">
                     <thead>
                       <tr>
-                        <Th>No</Th>
+                        <Th className="w-12">No</Th>
                         <Th>Nama Proyek</Th>
-                        <Th>Nomor SPK</Th>
-                        <Th>Lokasi</Th>
-                        <Th>Tanggal Mulai</Th>
-                        <Th>QS</Th>
-                        <Th>Progres</Th>
-                        <Th align="center">Status</Th>
-                        <Th align="center">Aksi</Th>
+                        <Th className="w-[15%]">Lokasi</Th>
+                        <Th className="w-36">Tanggal</Th>
+                        <Th className="w-[11%]">QS</Th>
+                        <Th className="w-40">Progres</Th>
+                        <Th align="center" className="w-24">Status</Th>
+                        <Th align="center" className="w-14">Aksi</Th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.data.map((project, index) => (
                         <tr key={project.id} className="hover:bg-surface/60">
                           <Td>{(data.meta.from ?? 1) + index}</Td>
-                          <Td>
+                          <Td className="break-words">
                             <Link to={`/proyek/${project.id}`} className="font-medium text-ink hover:text-primary">
                               {project.nama_proyek}
                             </Link>
                           </Td>
-                          <Td className="text-muted">{project.nomor_spk ?? '-'}</Td>
-                          <Td className="text-muted">{project.lokasi}</Td>
-                          <Td className="text-muted">{tanggalSingkat(project.tanggal_mulai)}</Td>
-                          <Td className="text-muted">{project.qs?.name ?? '-'}</Td>
-                          <Td className="min-w-40">
-                            <ProgressBar nilai={project.progres_aktual ?? 0} pembanding={project.progres_rencana} />
-                            <p className="mt-0.5 text-[10px] text-muted">Rencana {persen(project.progres_rencana)}</p>
+                          <Td className="break-words text-muted">{project.lokasi}</Td>
+                          <Td className="text-xs text-muted">
+                            <p className="whitespace-nowrap">Mulai: {tanggalSingkat(project.tanggal_mulai)}</p>
+                            <p className="mt-0.5 whitespace-nowrap">Selesai: {tanggalSelesai(project)}</p>
+                          </Td>
+                          <Td className="break-words text-muted">{project.qs?.name ?? '-'}</Td>
+                          <Td>
+                            <RencanaRealisasiBar rencana={project.progres_rencana ?? 0} realisasi={project.progres_aktual ?? 0} />
                           </Td>
                           <Td align="center">
-                            <StatusBadge status={project.status} />
+                            <StatusBadge status={project.status} bertumpuk />
                           </Td>
                           <Td align="center">
-                            <div className="flex items-center justify-center gap-1">
-                              {adminMode ? (
-                                <Link to={`/proyek/${project.id}`} aria-label="Lihat detail" className="rounded-lg p-1.5 text-muted hover:bg-surface hover:text-navy">
-                                  <Eye className="size-4" aria-hidden />
-                                </Link>
-                              ) : (
-                                <Link
-                                  to={`/proyek/${project.id}`}
-                                  className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink transition-colors hover:border-primary hover:text-primary"
-                                >
-                                  Lihat Detail
-                                </Link>
-                              )}
-                              {adminMode && (
-                                <>
-                                  <button type="button" onClick={() => bukaEdit(project)} aria-label="Ubah proyek" className="rounded-lg p-1.5 text-muted hover:bg-surface hover:text-navy">
-                                    <Pencil className="size-4" aria-hidden />
-                                  </button>
-                                  <button type="button" onClick={() => setProyekDihapus(project)} aria-label="Hapus proyek" className="rounded-lg p-1.5 text-muted hover:bg-danger-soft hover:text-danger">
-                                    <Trash2 className="size-4" aria-hidden />
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                            <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
                           </Td>
                         </tr>
                       ))}
@@ -199,58 +193,48 @@ export function ProjectsPage() {
                 </TableWrap>
 
                 {/* Tampilan kartu untuk layar kecil */}
-                <ul className="flex flex-col gap-3 md:hidden">
+                <ul className="grid gap-3 md:grid-cols-2 xl:hidden">
                   {data.data.map((project) => (
                     <li key={project.id} className="app-card p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <Link to={`/proyek/${project.id}`} className="text-sm font-semibold text-ink">
+                      <div className="flex items-start justify-between gap-2">
+                        <Link to={`/proyek/${project.id}`} className="min-w-0 flex-1 text-sm font-semibold text-ink">
                           {project.nama_proyek}
                         </Link>
-                        <StatusBadge status={project.status} />
-                      </div>
-                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted">
-                        <div>
-                          <dt className="inline">SPK: </dt>
-                          <dd className="inline">{project.nomor_spk ?? '-'}</dd>
+                        <StatusBadge status={project.status} bertumpuk />
+                        <div className="-mt-1 -mr-2 shrink-0">
+                          <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
                         </div>
+                      </div>
+                      <dl className="mt-2 flex flex-col gap-y-1 text-[11px] text-muted">
                         <div>
                           <dt className="inline">Lokasi: </dt>
                           <dd className="inline">{project.lokasi}</dd>
                         </div>
-                        <div>
-                          <dt className="inline">Mulai: </dt>
-                          <dd className="inline">{tanggalSingkat(project.tanggal_mulai)}</dd>
+                        <div className="grid grid-cols-2 gap-x-3">
+                          <div>
+                            <dt className="inline">Mulai: </dt>
+                            <dd className="inline">{tanggalSingkat(project.tanggal_mulai)}</dd>
+                          </div>
+                          <div>
+                            <dt className="inline">Selesai: </dt>
+                            <dd className="inline">{tanggalSelesai(project)}</dd>
+                          </div>
                         </div>
                         <div>
                           <dt className="inline">QS: </dt>
                           <dd className="inline">{project.qs?.name ?? '-'}</dd>
                         </div>
                       </dl>
-                      <div className="mt-3">
-                        <ProgressBar nilai={project.progres_aktual ?? 0} pembanding={project.progres_rencana} />
-                        <p className="mt-1 text-[10px] text-muted">Rencana {persen(project.progres_rencana)}</p>
-                      </div>
-                      {!adminMode && (
-                        <Link
-                          to={`/proyek/${project.id}`}
-                          className="mt-3 flex h-8 w-full items-center justify-center rounded-lg border border-line text-xs font-medium text-ink transition-colors hover:border-primary hover:text-primary"
-                        >
-                          Lihat Detail
-                        </Link>
-                      )}
-                      {adminMode && (
-                        <div className="mt-3 flex gap-2">
-                          <Button variant="outline" size="sm" block onClick={() => bukaEdit(project)}>
-                            Ubah
-                          </Button>
-                          <Button variant="outline" size="sm" block className="text-danger" onClick={() => setProyekDihapus(project)}>
-                            Hapus
-                          </Button>
-                        </div>
-                      )}
+                      <RencanaRealisasiBar
+                        className="mt-3"
+                        rencana={project.progres_rencana ?? 0}
+                        realisasi={project.progres_aktual ?? 0}
+                      />
                     </li>
                   ))}
                 </ul>
+
+                <LegendaLevel className="mt-3" />
 
                 <Pagination
                   page={data.meta.current_page}

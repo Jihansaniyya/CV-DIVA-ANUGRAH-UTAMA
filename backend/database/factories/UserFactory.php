@@ -6,7 +6,6 @@ use App\Enums\RoleCode;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /** @extends Factory<User> */
 class UserFactory extends Factory
@@ -16,7 +15,6 @@ class UserFactory extends Factory
         return [
             'role_id' => Role::firstOrCreate(['code' => RoleCode::QS->value], ['name' => 'Quantity Surveyor'])->id,
             'name' => fake()->name(),
-            'username' => Str::lower(fake()->unique()->userName()),
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password123',
             'is_active' => true,

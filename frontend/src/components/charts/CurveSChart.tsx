@@ -85,7 +85,8 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
       <div style={{ width: '100%', height: tinggi }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={titik} margin={{ top: 24, right: 16, bottom: 4, left: -8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            {/* syncWithTicks: garis bantu hanya pada tick 0–100%, tanpa garis tambahan di tepi atas area grafik. */}
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} syncWithTicks />
             <XAxis
               dataKey="nama"
               tick={{ fontSize: 11, fill: '#64748b' }}
@@ -96,7 +97,8 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
               tickMargin={8}
             />
             <YAxis
-              domain={[0, (maks: number) => Math.max(100, Math.ceil(maks))]}
+              // Pembulatan 2 desimal dulu agar sisa pecahan (mis. 100,0000001) tidak menaikkan batas atas menjadi 101%.
+              domain={[0, (maks: number) => Math.max(100, Math.ceil(Math.round(maks * 100) / 100))]}
               ticks={TICK_PERSEN}
               tickFormatter={(nilai: number) => `${nilai}%`}
               tick={{ fontSize: 11, fill: '#64748b' }}

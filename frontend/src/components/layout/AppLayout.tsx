@@ -26,6 +26,9 @@ const DESKRIPSI: Record<string, string> = {
   '/pengaturan': 'Pengaturan aplikasi',
 }
 
+/** Halaman yang sudah menampilkan judul sendiri di dalam konten, jadi judul navbar disembunyikan. */
+const TANPA_JUDUL_NAVBAR = new Set(['/dashboard', '/proyek', '/pengguna', '/pengaturan'])
+
 function awalanHalaman(pathname: string): string | undefined {
   return Object.keys(JUDUL).find((awalan) => pathname === awalan || pathname.startsWith(`${awalan}/`))
 }
@@ -59,7 +62,7 @@ export function AppLayout() {
         <Navbar
           onOpenMenu={() => setMenuTerbuka(true)}
           onLogout={() => setKonfirmasiKeluar(true)}
-          judul={awalan ? JUDUL[awalan] : 'CV Diva Anugrah Utama'}
+          judul={awalan ? (TANPA_JUDUL_NAVBAR.has(awalan) ? undefined : JUDUL[awalan]) : 'CV Diva Anugrah Utama'}
           deskripsi={deskripsi}
         />
         <main className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">

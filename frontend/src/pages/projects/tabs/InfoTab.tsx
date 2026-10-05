@@ -7,10 +7,11 @@ import { hariIni, rentangTanggal, tanggal } from '@/utils/format'
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 
-function Baris({ label, nilai }: { label: string; nilai: string | number | null | undefined }) {
+/** `ringkas` memakai kolom label yang lebih sempit untuk kartu samping. */
+function Baris({ label, nilai, ringkas = false }: { label: string; nilai: string | number | null | undefined; ringkas?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 border-b border-line py-2 last:border-b-0 sm:flex-row sm:gap-3">
-      <dt className="w-52 shrink-0 text-xs text-muted">{label}</dt>
+      <dt className={cn('shrink-0 text-xs text-muted', ringkas ? 'w-36' : 'w-52')}>{label}</dt>
       <dd className="text-sm text-ink">{nilai === null || nilai === undefined || nilai === '' ? '-' : nilai}</dd>
     </div>
   )
@@ -41,10 +42,10 @@ export function InfoTab({ project }: { project: Project }) {
       <div className="flex flex-col gap-4">
         <Card title="Pelaksana &amp; Pengawas">
           <dl>
-            <Baris label="Kontraktor Pelaksana" nilai={project.kontraktor_pelaksana} />
-            <Baris label="Konsultan Pengawas" nilai={project.konsultan_pengawas} />
-            <Baris label="Site Engineer" nilai={project.nama_site_engineer} />
-            <Baris label="Pelaksana Lapangan" nilai={project.nama_pelaksana_lapangan} />
+            <Baris ringkas label="Kontraktor Pelaksana" nilai={project.kontraktor_pelaksana} />
+            <Baris ringkas label="Konsultan Pengawas" nilai={project.konsultan_pengawas} />
+            <Baris ringkas label="Site Engineer" nilai={project.nama_site_engineer} />
+            <Baris ringkas label="Pelaksana Lapangan" nilai={project.nama_pelaksana_lapangan} />
           </dl>
         </Card>
 

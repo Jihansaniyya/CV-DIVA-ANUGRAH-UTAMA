@@ -14,7 +14,7 @@ export function Pagination({ page, lastPage, total, from, to, onChange }: Pagina
   if (lastPage <= 1) {
     return (
       <p className="px-1 py-3 text-xs text-muted">
-        Menampilkan {total} data
+        Menampilkan {to ?? total} dari {total} data
       </p>
     )
   }

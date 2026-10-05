@@ -69,7 +69,7 @@ kebenaran perhitungan sehingga tampilan layar, laporan, dan hasil export selalu 
 ### 2.1 Alur autentikasi
 
 ```
-React: POST /api/login {username, password}
+React: POST /api/login {email, password}
    └─► AuthController: verifikasi kredensial + status akun aktif
         └─► Sanctum: createToken() → plain text token
              └─► React menyimpan token di localStorage, memasangnya pada setiap request

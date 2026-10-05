@@ -17,7 +17,6 @@ import { useEffect, useState, type FormEvent } from 'react'
 
 const KOSONG: UserPayload = {
   name: '',
-  username: '',
   email: '',
   phone: '',
   password: '',
@@ -51,7 +50,6 @@ export function UsersPage() {
       diedit
         ? {
             name: diedit.name,
-            username: diedit.username,
             email: diedit.email ?? '',
             phone: diedit.phone ?? '',
             password: '',
@@ -59,9 +57,9 @@ export function UsersPage() {
             role_id: diedit.role?.id ?? 0,
             is_active: diedit.is_active,
           }
-        : { ...KOSONG, role_id: roles?.[0]?.id ?? 0 },
+        : KOSONG,
     )
-  }, [formTerbuka, diedit, roles])
+  }, [formTerbuka, diedit])
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['users'] })
 
@@ -106,7 +104,6 @@ export function UsersPage() {
     const validasi: Record<string, string> = {}
 
     if (!form.name.trim()) validasi.name = 'Nama wajib diisi.'
-    if (!form.username.trim()) validasi.username = 'Nama pengguna wajib diisi.'
     if (!form.role_id) validasi.role_id = 'Peran wajib dipilih.'
     if (!diedit && !(form.email ?? '').trim()) validasi.email = 'Email wajib diisi.'
     if (!diedit && !(form.phone ?? '').trim()) validasi.phone = 'Nomor telepon wajib diisi.'
@@ -152,7 +149,7 @@ export function UsersPage() {
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-[11px] left-3 size-4 text-muted" aria-hidden />
             <Input
-              placeholder="Cari nama atau username..."
+              placeholder="Cari nama atau email..."
               className="pl-9"
               value={q}
               onChange={(event) => {
@@ -193,7 +190,7 @@ export function UsersPage() {
                     <tr>
                       <Th>No.</Th>
                       <Th>Nama</Th>
-                      <Th>Username</Th>
+                      <Th>Email</Th>
                       <Th>Role</Th>
                       <Th align="center">Status</Th>
                       <Th align="center">Aksi</Th>
@@ -203,11 +200,8 @@ export function UsersPage() {
                     {data.data.map((user, index) => (
                       <tr key={user.id} className="hover:bg-surface/60">
                         <Td>{(data.meta.from ?? 1) + index}</Td>
-                        <Td>
-                          <p className="font-medium text-ink">{user.name}</p>
-                          {user.email && <p className="text-[11px] text-muted">{user.email}</p>}
-                        </Td>
-                        <Td className="text-muted">@{user.username}</Td>
+                        <Td className="font-medium text-ink">{user.name}</Td>
+                        <Td className="text-muted">{user.email ?? '-'}</Td>
                         <Td>
                           <Badge tone={user.role_code === 'ADMIN' ? 'info' : user.role_code === 'QS' ? 'warning' : 'neutral'}>
                             {user.role?.name ?? user.role_code}
@@ -282,14 +276,13 @@ export function UsersPage() {
         }
       >
         <form id="form-pengguna" className="grid gap-4 sm:grid-cols-2" onSubmit={kirim} noValidate>
-          <Input label="Nama Lengkap" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} error={errors.name} />
           <Input
-            label="Username"
+            label="Nama Lengkap"
             required
-            value={form.username}
-            onChange={(event) => setForm({ ...form, username: event.target.value })}
-            error={errors.username}
-            hint="Hanya huruf, angka, garis bawah, dan tanda hubung."
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+            error={errors.name}
+            wrapClassName="sm:col-span-2"
           />
           <Input
             label="Email"

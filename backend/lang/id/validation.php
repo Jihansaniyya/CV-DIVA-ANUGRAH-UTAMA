@@ -67,7 +67,6 @@ return [
 
     'attributes' => [
         'name' => 'nama',
-        'username' => 'nama pengguna',
         'password' => 'kata sandi',
         'password_confirmation' => 'konfirmasi kata sandi',
         'email' => 'email',

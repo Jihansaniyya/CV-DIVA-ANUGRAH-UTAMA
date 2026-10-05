@@ -17,7 +17,6 @@ export interface Role {
 export interface User {
   id: number
   name: string
-  username: string
   email: string | null
   phone: string | null
   is_active: boolean

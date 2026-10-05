@@ -31,7 +31,7 @@ class AuthController extends Controller
         }
 
         $user->forceFill(['last_login_at' => now()])->save();
-        $token = $user->createToken('web-'.$user->username)->plainTextToken;
+        $token = $user->createToken('web-'.$user->id)->plainTextToken;
 
         return response()->json([
             'message' => 'Login berhasil.',

@@ -13,4 +13,10 @@ export const masterService = {
 
     return data.data
   },
+
+  async createUnit(payload: { code: string; name: string }): Promise<Unit> {
+    const { data } = await api.post<{ message: string; data: Unit }>('/units', payload)
+
+    return data.data
+  },
 }

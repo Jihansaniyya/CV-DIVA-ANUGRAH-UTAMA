@@ -36,7 +36,6 @@ class AuthorizationTest extends TestCase
 
         $data = [
             'name' => 'Nisa Rahma',
-            'username' => 'qs_nisa2',
             'password' => 'rahasia123',
             'password_confirmation' => 'rahasia123',
             'role_id' => $roleId,
@@ -47,6 +46,24 @@ class AuthorizationTest extends TestCase
 
         $this->actingAs($admin)->postJson('/api/users', $data + ['email' => 'nisa2@example.com', 'phone' => '081234567890'])
             ->assertCreated();
+    }
+
+    public function test_hanya_admin_yang_dapat_menambah_satuan_pekerjaan(): void
+    {
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+        $qs = $this->userDenganPeran(RoleCode::QS);
+        $kontraktor = $this->userDenganPeran(RoleCode::KONTRAKTOR);
+        $payload = ['code' => 'klg', 'name' => 'Kaleng'];
+
+        $this->actingAs($qs)->postJson('/api/units', $payload)->assertStatus(403);
+        $this->actingAs($kontraktor)->postJson('/api/units', $payload)->assertStatus(403);
+
+        $this->actingAs($admin)->postJson('/api/units', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'klg');
+
+        $this->actingAs($admin)->postJson('/api/units', ['code' => ' klg ', 'name' => 'Kaleng'])
+            ->assertStatus(422)->assertJsonValidationErrors(['code']);
     }
 
     public function test_qs_dan_kontraktor_tidak_dapat_membuat_proyek(): void
