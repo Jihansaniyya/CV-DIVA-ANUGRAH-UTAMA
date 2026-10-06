@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\ReportStatus;
 use App\Models\ProgressDetail;
 use App\Models\Project;
+use App\Models\WorkPlan;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -122,6 +123,38 @@ class CurveSService
         return round((float) $project->workPlans()
             ->whereHas('period', fn ($q) => $q->whereDate('tanggal_mulai', '<=', $hariIni))
             ->sum('target_bobot'), 4);
+    }
+
+    /**
+     * Versi massal totalActual(): total progres aktual (%) per project_id.
+     *
+     * @param  iterable<int>  $projectIds
+     */
+    public function totalActualByProject(iterable $projectIds): Collection
+    {
+        return ProgressDetail::query()
+            ->join('progress_reports', 'progress_reports.id', '=', 'progress_details.progress_report_id')
+            ->whereIn('progress_reports.project_id', collect($projectIds))
+            ->where('progress_reports.status', ReportStatus::DIKIRIM->value)
+            ->selectRaw('progress_reports.project_id as project_id, SUM(progress_details.bobot_realisasi) as total')
+            ->groupBy('progress_reports.project_id')
+            ->pluck('total', 'project_id');
+    }
+
+    /**
+     * Versi massal plannedToDate(): progres rencana sampai hari ini (%) per project_id.
+     *
+     * @param  iterable<int>  $projectIds
+     */
+    public function plannedToDateByProject(iterable $projectIds): Collection
+    {
+        return WorkPlan::query()
+            ->join('periods', 'periods.id', '=', 'work_plans.period_id')
+            ->whereIn('work_plans.project_id', collect($projectIds))
+            ->whereDate('periods.tanggal_mulai', '<=', CarbonImmutable::now()->toDateString())
+            ->selectRaw('work_plans.project_id as project_id, SUM(work_plans.target_bobot) as total')
+            ->groupBy('work_plans.project_id')
+            ->pluck('total', 'project_id');
     }
 
     /** Realisasi kumulatif volume per work_item (dipakai laporan mingguan/bulanan). */

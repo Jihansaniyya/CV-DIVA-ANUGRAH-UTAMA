@@ -1,6 +1,6 @@
 import { StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
-import { Select } from '@/components/ui/Field'
+import { Dropdown } from '@/components/ui/Dropdown'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { useProjects } from '@/hooks/queries'
 import { pesanError } from '@/lib/api'
@@ -30,25 +30,24 @@ export function CurveSPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold text-ink">Kurva S</h2>
+        <p className="text-xs text-muted">Perbandingan progres rencana dan realisasi.</p>
+      </div>
       <Card>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
-          <Select
+          <Dropdown
             label="Proyek"
-            value={projectId ?? ''}
-            onChange={(event) => {
-              const nilai = Number(event.target.value)
-              setProjectId(nilai)
-              params.set('project_id', String(nilai))
+            value={projectId ? String(projectId) : ''}
+            options={data.data.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            onChange={(nilai) => {
+              setProjectId(Number(nilai))
+              params.set('project_id', nilai)
               setParams(params, { replace: true })
             }}
+            placeholder="Pilih proyek"
             wrapClassName="w-full lg:max-w-xl"
-          >
-            {data.data.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.nama_proyek}
-              </option>
-            ))}
-          </Select>
+          />
 
           {proyek && (
             <dl className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted lg:justify-end lg:pb-2">

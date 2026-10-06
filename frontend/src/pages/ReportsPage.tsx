@@ -5,6 +5,7 @@ import { ReportHeader } from '@/components/reports/ReportHeader'
 import { WeeklyReportTable } from '@/components/reports/WeeklyReportTable'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Dropdown } from '@/components/ui/Dropdown'
 import { DatePicker, Select } from '@/components/ui/Field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import {
@@ -132,25 +133,24 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="no-print">
+        <h2 className="text-lg font-semibold text-ink">Laporan</h2>
+        <p className="text-xs text-muted">Pembuatan laporan progres mingguan dan bulanan.</p>
+      </div>
       <Card title="Buat Laporan" description="Pilih proyek, jenis laporan, dan periode. Pratinjau diperbarui otomatis." className="no-print" flush>
         <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
-          <Select
+          <Dropdown
             label="Proyek"
-            value={projectId ?? ''}
-            onChange={(event) => {
-              const nilai = Number(event.target.value)
-              setProjectId(nilai)
-              params.set('project_id', String(nilai))
+            value={projectId ? String(projectId) : ''}
+            options={projects.data.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            onChange={(nilai) => {
+              setProjectId(Number(nilai))
+              params.set('project_id', nilai)
               setParams(params, { replace: true })
             }}
+            placeholder="Pilih proyek"
             wrapClassName="sm:col-span-2 lg:col-span-1"
-          >
-            {projects.data.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.nama_proyek}
-              </option>
-            ))}
-          </Select>
+          />
 
           <Select
             label="Jenis Laporan"

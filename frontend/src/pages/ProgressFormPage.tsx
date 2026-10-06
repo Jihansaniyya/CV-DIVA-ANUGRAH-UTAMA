@@ -4,6 +4,7 @@ import { DatePicker, FieldWrap, Input, Select, Textarea } from '@/components/ui/
 import { FileUpload, type FotoTerpilih } from '@/components/ui/FileUpload'
 import { ConfirmDialog } from '@/components/ui/Modal'
 import { EmptyState, LoadingState } from '@/components/ui/State'
+import { Dropdown } from '@/components/ui/Dropdown'
 import { qk, useProjects, useWorkItems } from '@/hooks/queries'
 import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
@@ -283,23 +284,19 @@ export function ProgressFormPage() {
 
       <Card title="Informasi Progres">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Select
+          <Dropdown
             label="Proyek"
             required
-            value={projectId}
-            onChange={(event) => {
-              setProjectId(event.target.value ? Number(event.target.value) : '')
+            value={projectId === '' ? '' : String(projectId)}
+            options={projects.data.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            onChange={(nilai) => {
+              setProjectId(nilai ? Number(nilai) : '')
               aturDetails([{ work_item_id: '', volume_realisasi: '' }])
             }}
+            placeholder="Pilih proyek"
             error={errors.project_id}
-          >
-            <option value="">Pilih proyek</option>
-            {projects.data.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.nama_proyek}
-              </option>
-            ))}
-          </Select>
+            wrapClassName="sm:col-span-2 lg:col-span-3"
+          />
           <DatePicker
             label="Tanggal"
             required
@@ -313,7 +310,7 @@ export function ProgressFormPage() {
           <Input
             label="Lokasi"
             required
-            wrapClassName="sm:col-span-2 lg:col-span-2"
+            wrapClassName="sm:col-span-2 lg:col-span-4"
             value={lokasi}
             onChange={(event) => setLokasi(event.target.value)}
             error={errors.lokasi}

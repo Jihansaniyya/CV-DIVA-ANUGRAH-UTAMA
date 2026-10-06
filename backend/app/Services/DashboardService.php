@@ -91,7 +91,8 @@ class DashboardService
                 'laporan_draft' => ProgressReport::where('user_id', $user->id)->where('status', ReportStatus::DRAFT)->count(),
                 'laporan_dikirim' => ProgressReport::where('user_id', $user->id)->where('status', ReportStatus::DIKIRIM)->count(),
             ],
-            'proyek_ditugaskan' => $this->projectRows($projects),
+            // Diurutkan dari yang terakhir diperbarui agar Beranda QS cukup mengambil beberapa teratas.
+            'proyek_ditugaskan' => $this->projectRows($projects->sortByDesc('updated_at')),
             'pekerjaan_perlu_laporan' => $pekerjaanBelumSelesai,
             'laporan_terbaru' => $laporan->map(fn ($r) => [
                 'id' => $r->id,
@@ -106,25 +107,23 @@ class DashboardService
     public function kontraktor(): array
     {
         $projects = Project::with('qs')->get();
-        $rows = $this->projectRows($projects);
+
+        // Urutkan dari deviasi paling tertinggal (paling negatif); nilai sama diurutkan menurut nama proyek.
+        $rows = $this->projectRows($projects)
+            ->map(function (array $row) {
+                // Tertinggal: proyek yang belum selesai dengan realisasi di bawah rencana s/d hari ini.
+                $row['tertinggal'] = $row['status'] !== ProjectStatus::SELESAI->value && $row['deviasi'] < 0;
+
+                return $row;
+            })
+            ->sortBy([['deviasi', 'asc'], ['nama_proyek', 'asc']])
+            ->values();
 
         return [
             'peran' => 'KONTRAKTOR',
-            'kpi' => [
-                'total_proyek' => $projects->count(),
-                'proyek_berjalan' => $projects->where('status', ProjectStatus::BERJALAN)->count(),
-                'proyek_terlambat' => $rows->where('deviasi', '<', 0)->count(),
-                'progres_aktual' => $this->averageProgress($projects),
-                'progres_rencana' => round((float) $rows->avg('progres_rencana'), 2),
-                'deviasi' => round((float) $rows->avg('deviasi'), 2),
-            ],
-            'status_proyek' => $this->statusSummary($projects),
+            // Jumlah per kategori dihitung di halaman dari daftar proyek agar selalu sama dengan isi tabel.
+            'kpi' => ['total_proyek' => $projects->count()],
             'proyek' => $rows,
-            'grafik_progres' => $rows->map(fn ($p) => [
-                'nama_proyek' => $p['nama_proyek'],
-                'rencana' => $p['progres_rencana'],
-                'aktual' => $p['progres_aktual'],
-            ])->all(),
             'laporan_terbaru' => $this->latestReports(),
         ];
     }
@@ -132,9 +131,16 @@ class DashboardService
     /** @param Collection<int,Project> $projects */
     private function projectRows($projects): Collection
     {
-        return collect($projects)->map(function (Project $project) {
-            $aktual = $this->curve->totalActual($project);
-            $rencana = $this->curve->plannedToDate($project);
+        $projects = collect($projects);
+        $ids = $projects->pluck('id');
+
+        // Hitung progres semua proyek sekaligus (dua query) agar tidak ada query berulang per proyek.
+        $aktualPerProyek = $this->curve->totalActualByProject($ids);
+        $rencanaPerProyek = $this->curve->plannedToDateByProject($ids);
+
+        return $projects->map(function (Project $project) use ($aktualPerProyek, $rencanaPerProyek) {
+            $aktual = round((float) ($aktualPerProyek[$project->id] ?? 0), 4);
+            $rencana = round((float) ($rencanaPerProyek[$project->id] ?? 0), 4);
 
             return [
                 'id' => $project->id,
@@ -177,6 +183,7 @@ class DashboardService
     private function latestReports(): array
     {
         return ProgressReport::with(['project', 'user', 'period'])
+            ->whereHas('project') // lewati laporan milik proyek yang sudah dihapus
             ->where('status', ReportStatus::DIKIRIM)
             ->orderByDesc('tanggal_laporan')
             ->limit(5)

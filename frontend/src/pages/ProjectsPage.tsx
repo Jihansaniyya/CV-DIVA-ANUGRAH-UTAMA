@@ -2,7 +2,8 @@ import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Input, Select } from '@/components/ui/Field'
+import { Dropdown } from '@/components/ui/Dropdown'
+import { Select } from '@/components/ui/Field'
 import { LegendaLevel, RencanaRealisasiBar } from '@/components/ui/LevelBar'
 import { ConfirmDialog } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
@@ -17,7 +18,7 @@ import { projectService } from '@/services/projectService'
 import type { Project } from '@/types'
 import { tanggalSingkat } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Eye, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -34,15 +35,24 @@ export function ProjectsPage() {
   const adminMode = punyaPeran('ADMIN')
 
   const [page, setPage] = useState(1)
-  const [q, setQ] = useState('')
+  const [projectId, setProjectId] = useState('')
   const [status, setStatus] = useState('')
   const [filterTerbuka, setFilterTerbuka] = useState(false)
   const [formTerbuka, setFormTerbuka] = useState(false)
   const [proyekDiedit, setProyekDiedit] = useState<Project | null>(null)
   const [proyekDihapus, setProyekDihapus] = useState<Project | null>(null)
 
-  const filter = { page, per_page: 10, q: q || undefined, status: status || undefined }
-  const { data, isLoading, error, refetch } = useProjects(filter)
+  const filter = { page, per_page: 10, status: status || undefined }
+  const { data: daftar, isLoading, error, refetch } = useProjects(filter)
+  // Semua proyek yang boleh diakses, sebagai pilihan dropdown proyek.
+  const { data: semuaProyek } = useProjects({ per_page: 100 })
+  const opsiProyek = (semuaProyek?.data ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))
+
+  // Bila satu proyek dipilih, tampilkan proyek itu saja (tetap mengikuti filter status) tanpa paginasi.
+  const proyekDipilih = projectId ? semuaProyek?.data.filter((project) => String(project.id) === projectId && (!status || project.status === status)) : undefined
+  const data = proyekDipilih
+    ? { data: proyekDipilih, meta: { from: 1, current_page: 1, last_page: 1, total: proyekDipilih.length, to: proyekDipilih.length } }
+    : daftar
 
   const hapus = useMutation({
     mutationFn: (id: number) => projectService.remove(id),
@@ -64,6 +74,18 @@ export function ProjectsPage() {
     setProyekDiedit(project)
     setFormTerbuka(true)
   }
+
+  // QS hanya punya satu aksi, jadi tombol Detail ditampilkan langsung tanpa menu titik tiga.
+  const tombolDetail = (project: Project) => (
+    <Link
+      to={`/proyek/${project.id}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-primary hover:text-primary"
+      aria-label={`Detail ${project.nama_proyek}`}
+    >
+      <Eye className="size-3.5" aria-hidden />
+      Detail
+    </Link>
+  )
 
   const aksiProyek = (project: Project): ActionMenuItem[] => [
     { label: 'Lihat Detail', icon: <Eye className="size-4" aria-hidden />, onSelect: () => navigate(`/proyek/${project.id}`) },
@@ -91,19 +113,18 @@ export function ProjectsPage() {
 
       <Card bodyClassName="pt-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute top-[11px] left-3 size-4 text-muted" aria-hidden />
-            <Input
-              placeholder="Cari nama proyek, nomor SPK, atau lokasi..."
-              className="pl-9"
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value)
-                setPage(1)
-              }}
-              aria-label="Cari proyek"
-            />
-          </div>
+          <Dropdown
+            value={projectId}
+            options={opsiProyek}
+            onChange={(nilai) => {
+              setProjectId(nilai)
+              setPage(1)
+            }}
+            placeholder="Semua proyek"
+            allowEmpty
+            aria-label="Pilih proyek"
+            wrapClassName="min-w-0 flex-1"
+          />
 
           <Button
             variant="outline"
@@ -141,7 +162,7 @@ export function ProjectsPage() {
           ) : data && data.data.length === 0 ? (
             <EmptyState
               judul="Proyek tidak ditemukan"
-              pesan="Ubah kata kunci pencarian atau tambahkan proyek baru."
+              pesan="Ubah pilihan proyek atau status, atau tambahkan proyek baru."
               aksi={adminMode ? <Button onClick={bukaTambah}>Tambah Proyek</Button> : undefined}
             />
           ) : (
@@ -156,10 +177,10 @@ export function ProjectsPage() {
                         <Th>Nama Proyek</Th>
                         <Th className="w-[15%]">Lokasi</Th>
                         <Th className="w-36">Tanggal</Th>
-                        <Th className="w-[11%]">QS</Th>
+                        {adminMode && <Th className="w-[11%]">QS</Th>}
                         <Th className="w-40">Progres</Th>
                         <Th align="center" className="w-24">Status</Th>
-                        <Th align="center" className="w-14">Aksi</Th>
+                        <Th align="center" className={adminMode ? 'w-14' : 'w-24'}>Aksi</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -176,7 +197,7 @@ export function ProjectsPage() {
                             <p className="whitespace-nowrap">Mulai: {tanggalSingkat(project.tanggal_mulai)}</p>
                             <p className="mt-0.5 whitespace-nowrap">Selesai: {tanggalSelesai(project)}</p>
                           </Td>
-                          <Td className="break-words text-muted">{project.qs?.name ?? '-'}</Td>
+                          {adminMode && <Td className="break-words text-muted">{project.qs?.name ?? '-'}</Td>}
                           <Td>
                             <RencanaRealisasiBar rencana={project.progres_rencana ?? 0} realisasi={project.progres_aktual ?? 0} />
                           </Td>
@@ -184,7 +205,11 @@ export function ProjectsPage() {
                             <StatusBadge status={project.status} bertumpuk />
                           </Td>
                           <Td align="center">
-                            <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
+                            {adminMode ? (
+                              <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
+                            ) : (
+                              tombolDetail(project)
+                            )}
                           </Td>
                         </tr>
                       ))}
@@ -201,9 +226,11 @@ export function ProjectsPage() {
                           {project.nama_proyek}
                         </Link>
                         <StatusBadge status={project.status} bertumpuk />
-                        <div className="-mt-1 -mr-2 shrink-0">
-                          <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
-                        </div>
+                        {adminMode && (
+                          <div className="-mt-1 -mr-2 shrink-0">
+                            <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
+                          </div>
+                        )}
                       </div>
                       <dl className="mt-2 flex flex-col gap-y-1 text-[11px] text-muted">
                         <div>
@@ -220,16 +247,19 @@ export function ProjectsPage() {
                             <dd className="inline">{tanggalSelesai(project)}</dd>
                           </div>
                         </div>
-                        <div>
-                          <dt className="inline">QS: </dt>
-                          <dd className="inline">{project.qs?.name ?? '-'}</dd>
-                        </div>
+                        {adminMode && (
+                          <div>
+                            <dt className="inline">QS: </dt>
+                            <dd className="inline">{project.qs?.name ?? '-'}</dd>
+                          </div>
+                        )}
                       </dl>
                       <RencanaRealisasiBar
                         className="mt-3"
                         rencana={project.progres_rencana ?? 0}
                         realisasi={project.progres_aktual ?? 0}
                       />
+                      {!adminMode && <div className="mt-3 flex justify-end">{tombolDetail(project)}</div>}
                     </li>
                   ))}
                 </ul>

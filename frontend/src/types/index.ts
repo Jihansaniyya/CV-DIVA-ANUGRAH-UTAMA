@@ -461,6 +461,8 @@ export interface DashboardProjectRow {
   progres_aktual: number
   progres_rencana: number
   deviasi: number
+  /** Hanya pada dashboard Kontraktor: proyek belum selesai dengan realisasi di bawah rencana. */
+  tertinggal?: boolean
 }
 
 export interface DashboardData {

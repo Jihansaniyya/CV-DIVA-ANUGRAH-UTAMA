@@ -40,8 +40,11 @@ export function AppLayout() {
   const { pathname } = useLocation()
   const { user, logout } = useAuth()
   const awalan = awalanHalaman(pathname)
-  const deskripsi =
-    awalan === '/progres' && user?.role_code === 'QS' ? 'Input dan riwayat progres pekerjaan' : awalan ? DESKRIPSI[awalan] : undefined
+  // Halaman QS dan Kontraktor menampilkan judulnya sendiri di dalam konten, jadi navbar dibiarkan kosong.
+  const peranTanpaJudul = user?.role_code === 'QS' || user?.role_code === 'KONTRAKTOR'
+  const tanpaJudul =
+    user?.role_code === 'KONTRAKTOR' || (awalan ? TANPA_JUDUL_NAVBAR.has(awalan) || (awalan === '/progres' && peranTanpaJudul) : false)
+  const deskripsi = awalan ? DESKRIPSI[awalan] : undefined
 
   const keluar = async () => {
     setSedangKeluar(true)
@@ -62,7 +65,7 @@ export function AppLayout() {
         <Navbar
           onOpenMenu={() => setMenuTerbuka(true)}
           onLogout={() => setKonfirmasiKeluar(true)}
-          judul={awalan ? (TANPA_JUDUL_NAVBAR.has(awalan) ? undefined : JUDUL[awalan]) : 'CV Diva Anugrah Utama'}
+          judul={tanpaJudul ? undefined : awalan ? JUDUL[awalan] : 'CV Diva Anugrah Utama'}
           deskripsi={deskripsi}
         />
         <main className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">

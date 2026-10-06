@@ -5,6 +5,7 @@ import { DatePicker, Select } from '@/components/ui/Field'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
+import { Dropdown } from '@/components/ui/Dropdown'
 import { useProgressList, useProjects } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
@@ -56,22 +57,30 @@ export function ProgressPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold text-ink">Progres Pekerjaan</h2>
+        <p className="text-xs text-muted">
+          {kontraktor ? 'Laporan progres pekerjaan yang dikirim QS.' : 'Input dan riwayat progres pekerjaan.'}
+        </p>
+      </div>
       <Card>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <div
             className={cn(
               'grid flex-1 grid-cols-2 gap-3',
+              // Kolom proyek lebih lebar; nama proyek yang panjang dibungkus ke baris berikutnya di dalam dropdown.
               kontraktor ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]',
             )}
           >
-            <Select label="Proyek" value={projectId} onChange={(event) => ubah(setProjectId)(event.target.value)} wrapClassName="col-span-2 lg:col-span-1">
-              <option value="">Semua proyek</option>
-              {projects?.data.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.nama_proyek}
-                </option>
-              ))}
-            </Select>
+            <Dropdown
+              label="Proyek"
+              value={projectId}
+              options={(projects?.data ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+              onChange={ubah(setProjectId)}
+              placeholder="Semua proyek"
+              allowEmpty
+              wrapClassName="col-span-2 lg:col-span-1"
+            />
             {!kontraktor && (
               <Select label="Status" value={status} onChange={(event) => ubah(setStatus)(event.target.value)} wrapClassName="col-span-2 sm:col-span-1">
                 <option value="">Semua status</option>
@@ -82,11 +91,12 @@ export function ProgressPage() {
             <DatePicker label="Dari tanggal" value={dari} max={sampai || undefined} onChange={(event) => ubah(setDari)(event.target.value)} />
             <DatePicker label="Sampai tanggal" value={sampai} min={dari || undefined} onChange={(event) => ubah(setSampai)(event.target.value)} />
           </div>
-          {adaFilter && (
-            <Button variant="ghost" icon={<RotateCcw className="size-4" />} onClick={resetFilter} className="self-start lg:self-end">
+          {/* Di layar lebar ruang tombol selalu disediakan agar lebar kolom filter tidak berubah saat filter aktif. */}
+          <div className={cn('self-start lg:self-end', !adaFilter && 'hidden lg:invisible lg:block')} aria-hidden={!adaFilter}>
+            <Button variant="ghost" icon={<RotateCcw className="size-4" />} onClick={resetFilter} tabIndex={adaFilter ? undefined : -1}>
               Reset filter
             </Button>
-          )}
+          </div>
         </div>
       </Card>
 
