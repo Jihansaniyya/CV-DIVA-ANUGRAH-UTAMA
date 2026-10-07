@@ -2,12 +2,12 @@
 
 Aplikasi web untuk mengelola dan memantau proyek kontraktor: data pengguna, data proyek, data
 pekerjaan, rencana pekerjaan per periode, pembentukan Kurva S, pencatatan progres aktual di lapangan,
-serta pembuatan laporan harian, mingguan, bulanan, dan milestone lengkap dengan export Excel dan Word.
+serta pembuatan laporan harian, mingguan, bulanan, dan milestone lengkap dengan export Excel.
 
 - **Backend:** Laravel 12 REST API (Sanctum, Eloquent, Form Request, Policy, Middleware, API Resource)
 - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS 4 + React Router + TanStack Query + Recharts + Lucide
 - **Database:** MySQL/MariaDB
-- **Export:** Laravel Excel (Maatwebsite) untuk `.xlsx`, PHPWord untuk `.docx`
+- **Export:** Laravel Excel (Maatwebsite) untuk `.xlsx`
 
 Dokumen pendukung: [DATABASE.md](DATABASE.md) (struktur & formula) dan [ARCHITECTURE.md](ARCHITECTURE.md)
 (arsitektur, alur data, otorisasi).
@@ -176,7 +176,7 @@ php artisan test --filter=ReportTest   # satu berkas
 
 Cakupan pengujian: login/logout, otorisasi per peran, CRUD proyek, CRUD pekerjaan, perhitungan bobot,
 validasi rencana pekerjaan, input progres (termasuk unggah foto, material, kendala), perhitungan
-progres & Kurva S, deviasi, laporan harian/mingguan/bulanan, dan export Excel/Word.
+progres & Kurva S, deviasi, laporan harian/mingguan/bulanan, dan export Excel.
 
 Frontend:
 
@@ -197,7 +197,7 @@ npm run build
 | Melihat proyek | semua | hanya yang ditugaskan | semua |
 | Input progres aktual, foto, material, kendala | ✔ | ✔ | — |
 | Melihat Kurva S & deviasi | ✔ | melalui detail proyek | ✔ |
-| Melihat laporan & export Excel/Word | ✔ | ✔ | ✔ |
+| Melihat laporan & export Excel | ✔ | ✔ | ✔ |
 
 Pembatasan dilakukan di backend (middleware `role` + Policy), bukan sekadar menyembunyikan menu di
 frontend. Percobaan mengakses endpoint peran lain mengembalikan HTTP 403.
@@ -212,7 +212,7 @@ frontend. Percobaan mengakses endpoint peran lain mengembalikan HTTP 403.
 3. **Sistem** menghitung progres aktual, mengakumulasikannya per periode, membandingkan dengan rencana,
    dan menghitung deviasi.
 4. **Kontraktor** memantau progres, Kurva S, deviasi, dokumentasi, dan laporan, serta mengekspornya ke
-   Excel atau Word.
+   Excel.
 
 ## 10. Responsif
 

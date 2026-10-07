@@ -34,7 +34,7 @@ Eloquent ORM ──► MySQL
 | Service | `app/Services` | Seluruh logika bisnis dan perhitungan |
 | Resource | `app/Http/Resources` | Bentuk respons JSON yang konsisten |
 | Model | `app/Models` | Relasi Eloquent, cast, scope |
-| Export | `app/Exports` + `WordExportService` | Pembentukan berkas Excel dan Word |
+| Export | `app/Exports` | Pembentukan berkas Excel |
 
 ### 1.2 Service Layer
 
@@ -46,7 +46,6 @@ Eloquent ORM ──► MySQL
 | `ProgressService` | Menyimpan laporan progres beserta detail, foto, material, kendala; memvalidasi sisa volume; mengirim laporan |
 | `CurveSService` | Menyusun titik Kurva S, progres rencana/aktual, deviasi, dan akumulasi realisasi per pekerjaan |
 | `ReportService` | Menyusun data laporan harian, mingguan, bulanan, dan milestone sesuai format dokumen resmi |
-| `WordExportService` | Membentuk dokumen `.docx` dengan PHPWord |
 | `DashboardService` | Menyusun ringkasan dashboard per peran |
 
 Controller tidak pernah menghitung bobot, progres, maupun deviasi. Hal ini menjaga satu sumber
@@ -205,9 +204,6 @@ mengikuti dokumen laporan resmi.
   merge sel, border, format angka, serta orientasi landscape. Struktur kolom mengikuti dokumen asli,
   termasuk kolom grup REALISASI MINGGU LALU / MINGGU INI / S/D MINGGU INI pada laporan mingguan dan
   grid jangka waktu pada laporan bulanan.
-- **Word** — PHPWord membangun tabel sebenarnya (bukan tangkapan layar), lengkap dengan blok identitas
-  proyek, baris rekap rencana/realisasi/deviasi, dan blok tanda tangan Konsultan Pengawas serta
-  Kontraktor Pelaksana.
 
 Setiap export dicatat pada tabel `report_documents` sehingga riwayat dokumen dapat ditelusuri dan
 diunduh ulang.
@@ -243,7 +239,7 @@ diunduh ulang.
 | PATCH | `/api/progress/{progress}/submit` | Admin, QS |
 | DELETE | `/api/progress/{progress}`, `/api/progress-photos/{photo}` | Admin, QS |
 | GET | `/api/reports/daily`, `/weekly`, `/monthly`, `/milestone`, `/documents` | terautentikasi |
-| POST | `/api/reports/export/excel`, `/api/reports/export/word` | terautentikasi |
+| POST | `/api/reports/export/excel` | terautentikasi |
 
 Seluruh respons memakai API Resource sehingga bentuk JSON konsisten: koleksi berpaginasi
 mengembalikan `{ data, links, meta }`, sedangkan aksi tunggal mengembalikan `{ message, data }`.

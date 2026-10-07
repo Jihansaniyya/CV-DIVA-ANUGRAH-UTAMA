@@ -63,7 +63,6 @@ class ReportTest extends TestCase
         $this->actingAs($qs)->getJson("/api/reports/milestone?project_id={$project->id}")->assertForbidden();
         $this->actingAs($qs)->getJson('/api/reports/documents')->assertForbidden();
         $this->actingAs($qs)->postJson('/api/reports/export/excel', ['tipe' => 'HARIAN', 'project_id' => $project->id])->assertForbidden();
-        $this->actingAs($qs)->postJson('/api/reports/export/word', ['tipe' => 'HARIAN', 'project_id' => $project->id])->assertForbidden();
         $this->actingAs($qs)->getJson("/api/projects/{$project->id}/curve-s")->assertForbidden();
     }
 
@@ -181,13 +180,11 @@ class ReportTest extends TestCase
             'tipe' => 'BULANAN', 'project_id' => $project->id, 'bulan_ke' => 1,
         ])->assertCreated();
 
-        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/word', [
+        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/excel', [
             'tipe' => 'MINGGUAN', 'project_id' => $project->id, 'period_id' => $periode->id,
         ])->assertCreated();
 
-        $word = ReportDocument::where('format', 'WORD')->firstOrFail();
-        $this->assertFileExists(storage_path('app/public/'.$word->file_path));
-        unlink(storage_path('app/public/'.$word->file_path));
+        $this->assertSame(2, ReportDocument::where('format', 'EXCEL')->count());
     }
 
     public function test_kontraktor_hanya_melihat_progres_yang_sudah_dikirim(): void
@@ -223,7 +220,7 @@ class ReportTest extends TestCase
         $this->assertEqualsWithDelta(62.5, $data['ringkasan']['bobot_realisasi'], 0.001);
     }
 
-    public function test_export_excel_dan_word_menghasilkan_dokumen(): void
+    public function test_export_excel_menghasilkan_dokumen(): void
     {
         Storage::fake('public');
         $project = $this->konteks['project'];
@@ -238,22 +235,5 @@ class ReportTest extends TestCase
         $dokumen = ReportDocument::where('format', 'EXCEL')->firstOrFail();
         Storage::disk('public')->assertExists($dokumen->file_path);
         $this->assertStringEndsWith('.xlsx', $dokumen->file_name);
-    }
-
-    public function test_export_word_bulanan_tersimpan_sebagai_docx(): void
-    {
-        $project = $this->konteks['project'];
-
-        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/word', [
-            'tipe' => 'BULANAN',
-            'project_id' => $project->id,
-            'bulan_ke' => 1,
-        ])->assertCreated()->assertJsonPath('data.format', 'WORD');
-
-        $dokumen = ReportDocument::where('format', 'WORD')->firstOrFail();
-        $this->assertStringEndsWith('.docx', $dokumen->file_name);
-        $this->assertFileExists(storage_path('app/public/'.$dokumen->file_path));
-
-        unlink(storage_path('app/public/'.$dokumen->file_path));
     }
 }

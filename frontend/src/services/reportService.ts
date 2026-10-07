@@ -47,12 +47,6 @@ export const reportService = {
 
     return data.data
   },
-
-  async exportWord(params: ExportParams): Promise<ReportDocument> {
-    const { data } = await api.post<{ data: ReportDocument }>('/reports/export/word', params)
-
-    return data.data
-  },
 }
 
 export interface ExportParams {

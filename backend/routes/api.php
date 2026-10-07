@@ -97,6 +97,5 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
         Route::get('milestone', [ReportController::class, 'milestone']);
         Route::get('documents', [ReportController::class, 'documents']);
         Route::post('export/excel', [ReportController::class, 'exportExcel']);
-        Route::post('export/word', [ReportController::class, 'exportWord']);
     });
 });

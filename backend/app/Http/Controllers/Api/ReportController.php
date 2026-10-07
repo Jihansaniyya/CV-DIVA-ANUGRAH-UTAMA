@@ -12,7 +12,6 @@ use App\Models\Period;
 use App\Models\Project;
 use App\Models\ReportDocument;
 use App\Services\ReportService;
-use App\Services\WordExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -22,7 +21,6 @@ class ReportController extends Controller
 {
     public function __construct(
         private readonly ReportService $reports,
-        private readonly WordExportService $word,
     ) {}
 
     public function daily(Request $request): JsonResponse
@@ -89,27 +87,6 @@ class ReportController extends Controller
         Excel::store($export, $relatif, 'public');
 
         return $this->responseDokumen($request, $project, $tipe, 'EXCEL', $relatif, $namaFile, $periodeMulai, $periodeSelesai);
-    }
-
-    /** Export laporan ke Word (.docx) memakai PHPWord. */
-    public function exportWord(Request $request): JsonResponse
-    {
-        $request->validate(['tipe' => ['required', 'in:HARIAN,MINGGUAN,BULANAN']]);
-
-        $tipe = $request->string('tipe')->toString();
-        [$project, $data, $periodeMulai, $periodeSelesai, $label] = $this->dataLaporan($request, $tipe);
-
-        $namaFile = $this->namaFile($project, $tipe, $label, 'docx');
-        $relatif = 'reports/'.$project->id.'/'.$namaFile;
-        $absolut = storage_path('app/public/'.$relatif);
-
-        match ($tipe) {
-            'MINGGUAN' => $this->word->weekly($data, $absolut),
-            'BULANAN' => $this->word->monthly($data, $absolut),
-            default => $this->word->daily($data, $absolut),
-        };
-
-        return $this->responseDokumen($request, $project, $tipe, 'WORD', $relatif, $namaFile, $periodeMulai, $periodeSelesai);
     }
 
     /** @return array{0:Project,1:array,2:?string,3:?string,4:string} */

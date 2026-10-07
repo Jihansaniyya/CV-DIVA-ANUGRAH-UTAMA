@@ -22,7 +22,7 @@ import { pesanError } from '@/lib/api'
 import { reportService, type ExportParams } from '@/services/reportService'
 import { angka, rentangTanggal, romawi, tanggalSingkat } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FileSearch, FileSpreadsheet, FileText, Printer } from 'lucide-react'
+import { FileSearch, FileSpreadsheet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -86,14 +86,14 @@ export function ReportsPage() {
   }
 
   const ekspor = useMutation({
-    mutationFn: async ({ format }: { format: 'EXCEL' | 'WORD' }) => {
+    mutationFn: async () => {
       const payload = paramExport()
 
       if (!payload) {
         throw new Error('Jenis laporan ini belum mendukung export.')
       }
 
-      return format === 'EXCEL' ? reportService.exportExcel(payload) : reportService.exportWord(payload)
+      return reportService.exportExcel(payload)
     },
     onSuccess: async (dokumen) => {
       toast.sukses('Laporan berhasil dibuat. Unduhan akan dimulai.')
@@ -202,26 +202,13 @@ export function ReportsPage() {
           <p className="min-w-0 text-xs text-muted">
             <span className="font-medium text-ink">{labelJenis}</span> · {labelPeriode}
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
-            <Button variant="ghost" icon={<Printer className="size-4" />} disabled={!siap} onClick={() => window.print()} className="order-3 sm:order-1">
-              Cetak
-            </Button>
-            <Button
-              variant="outline"
-              icon={<FileText className="size-4" />}
-              loading={ekspor.isPending && ekspor.variables?.format === 'WORD'}
-              disabled={!bisaEkspor || ekspor.isPending}
-              onClick={() => ekspor.mutate({ format: 'WORD' })}
-              className="order-2"
-            >
-              Export Word
-            </Button>
+          <div className="flex sm:justify-end">
             <Button
               icon={<FileSpreadsheet className="size-4" />}
-              loading={ekspor.isPending && ekspor.variables?.format === 'EXCEL'}
+              loading={ekspor.isPending}
               disabled={!bisaEkspor || ekspor.isPending}
-              onClick={() => ekspor.mutate({ format: 'EXCEL' })}
-              className="order-1 col-span-2 sm:order-3"
+              onClick={() => ekspor.mutate()}
+              className="w-full sm:w-auto"
             >
               Export Excel
             </Button>
