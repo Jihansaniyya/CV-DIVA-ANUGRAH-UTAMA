@@ -1,5 +1,6 @@
+import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { DatePicker, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker, FieldWrap, Input, Select, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { qk } from '@/hooks/queries'
 import { useToast } from '@/hooks/useToast'
@@ -31,7 +32,6 @@ const KOSONG: ProjectPayload = {
   nama_site_engineer: '',
   nama_pelaksana_lapangan: '',
   qs_user_id: null,
-  status: 'BELUM_DIMULAI',
   keterangan: '',
 }
 
@@ -68,7 +68,6 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
             nama_site_engineer: project.nama_site_engineer ?? '',
             nama_pelaksana_lapangan: project.nama_pelaksana_lapangan ?? '',
             qs_user_id: project.qs_user_id,
-            status: project.status,
             keterangan: project.keterangan ?? '',
           }
         : KOSONG,
@@ -213,12 +212,12 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
             </option>
           ))}
         </Select>
-        <Select label="Status Proyek" value={form.status ?? 'BELUM_DIMULAI'} onChange={(event) => ubah('status', event.target.value)} error={errors.status}>
-          <option value="BELUM_DIMULAI">Belum Dimulai</option>
-          <option value="BERJALAN">Berjalan</option>
-          <option value="SELESAI">Selesai</option>
-          <option value="TERLAMBAT">Terlambat</option>
-        </Select>
+        {/* Status dihitung backend dari jadwal dan realisasi progres, tidak dipilih manual. */}
+        <FieldWrap label="Status Proyek" hint="Ditentukan otomatis dari tanggal pelaksanaan dan realisasi progres.">
+          <div className="flex min-h-10 items-center rounded-lg border border-line bg-surface px-3 py-2">
+            {project ? <StatusBadge status={project.status} /> : <span className="text-sm text-muted">Dihitung setelah proyek disimpan</span>}
+          </div>
+        </FieldWrap>
         <Input
           label="Kontraktor Pelaksana"
           required

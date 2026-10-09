@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\ReportType;
-use App\Exports\DailyReportExport;
 use App\Exports\FinalReportExport;
 use App\Exports\MonthlyReportExport;
 use App\Exports\WeeklyReportExport;
@@ -12,6 +11,7 @@ use App\Http\Resources\ReportDocumentResource;
 use App\Models\Period;
 use App\Models\Project;
 use App\Models\ReportDocument;
+use App\Services\ReportDocumentService;
 use App\Services\ReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,14 +22,8 @@ class ReportController extends Controller
 {
     public function __construct(
         private readonly ReportService $reports,
+        private readonly ReportDocumentService $documents,
     ) {}
-
-    public function daily(Request $request): JsonResponse
-    {
-        [$project, $data] = $this->dataHarian($request);
-
-        return response()->json(['data' => $data]);
-    }
 
     public function weekly(Request $request): JsonResponse
     {
@@ -44,13 +38,6 @@ class ReportController extends Controller
         $bulanKe = $request->integer('bulan_ke', 1);
 
         return response()->json(['data' => $this->reports->monthly($project, $bulanKe)]);
-    }
-
-    public function milestone(Request $request): JsonResponse
-    {
-        $project = $this->project($request);
-
-        return response()->json(['data' => $this->reports->milestone($project)]);
     }
 
     /** Laporan akhir: rekap kondisi proyek sampai laporan progres terakhir. */
@@ -79,16 +66,14 @@ class ReportController extends Controller
     /** Export laporan ke Excel (.xlsx) memakai Laravel Excel. */
     public function exportExcel(Request $request): JsonResponse
     {
-        $request->validate(['tipe' => ['required', 'in:HARIAN,MINGGUAN,BULANAN']]);
+        $request->validate(['tipe' => ['required', 'in:MINGGUAN,BULANAN']], [
+            'tipe.in' => 'Jenis laporan hanya Mingguan atau Bulanan.',
+        ]);
 
         $tipe = $request->string('tipe')->toString();
         [$project, $data, $periodeMulai, $periodeSelesai, $label] = $this->dataLaporan($request, $tipe);
 
-        $export = match ($tipe) {
-            'MINGGUAN' => new WeeklyReportExport($data),
-            'BULANAN' => new MonthlyReportExport($data),
-            default => new DailyReportExport($data),
-        };
+        $export = $tipe === 'MINGGUAN' ? new WeeklyReportExport($data) : new MonthlyReportExport($data);
 
         $namaFile = $this->namaFile($project, $tipe, $label, 'xlsx');
         $relatif = 'reports/'.$project->id.'/'.$namaFile;
@@ -137,27 +122,11 @@ class ReportController extends Controller
             ];
         }
 
-        if ($tipe === 'BULANAN') {
-            $project = $this->project($request);
-            $bulanKe = $request->integer('bulan_ke', 1);
-            $data = $this->reports->monthly($project, $bulanKe);
-
-            return [$project, $data, $data['periode']['tanggal_mulai'], $data['periode']['tanggal_selesai'], 'bulan-'.$bulanKe];
-        }
-
-        [$project, $data, $dari, $sampai] = $this->dataHarian($request);
-
-        return [$project, $data, $dari, $sampai, 'harian'];
-    }
-
-    /** @return array{0:Project,1:array,2:string,3:string} */
-    private function dataHarian(Request $request): array
-    {
         $project = $this->project($request);
-        $dari = $request->string('dari')->toString() ?: $project->tanggal_mulai->toDateString();
-        $sampai = $request->string('sampai')->toString() ?: $project->tanggal_selesai->toDateString();
+        $bulanKe = $request->integer('bulan_ke', 1);
+        $data = $this->reports->monthly($project, $bulanKe);
 
-        return [$project, $this->reports->daily($project, $dari, $sampai), $dari, $sampai];
+        return [$project, $data, $data['periode']['tanggal_mulai'], $data['periode']['tanggal_selesai'], 'bulan-'.$bulanKe];
     }
 
     /** @return array{0:Project,1:Period} */
@@ -184,9 +153,10 @@ class ReportController extends Controller
         return $project;
     }
 
+    /** Contoh: laporan-mingguan-pembangunan-drainase-rt-11-minggu-2-20261009143000.xlsx */
     private function namaFile(Project $project, string $tipe, string $label, string $ekstensi): string
     {
-        return Str::slug($project->nama_proyek.' laporan '.strtolower($tipe).' '.$label).'-'.now()->format('YmdHis').'.'.$ekstensi;
+        return Str::slug('laporan '.strtolower($tipe).' '.$project->nama_proyek.' '.$label).'-'.now()->format('YmdHis').'.'.$ekstensi;
     }
 
     private function responseDokumen(
@@ -199,17 +169,9 @@ class ReportController extends Controller
         ?string $periodeMulai,
         ?string $periodeSelesai,
     ): JsonResponse {
-        $dokumen = ReportDocument::create([
-            'project_id' => $project->id,
-            'user_id' => $request->user()->id,
-            'tipe_laporan' => ReportType::from($tipe)->value,
-            'format' => $format,
-            'periode_mulai' => $periodeMulai,
-            'periode_selesai' => $periodeSelesai,
-            'file_path' => $relatif,
-            'file_name' => $namaFile,
-            'digenerate_pada' => now(),
-        ]);
+        $dokumen = $this->documents->catat(
+            $project, $request->user(), ReportType::from($tipe)->value, $format, $relatif, $namaFile, $periodeMulai, $periodeSelesai,
+        );
 
         return response()->json([
             'message' => 'Laporan berhasil dibuat.',

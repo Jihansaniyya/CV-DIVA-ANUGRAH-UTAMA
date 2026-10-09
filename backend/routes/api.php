@@ -91,10 +91,8 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
 
     // Laporan (QS hanya menginput progres, tidak mengakses laporan)
     Route::prefix('reports')->middleware('role:KONTRAKTOR')->group(function () {
-        Route::get('daily', [ReportController::class, 'daily']);
         Route::get('weekly', [ReportController::class, 'weekly']);
         Route::get('monthly', [ReportController::class, 'monthly']);
-        Route::get('milestone', [ReportController::class, 'milestone']);
         Route::get('final', [ReportController::class, 'final']);
         Route::get('documents', [ReportController::class, 'documents']);
         Route::post('export/excel', [ReportController::class, 'exportExcel']);

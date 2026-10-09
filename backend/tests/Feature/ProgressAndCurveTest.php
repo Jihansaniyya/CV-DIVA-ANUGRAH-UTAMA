@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\RoleCode;
 use App\Models\ProgressReport;
+use App\Services\ImageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -161,5 +162,49 @@ class ProgressAndCurveTest extends TestCase
             ->json('data.ringkasan.progres_aktual');
 
         $this->assertEqualsWithDelta(25.0, $sesudah, 0.0001);
+    }
+
+    public function test_foto_progres_diperkecil_menjadi_jpeg_saat_diunggah(): void
+    {
+        Storage::fake('public');
+        $konteks = $this->proyekContoh();
+
+        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+            'project_id' => $konteks['project']->id,
+            'tanggal_laporan' => $konteks['project']->tanggal_mulai->toDateString(),
+            'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 10]],
+            'photos' => [UploadedFile::fake()->image('lapangan.png', 3200, 2400)],
+        ])->assertCreated();
+
+        $foto = ProgressReport::with('photos')->firstOrFail()->photos->first();
+        $path = Storage::disk('public')->path($foto->file_path);
+        [$lebar, $tinggi, $tipe] = getimagesize($path);
+
+        $this->assertStringEndsWith('.jpg', $foto->file_path);
+        $this->assertSame(IMAGETYPE_JPEG, $tipe);
+        $this->assertSame([1600, 1200], [$lebar, $tinggi]);
+        $this->assertSame(filesize($path), (int) $foto->file_size);
+        $this->assertCount(1, Storage::disk('public')->allFiles('progress'), 'Berkas PNG asli dihapus setelah dikonversi.');
+    }
+
+    public function test_foto_diputar_sesuai_orientasi_exif_kamera(): void
+    {
+        // JPEG 400x200 dengan EXIF Orientation = 6 (kamera diputar 90° searah jarum jam).
+        ob_start();
+        imagejpeg(imagecreatetruecolor(400, 200));
+        $jpeg = (string) ob_get_clean();
+        $tiff = 'MM'.pack('n', 42).pack('N', 8).pack('n', 1).pack('n', 0x0112).pack('n', 3).pack('N', 1).pack('n', 6).pack('n', 0).pack('N', 0);
+        $app1 = "\xFF\xE1".pack('n', 2 + 6 + strlen($tiff))."Exif\0\0".$tiff;
+
+        $sumber = tempnam(sys_get_temp_dir(), 'exif').'.jpg';
+        $tujuan = tempnam(sys_get_temp_dir(), 'hasil').'.jpg';
+        file_put_contents($sumber, substr($jpeg, 0, 2).$app1.substr($jpeg, 2));
+
+        $this->assertTrue(app(ImageService::class)->perkecil($sumber, $tujuan));
+        [$lebar, $tinggi] = getimagesize($tujuan);
+        $this->assertSame([200, 400], [$lebar, $tinggi]);
+
+        @unlink($sumber);
+        @unlink($tujuan);
     }
 }

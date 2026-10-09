@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enums\ProjectStatus;
-use App\Enums\ReportStatus;
 use App\Models\Period;
 use App\Models\ProgressReport;
 use App\Models\Project;
@@ -12,7 +11,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 /**
- * Menyusun data laporan harian, mingguan, bulanan, dan milestone.
+ * Menyusun data laporan mingguan, bulanan, dan laporan akhir.
  *
  * Struktur laporan mingguan & bulanan mengikuti format resmi yang dipakai
  * CV Diva Anugrah Utama (lihat laporan-mingguan.png dan laporan-bulanan.png).
@@ -45,59 +44,6 @@ class ReportService
             'konsultan_pengawas' => $project->konsultan_pengawas,
             'nama_site_engineer' => $project->nama_site_engineer,
             'nama_pelaksana_lapangan' => $project->nama_pelaksana_lapangan,
-        ];
-    }
-
-    /** Laporan harian: seluruh laporan progres QS dalam rentang tanggal. */
-    public function daily(Project $project, string $dari, string $sampai): array
-    {
-        $reports = $project->progressReports()
-            ->with(['user', 'period', 'details.workItem.unit', 'photos', 'issues.workItem'])
-            ->whereBetween('tanggal_laporan', [$dari, $sampai])
-            ->orderBy('tanggal_laporan')
-            ->get();
-
-        return [
-            'header' => $this->header($project),
-            'periode' => ['dari' => $dari, 'sampai' => $sampai],
-            'laporan' => $reports->map(fn ($report) => [
-                'id' => $report->id,
-                'tanggal_laporan' => $report->tanggal_laporan->toDateString(),
-                'periode' => $report->period?->nama_periode,
-                'pelapor' => $report->user?->name,
-                'status' => $report->status->value,
-                'lokasi' => $report->lokasi,
-                'cuaca' => $report->cuaca,
-                'keterangan' => $report->keterangan,
-                'dikirim_pada' => $report->dikirim_pada?->toIso8601String(),
-                'detail' => $report->details->map(fn ($d) => [
-                    'uraian_pekerjaan' => $d->workItem?->uraian_pekerjaan,
-                    'satuan' => $d->workItem?->unit?->code,
-                    'volume_rencana' => (float) ($d->workItem?->volume ?? 0),
-                    'volume_realisasi' => (float) $d->volume_realisasi,
-                    'persentase_realisasi' => (float) $d->persentase_realisasi,
-                    'bobot_realisasi' => (float) $d->bobot_realisasi,
-                    'keterangan' => $d->keterangan,
-                ])->all(),
-                'kendala' => $report->issues->map(fn ($i) => [
-                    'jenis_kendala' => $i->jenis_kendala,
-                    'pekerjaan' => $i->workItem?->uraian_pekerjaan,
-                    'deskripsi' => ProgressService::gabungKendala($i->deskripsi, $i->alasan_keterlambatan),
-                    'tindak_lanjut' => $i->tindak_lanjut,
-                    'status' => $i->status,
-                ])->all(),
-                'foto' => $report->photos->map(fn ($f) => [
-                    'url' => $f->url(),
-                    'caption' => $f->caption,
-                    'diunggah_pada' => $f->diunggah_pada?->toIso8601String(),
-                ])->all(),
-            ])->all(),
-            'ringkasan' => [
-                'jumlah_laporan' => $reports->count(),
-                'jumlah_dikirim' => $reports->where('status', ReportStatus::DIKIRIM)->count(),
-                'bobot_realisasi' => round((float) $reports->where('status', ReportStatus::DIKIRIM)
-                    ->flatMap->details->sum('bobot_realisasi'), 4),
-            ],
         ];
     }
 
@@ -215,7 +161,9 @@ class ReportService
 
         $total = $this->totalOf($kategori, ['realisasi_bulan_lalu', 'realisasi_bulan_ini', 'realisasi_sd_bulan_ini']);
         $aktualPerPeriode = $this->curve->actualByPeriod($project);
-        $hariIni = CarbonImmutable::now()->startOfDay();
+        // Acuan "sudah berjalan" = akhir bulan laporan (atau hari ini bila bulan belum berakhir),
+        // sehingga laporan bulan lalu tetap sama walau dibuka/diekspor belakangan.
+        $hariIni = CarbonImmutable::now()->startOfDay()->min($selesaiBulan->startOfDay());
 
         $rencanaKum = 0.0;
         $aktualKum = 0.0;
@@ -307,7 +255,8 @@ class ReportService
         $periodeTerakhir = $laporanTerakhir === null ? null : ($periods->firstWhere('id', $laporanTerakhir->period_id)
             ?? $periods->last(fn (Period $p) => $p->tanggal_mulai->lessThanOrEqualTo($laporanTerakhir->tanggal_laporan)));
 
-        $kurva = $this->curve->build($project);
+        // Kurva S berhenti pada tanggal laporan progres terakhir agar dokumen tidak berubah karena tanggal ekspor.
+        $kurva = $this->curve->build($project, $laporanTerakhir?->tanggal_laporan->toDateString());
 
         $dasar = [
             'header' => $this->header($project),
@@ -564,42 +513,6 @@ class ReportService
         }
 
         return $hasil;
-    }
-
-    /** Laporan milestone: target tahapan penting vs capaian progres. */
-    public function milestone(Project $project): array
-    {
-        $kurva = $this->curve->build($project);
-
-        return [
-            'header' => $this->header($project),
-            'milestone' => $this->milestoneRows($project, $kurva),
-            'kurva' => $kurva,
-        ];
-    }
-
-    /** Capaian tiap milestone dibandingkan realisasi kumulatif Kurva S pada periodenya. */
-    private function milestoneRows(Project $project, array $kurva): array
-    {
-        $titikPerPeriode = collect($kurva['titik'])->keyBy('period_id');
-        $periodeMilestone = collect($kurva['milestones'])->pluck('period_id', 'id');
-
-        return $project->milestones()->get()->map(function ($m) use ($titikPerPeriode, $periodeMilestone) {
-            $titik = $titikPerPeriode->get($periodeMilestone[$m->id] ?? null);
-            $aktual = $titik['aktual_kumulatif'] ?? null;
-
-            return [
-                'id' => $m->id,
-                'nama' => $m->nama,
-                'deskripsi' => $m->deskripsi,
-                'periode' => $titik['nama_periode'] ?? null,
-                'tanggal_target' => $m->tanggal_target->toDateString(),
-                'target_persentase' => (float) $m->target_persentase,
-                'realisasi_persentase' => $aktual,
-                'deviasi' => $aktual === null ? null : round($aktual - (float) $m->target_persentase, 4),
-                'status' => $m->status,
-            ];
-        })->all();
     }
 
     /**

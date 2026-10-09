@@ -10,6 +10,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size
   loading?: boolean
   icon?: ReactNode
+  /** Posisi ikon terhadap teks; indikator loading selalu di kiri. */
+  iconPosition?: 'left' | 'right'
   block?: boolean
 }
 
@@ -32,6 +34,7 @@ export function Button({
   size = 'md',
   loading = false,
   icon,
+  iconPosition = 'left',
   block = false,
   className,
   children,
@@ -52,8 +55,9 @@ export function Button({
       )}
       {...props}
     >
-      {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : icon}
+      {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : iconPosition === 'left' && icon}
       {children}
+      {!loading && iconPosition === 'right' && icon}
     </button>
   )
 }

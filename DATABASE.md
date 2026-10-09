@@ -142,7 +142,7 @@ Kendala dan alasan keterlambatan diisi sebagai **satu narasi** pada `deskripsi`.
 data lama digabung oleh `ProgressService::gabungKendala()`.
 
 ### `report_documents`
-`id`, `project_id` FK, `user_id` FK nullable, `tipe_laporan` enum(`HARIAN`,`MINGGUAN`,`BULANAN`,`MILESTONE`,`AKHIR`),
+`id`, `project_id` FK, `user_id` FK nullable, `tipe_laporan` enum(`MINGGUAN`,`BULANAN`,`AKHIR`),
 `format` enum(`EXCEL`,`WORD`), `periode_mulai`, `periode_selesai`, `file_path`, `file_name`, `digenerate_pada`.
 
 ## 3. Relasi dan Kardinalitas
@@ -240,8 +240,34 @@ deviasi(p)            = realisasi kumulatif(p) − rencana kumulatif(p)
 ```
 
 Deviasi negatif berarti realisasi tertinggal dari rencana. Garis realisasi hanya digambar sampai
-periode yang sudah berjalan (`tanggal_mulai <= hari ini`) agar periode yang belum dilaksanakan tidak
-terbaca sebagai realisasi 0%.
+periode yang sudah berjalan (`tanggal_mulai <= tanggal acuan`) agar periode yang belum dilaksanakan
+tidak terbaca sebagai realisasi 0%. Tanggal acuan = hari ini untuk monitoring (halaman Kurva S,
+dashboard); laporan bulanan memakai akhir bulan laporan, laporan akhir memakai tanggal laporan
+progres terakhir, sehingga dokumen yang diekspor ulang di hari lain tetap berisi angka yang sama.
+
+### 4.4a Status proyek otomatis — `ProjectStatusService`
+
+Status proyek tidak dipilih manual; dihitung dari jadwal dan realisasi:
+
+```
+SELESAI        = realisasi kumulatif >= Σ bobot pekerjaan (100%)
+BELUM_DIMULAI  = hari ini < tanggal_mulai dan belum ada realisasi
+TERLAMBAT      = hari ini > tanggal_selesai dan realisasi belum 100%
+BERJALAN       = selain kondisi di atas
+```
+
+Status disinkronkan setiap laporan progres disimpan/dikirim/dihapus, data proyek atau bobot
+pekerjaan berubah, serta sekali sehari (perintah `proyek:sinkron-status` pukul 00:05 dan, sebagai
+cadangan bila scheduler tidak berjalan, saat dashboard/daftar proyek pertama kali dibuka hari itu).
+Sinkronisasi tidak mengubah `updated_at`.
+
+### 4.4b Pekerjaan perlu diperbarui (dashboard QS) — `DashboardService`
+
+```
+rencana s/d hari ini = Σ target_volume periode dengan tanggal_mulai <= hari ini
+ditampilkan bila    = proyek sudah dimulai, belum SELESAI, dan realisasi < rencana s/d hari ini
+urutan              = kekurangan bobot (rencana − realisasi) terbesar
+```
 
 ### 4.5 Akumulasi laporan — `ReportService`
 

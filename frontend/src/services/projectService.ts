@@ -34,7 +34,6 @@ export interface ProjectPayload {
   nama_site_engineer?: string | null
   nama_pelaksana_lapangan?: string | null
   qs_user_id?: number | null
-  status?: string
   keterangan?: string | null
 }
 

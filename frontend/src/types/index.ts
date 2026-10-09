@@ -4,7 +4,7 @@ export type ProjectStatus = 'BELUM_DIMULAI' | 'BERJALAN' | 'SELESAI' | 'TERLAMBA
 
 export type ReportStatus = 'DRAFT' | 'DIKIRIM'
 
-export type ReportType = 'HARIAN' | 'MINGGUAN' | 'BULANAN' | 'MILESTONE' | 'AKHIR'
+export type ReportType = 'MINGGUAN' | 'BULANAN' | 'AKHIR'
 
 export type ExportFormat = 'EXCEL' | 'WORD'
 
@@ -514,58 +514,6 @@ export interface FinalReport {
   } | null
   /** Kalimat kesimpulan yang disusun backend dari angka laporan. */
   kesimpulan: string[]
-}
-
-export interface DailyReport {
-  header: ReportHeaderData
-  periode: { dari: string; sampai: string }
-  laporan: {
-    id: number
-    tanggal_laporan: string
-    periode: string | null
-    pelapor: string | null
-    status: string
-    lokasi: string | null
-    cuaca: string | null
-    keterangan: string | null
-    dikirim_pada: string | null
-    detail: {
-      uraian_pekerjaan: string | null
-      satuan: string | null
-      volume_rencana: number
-      volume_realisasi: number
-      persentase_realisasi: number
-      bobot_realisasi: number
-      keterangan: string | null
-    }[]
-    kendala: {
-      jenis_kendala: string
-      pekerjaan: string | null
-      deskripsi: string
-      tindak_lanjut: string | null
-      status: string
-    }[]
-    foto: { url: string; caption: string | null; diunggah_pada: string | null }[]
-  }[]
-  ringkasan: { jumlah_laporan: number; jumlah_dikirim: number; bobot_realisasi: number }
-}
-
-export interface ReportMilestone {
-  id: number
-  nama: string
-  deskripsi: string | null
-  periode: string | null
-  tanggal_target: string
-  target_persentase: number
-  realisasi_persentase: number | null
-  deviasi: number | null
-  status: string
-}
-
-export interface MilestoneReport {
-  header: ReportHeaderData
-  milestone: ReportMilestone[]
-  kurva: CurveData
 }
 
 /* ---------- Dashboard ---------- */

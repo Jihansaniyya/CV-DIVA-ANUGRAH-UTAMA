@@ -11,6 +11,9 @@ interface ModalProps {
   children: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  /** Tombol tutup (X) di header; header disembunyikan bila tanpa judul dan tanpa tombol tutup. */
+  showCloseButton?: boolean
+  bodyClassName?: string
 }
 
 const SIZE = {
@@ -39,7 +42,17 @@ function useDialog(open: boolean, onClose: () => void) {
   }, [open, onClose])
 }
 
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  showCloseButton = true,
+  bodyClassName,
+}: ModalProps) {
   useDialog(open, onClose)
 
   if (!open) return null
@@ -53,16 +66,20 @@ export function Modal({ open, onClose, title, description, children, footer, siz
           SIZE[size],
         )}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-ink">{title}</h2>
-            {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
-          </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-muted hover:bg-surface" aria-label="Tutup">
-            <X className="size-5" aria-hidden />
-          </button>
-        </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {(title || showCloseButton) && (
+          <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+            <div>
+              <h2 className="text-base font-semibold text-ink">{title}</h2>
+              {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+            </div>
+            {showCloseButton && (
+              <button type="button" onClick={onClose} className="rounded-lg p-1 text-muted hover:bg-surface" aria-label="Tutup">
+                <X className="size-5" aria-hidden />
+              </button>
+            )}
+          </header>
+        )}
+        <div className={cn('flex-1 overflow-y-auto px-5 py-4', bodyClassName)}>{children}</div>
         {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</footer>}
       </div>
     </div>

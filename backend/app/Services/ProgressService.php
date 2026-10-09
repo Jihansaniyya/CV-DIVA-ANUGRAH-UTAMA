@@ -21,6 +21,8 @@ class ProgressService
     public function __construct(
         private readonly WeightCalculatorService $weights,
         private readonly ProjectScheduleService $schedule,
+        private readonly ProjectStatusService $status,
+        private readonly ImageService $images,
     ) {}
 
     /**
@@ -29,7 +31,7 @@ class ProgressService
      */
     public function create(Project $project, User $user, array $data, array $photos = []): ProgressReport
     {
-        return DB::transaction(function () use ($project, $user, $data, $photos) {
+        $report = DB::transaction(function () use ($project, $user, $data, $photos) {
             $period = $this->periodeLaporan($project, $data['tanggal_laporan']);
 
             $report = $project->progressReports()->create([
@@ -49,6 +51,10 @@ class ProgressService
 
             return $report->fresh($this->relations());
         });
+
+        $this->status->sinkronkan($project);
+
+        return $report;
     }
 
     /**
@@ -57,7 +63,7 @@ class ProgressService
      */
     public function update(ProgressReport $report, array $data, array $photos = []): ProgressReport
     {
-        return DB::transaction(function () use ($report, $data, $photos) {
+        $report = DB::transaction(function () use ($report, $data, $photos) {
             if (isset($data['tanggal_laporan'])) {
                 $period = $this->periodeLaporan($report->project, $data['tanggal_laporan']);
                 $report->period_id = $period->id;
@@ -93,6 +99,10 @@ class ProgressService
 
             return $report->fresh($this->relations());
         });
+
+        $this->status->sinkronkan($report->project);
+
+        return $report;
     }
 
     public function submit(ProgressReport $report): ProgressReport
@@ -107,6 +117,8 @@ class ProgressService
             'status' => ReportStatus::DIKIRIM->value,
             'dikirim_pada' => now(),
         ])->save();
+
+        $this->status->sinkronkan($report->project);
 
         return $report->fresh($this->relations());
     }
@@ -126,6 +138,8 @@ class ProgressService
 
             $report->delete();
         });
+
+        $this->status->sinkronkan($report->project);
     }
 
     /**
@@ -240,15 +254,39 @@ class ProgressService
             }
 
             $path = $file->store('progress/'.$report->project_id.'/'.$report->id, 'public');
+            $path = $this->kompresFoto($path);
 
             ProgressPhoto::create([
                 'progress_report_id' => $report->id,
                 'file_path' => $path,
                 'original_name' => $file->getClientOriginalName(),
-                'file_size' => $file->getSize(),
+                'file_size' => Storage::disk('public')->size($path),
                 'caption' => $captions[$index] ?? null,
                 'diunggah_pada' => now(),
             ]);
         }
+    }
+
+    /**
+     * Perkecil foto yang tersimpan (sisi terpanjang 1600 px, JPEG). Mengembalikan path akhir;
+     * bila foto sudah kecil atau tidak dapat diproses, berkas asli dipakai apa adanya.
+     */
+    public function kompresFoto(string $path): string
+    {
+        $disk = Storage::disk('public');
+        $tujuan = preg_replace('/\.[^.\/]+$/', '', $path).'.jpg';
+        $sementara = $disk->path($tujuan).'.tmp';
+
+        if (! $this->images->perkecil($disk->path($path), $sementara)) {
+            return $path;
+        }
+
+        if ($tujuan !== $path) {
+            $disk->delete($path);
+        }
+
+        rename($sementara, $disk->path($tujuan));
+
+        return $tujuan;
     }
 }

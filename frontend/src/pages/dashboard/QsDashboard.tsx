@@ -133,12 +133,12 @@ export function QsDashboard({ data }: { data: DashboardData }) {
 
         <Card
           title="Pekerjaan Perlu Diperbarui"
-          description="Pekerjaan dengan realisasi terendah pada proyek yang Anda tangani."
+          description="Pekerjaan yang realisasinya tertinggal dari rencana sampai hari ini."
           className={`lg:col-span-3 xl:col-span-2 ${KARTU_PENUH}`}
           bodyClassName={`p-0 lg:max-h-[30rem] lg:overflow-y-auto xl:max-h-none ${ISI_GULIR}`}
         >
           {pekerjaan.length === 0 ? (
-            <EmptyState judul="Semua pekerjaan sudah selesai" pesan="Tidak ada pekerjaan yang perlu diperbarui." />
+            <EmptyState judul="Semua pekerjaan sesuai rencana" pesan="Tidak ada pekerjaan yang tertinggal dari rencana sampai hari ini." />
           ) : (
             <ul className="divide-y divide-line">
               {pekerjaan.map((item) => (

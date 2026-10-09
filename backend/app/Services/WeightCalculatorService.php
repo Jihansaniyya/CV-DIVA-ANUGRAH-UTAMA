@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\DB;
  */
 class WeightCalculatorService
 {
+    public function __construct(private readonly ProjectStatusService $status) {}
+
     public function recalculateProject(Project $project): void
     {
         DB::transaction(function () use ($project) {
@@ -47,6 +49,8 @@ class WeightCalculatorService
             $this->recalculatePlans($project);
             $this->recalculateActuals($project);
         });
+
+        $this->status->sinkronkan($project);
     }
 
     /** harga_pekerjaan = volume x harga_satuan */

@@ -45,8 +45,11 @@ Eloquent ORM ──► MySQL
 | `WorkPlanService` | Menyimpan rencana per periode, memvalidasi total target volume, menyusun matriks rencana untuk frontend |
 | `ProgressService` | Menyimpan laporan progres beserta detail, foto, material, kendala; memvalidasi sisa volume; mengirim laporan |
 | `CurveSService` | Menyusun titik Kurva S, progres rencana/aktual, deviasi, dan akumulasi realisasi per pekerjaan |
-| `ReportService` | Menyusun data laporan harian, mingguan, bulanan, milestone, dan akhir sesuai format dokumen resmi |
+| `ReportService` | Menyusun data laporan mingguan, bulanan, dan akhir sesuai format dokumen resmi |
 | `DashboardService` | Menyusun ringkasan dashboard per peran |
+| `ProjectStatusService` | Menentukan status proyek otomatis dari jadwal dan realisasi |
+| `ReportDocumentService` | Mencatat dokumen laporan; ekspor ulang laporan yang sama menggantikan berkas lama |
+| `ImageService` | Memperkecil foto dokumentasi (sisi terpanjang 1600 px, JPEG, orientasi EXIF dikoreksi) |
 
 Controller tidak pernah menghitung bobot, progres, maupun deviasi. Hal ini menjaga satu sumber
 kebenaran perhitungan sehingga tampilan layar, laporan, dan hasil export selalu konsisten.
@@ -190,10 +193,9 @@ selalu identik.
 
 | Jenis | Sumber data | Isi khas |
 |---|---|---|
-| Harian | `progress_reports` pada rentang tanggal | Pekerjaan, volume realisasi, material, kendala, foto, lokasi, waktu pelaporan |
 | Mingguan | Akumulasi `progress_details` terhadap periode berjalan | Realisasi minggu lalu / minggu ini / s/d minggu ini (volume + bobot), rencana kumulatif, deviasi |
 | Bulanan | `work_plans` + akumulasi realisasi | Grid jangka waktu per minggu, rencana mingguan & kumulatif, realisasi mingguan & kumulatif, deviasi, realisasi bulan lalu / bulan ini / s/d bulan ini |
-| Milestone | `milestones` + Kurva S | Target vs capaian tiap tahapan penting pada kurva progres |
+| Akhir | Seluruh laporan progres DIKIRIM s/d laporan terakhir + Kurva S | Workbook 7 sheet: informasi proyek, rekap mingguan & bulanan, rencana vs realisasi, Kurva S, dokumentasi foto, rekapitulasi akhir |
 
 Baris dikelompokkan per kategori pekerjaan (A, B, ...) beserta subtotal, lalu ditutup baris JUMLAH,
 mengikuti dokumen laporan resmi.
@@ -238,8 +240,8 @@ diunduh ulang.
 | POST | `/api/progress/{progress}` | Admin, QS (pembaruan, mendukung unggah foto) |
 | PATCH | `/api/progress/{progress}/submit` | Admin, QS |
 | DELETE | `/api/progress/{progress}`, `/api/progress-photos/{photo}` | Admin, QS |
-| GET | `/api/reports/daily`, `/weekly`, `/monthly`, `/milestone`, `/final`, `/documents` | terautentikasi |
-| POST | `/api/reports/export/excel` (harian/mingguan/bulanan), `/api/reports/export/final` (laporan akhir) | terautentikasi |
+| GET | `/api/reports/weekly`, `/monthly`, `/final`, `/documents` | Kontraktor |
+| POST | `/api/reports/export/excel` (mingguan/bulanan), `/api/reports/export/final` (laporan akhir) | Kontraktor |
 
 Seluruh respons memakai API Resource sehingga bentuk JSON konsisten: koleksi berpaginasi
 mengembalikan `{ data, links, meta }`, sedangkan aksi tunggal mengembalikan `{ message, data }`.

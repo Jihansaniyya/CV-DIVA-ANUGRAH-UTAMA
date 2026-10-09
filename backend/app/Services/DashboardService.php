@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Enums\ProjectStatus;
 use App\Enums\ReportStatus;
+use App\Models\ProgressDetail;
 use App\Models\ProgressReport;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Models\WorkPlan;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 /** Menyusun ringkasan dashboard untuk masing-masing peran. */
@@ -59,29 +62,7 @@ class DashboardService
             ->limit(5)
             ->get();
 
-        $pekerjaanBelumSelesai = WorkItem::with(['project', 'unit'])
-            ->whereIn('project_id', $projectIds)
-            ->get()
-            ->map(function (WorkItem $item) {
-                $realisasi = $item->volumeRealisasi();
-
-                return [
-                    'work_item_id' => $item->id,
-                    'project_id' => $item->project_id,
-                    'nama_proyek' => $item->project?->nama_proyek,
-                    'uraian_pekerjaan' => $item->uraian_pekerjaan,
-                    'satuan' => $item->unit?->code,
-                    'volume' => (float) $item->volume,
-                    'volume_realisasi' => $realisasi,
-                    'sisa_volume' => round((float) $item->volume - $realisasi, 3),
-                    'persentase' => (float) $item->volume > 0 ? round($realisasi / (float) $item->volume * 100, 2) : 0.0,
-                ];
-            })
-            ->filter(fn ($row) => $row['sisa_volume'] > 0)
-            ->sortBy('persentase')
-            ->take(8)
-            ->values()
-            ->all();
+        $pekerjaanBelumSelesai = $this->pekerjaanTertinggal($projects);
 
         return [
             'peran' => 'QS',
@@ -196,5 +177,76 @@ class DashboardService
                 'tanggal_laporan' => $r->tanggal_laporan->toDateString(),
                 'bobot_realisasi' => round((float) $r->details()->sum('bobot_realisasi'), 4),
             ])->all();
+    }
+
+    /**
+     * Pekerjaan yang realisasinya tertinggal dari rencana sampai hari ini, pada proyek yang sudah
+     * dimulai dan belum selesai. Hanya pekerjaan ini yang memang dapat dan perlu dilaporkan QS.
+     *
+     *   rencana s/d hari ini = SUM(work_plans) pada periode dengan tanggal_mulai <= hari ini
+     *   realisasi            = SUM(progress_details) laporan DIKIRIM
+     *   kekurangan           = rencana - realisasi (diurutkan dari bobot kekurangan terbesar)
+     *
+     * Seluruh angka diambil dengan query agregat agar tidak ada query per pekerjaan.
+     *
+     * @param  Collection<int,Project>  $projects
+     */
+    private function pekerjaanTertinggal(Collection $projects, int $batas = 8): array
+    {
+        $hariIni = CarbonImmutable::today()->toDateString();
+        $projectIds = $projects
+            ->filter(fn (Project $p) => $p->tanggal_mulai->toDateString() <= $hariIni && $p->status !== ProjectStatus::SELESAI)
+            ->pluck('id');
+
+        if ($projectIds->isEmpty()) {
+            return [];
+        }
+
+        $rencana = WorkPlan::query()
+            ->join('periods', 'periods.id', '=', 'work_plans.period_id')
+            ->whereIn('work_plans.project_id', $projectIds)
+            ->whereDate('periods.tanggal_mulai', '<=', $hariIni)
+            ->selectRaw('work_plans.work_item_id as work_item_id, SUM(work_plans.target_volume) as volume, SUM(work_plans.target_bobot) as bobot')
+            ->groupBy('work_plans.work_item_id')
+            ->get()
+            ->keyBy('work_item_id');
+
+        $realisasi = ProgressDetail::query()
+            ->join('progress_reports', 'progress_reports.id', '=', 'progress_details.progress_report_id')
+            ->whereIn('progress_reports.project_id', $projectIds)
+            ->where('progress_reports.status', ReportStatus::DIKIRIM->value)
+            ->selectRaw('progress_details.work_item_id as work_item_id, SUM(progress_details.volume_realisasi) as volume, SUM(progress_details.bobot_realisasi) as bobot')
+            ->groupBy('progress_details.work_item_id')
+            ->get()
+            ->keyBy('work_item_id');
+
+        return WorkItem::with(['project', 'unit'])
+            ->whereIn('project_id', $projectIds)
+            ->whereIn('id', $rencana->keys())
+            ->get()
+            ->map(function (WorkItem $item) use ($rencana, $realisasi) {
+                $volume = (float) $item->volume;
+                $volRealisasi = round((float) ($realisasi[$item->id]->volume ?? 0), 3);
+                $volRencana = round((float) ($rencana[$item->id]->volume ?? 0), 3);
+
+                return [
+                    'work_item_id' => $item->id,
+                    'project_id' => $item->project_id,
+                    'nama_proyek' => $item->project?->nama_proyek,
+                    'uraian_pekerjaan' => $item->uraian_pekerjaan,
+                    'satuan' => $item->unit?->code,
+                    'volume' => $volume,
+                    'volume_realisasi' => $volRealisasi,
+                    'volume_rencana' => $volRencana,
+                    'sisa_volume' => round($volume - $volRealisasi, 3),
+                    'persentase' => $volume > 0 ? round($volRealisasi / $volume * 100, 2) : 0.0,
+                    'kekurangan_bobot' => round((float) ($rencana[$item->id]->bobot ?? 0) - (float) ($realisasi[$item->id]->bobot ?? 0), 4),
+                ];
+            })
+            ->filter(fn (array $row) => $row['sisa_volume'] > 0 && $row['volume_rencana'] - $row['volume_realisasi'] > 0.0005)
+            ->sortByDesc('kekurangan_bobot')
+            ->take($batas)
+            ->values()
+            ->all();
     }
 }

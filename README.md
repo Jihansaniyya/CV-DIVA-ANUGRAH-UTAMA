@@ -2,7 +2,7 @@
 
 Aplikasi web untuk mengelola dan memantau proyek kontraktor: data pengguna, data proyek, data
 pekerjaan, rencana pekerjaan per periode, pembentukan Kurva S, pencatatan progres aktual di lapangan,
-serta pembuatan laporan harian, mingguan, bulanan, dan milestone lengkap dengan export Excel.
+serta pembuatan laporan mingguan, bulanan, dan laporan akhir lengkap dengan export Excel.
 
 - **Backend:** Laravel 12 REST API (Sanctum, Eloquent, Form Request, Policy, Middleware, API Resource)
 - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS 4 + React Router + TanStack Query + Recharts + Lucide
@@ -21,7 +21,7 @@ CV-DIVA-ANUGRAH-UTAMA/
 ├── backend/                  # Laravel 12 REST API
 │   ├── app/
 │   │   ├── Enums/            # RoleCode, ProjectStatus, ReportStatus, ReportType
-│   │   ├── Exports/          # Export Excel (harian, mingguan, bulanan, akhir)
+│   │   ├── Exports/          # Export Excel (mingguan, bulanan, akhir)
 │   │   ├── Http/
 │   │   │   ├── Controllers/Api/
 │   │   │   ├── Middleware/   # EnsureUserHasRole
@@ -160,6 +160,15 @@ Foto progres dan dokumen laporan disimpan melalui Laravel Storage pada disk `pub
 Database hanya menyimpan path file. Jalankan `php artisan storage:link` agar file dapat diakses dari
 `http://127.0.0.1:8000/storage/...`.
 
+Foto progres otomatis diperkecil saat diunggah. Perintah pemeliharaan:
+
+```bash
+php artisan proyek:sinkron-status   # hitung ulang status seluruh proyek (terjadwal setiap hari 00:05)
+php artisan foto:kompres            # perkecil foto progres lama yang diunggah sebelum fitur kompresi
+php artisan laporan:bersihkan       # hapus dokumen laporan duplikat dan berkas tanpa riwayat
+php artisan schedule:work           # menjalankan scheduler saat pengembangan lokal
+```
+
 ## 7. Pengujian
 
 Backend memakai database MySQL terpisah (`cv_diva_anugrah_utama_test`, dikonfigurasi di `phpunit.xml`):
@@ -176,7 +185,7 @@ php artisan test --filter=ReportTest   # satu berkas
 
 Cakupan pengujian: login/logout, otorisasi per peran, CRUD proyek, CRUD pekerjaan, perhitungan bobot,
 validasi rencana pekerjaan, input progres (termasuk unggah foto, material, kendala), perhitungan
-progres & Kurva S, deviasi, laporan harian/mingguan/bulanan/akhir, dan export Excel.
+progres & Kurva S, deviasi, laporan mingguan/bulanan/akhir, dan export Excel.
 
 Frontend:
 

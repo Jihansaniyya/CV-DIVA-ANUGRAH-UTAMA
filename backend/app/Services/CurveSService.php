@@ -17,12 +17,14 @@ use Illuminate\Support\Collection;
  *   kumulatif         = penjumlahan berjalan sejak periode pertama
  *   deviasi           = realisasi kumulatif - rencana kumulatif
  *
- * Garis realisasi hanya digambar sampai periode yang sudah berjalan (tanggal_mulai <= hari ini)
- * supaya periode yang belum dilaksanakan tidak terbaca sebagai realisasi 0%.
+ * Garis realisasi hanya digambar sampai periode yang sudah berjalan (tanggal_mulai <= tanggal acuan)
+ * supaya periode yang belum dilaksanakan tidak terbaca sebagai realisasi 0%. Tanggal acuan bawaan
+ * adalah hari ini (monitoring); dokumen laporan memakai tanggal laporannya sendiri agar angka di
+ * dokumen tidak berubah hanya karena diekspor ulang di hari lain.
  */
 class CurveSService
 {
-    public function build(Project $project): array
+    public function build(Project $project, ?string $tanggalAcuan = null): array
     {
         $periods = $project->periods()->orderBy('urutan')->get();
 
@@ -33,7 +35,9 @@ class CurveSService
 
         $aktualPerPeriode = $this->actualByPeriod($project);
 
-        $hariIni = CarbonImmutable::now()->startOfDay();
+        $hariIni = $tanggalAcuan !== null
+            ? CarbonImmutable::parse($tanggalAcuan)->startOfDay()
+            : CarbonImmutable::now()->startOfDay();
         $rencanaKumulatif = 0.0;
         $aktualKumulatif = 0.0;
 

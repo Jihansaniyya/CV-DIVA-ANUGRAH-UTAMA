@@ -134,7 +134,7 @@ class AuthorizationTest extends TestCase
         $this->actingAs($admin)->patchJson("/api/progress/{$progres}/submit")->assertForbidden();
         $this->actingAs($admin)->deleteJson("/api/progress/{$progres}")->assertForbidden();
 
-        $this->actingAs($admin)->getJson("/api/reports/daily?project_id={$project->id}")->assertForbidden();
+        $this->actingAs($admin)->getJson("/api/reports/weekly?project_id={$project->id}")->assertForbidden();
         $this->actingAs($admin)->getJson('/api/reports/documents')->assertForbidden();
     }
 

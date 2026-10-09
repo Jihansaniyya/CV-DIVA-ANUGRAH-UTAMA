@@ -86,4 +86,41 @@ class DashboardTest extends TestCase
         $this->assertTrue($data['proyek'][0]['tertinggal']);
         $this->assertArrayNotHasKey('grafik_progres', $data);
     }
+
+    public function test_pekerjaan_perlu_diperbarui_hanya_yang_tertinggal_dari_rencana(): void
+    {
+        $konteks = $this->proyekContoh();
+        $project = $konteks['project'];
+        $periods = $project->periods()->orderBy('urutan')->get();
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+
+        // Galian direncanakan minggu ini (sudah berjalan), pembesian minggu III (belum berjalan).
+        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans", [
+            'rows' => [
+                ['work_item_id' => $konteks['items'][0]->id, 'period_id' => $periods[0]->id, 'target_volume' => 100],
+                ['work_item_id' => $konteks['items'][1]->id, 'period_id' => $periods[2]->id, 'target_volume' => 200],
+            ],
+        ])->assertOk();
+
+        // Proyek QS yang sama tetapi belum dimulai: pekerjaannya tidak boleh muncul.
+        $belumMulai = $this->proyekContoh($konteks['qs']);
+        $belumMulai['project']->update([
+            'tanggal_mulai' => now()->addMonth()->toDateString(),
+            'tanggal_selesai' => now()->addMonths(2)->toDateString(),
+        ]);
+
+        $daftar = $this->actingAs($konteks['qs'])->getJson('/api/dashboard')->assertOk()->json('data.pekerjaan_perlu_laporan');
+        $this->assertSame([$konteks['items'][0]->id], array_column($daftar, 'work_item_id'));
+        $this->assertEqualsWithDelta(100.0, $daftar[0]['volume_rencana'], 0.001);
+
+        // Setelah realisasi memenuhi rencana, pekerjaan tidak lagi perlu diperbarui.
+        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+            'project_id' => $project->id,
+            'tanggal_laporan' => $project->tanggal_mulai->toDateString(),
+            'status' => 'DIKIRIM',
+            'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 100]],
+        ])->assertCreated();
+
+        $this->assertSame([], $this->actingAs($konteks['qs'])->getJson('/api/dashboard')->json('data.pekerjaan_perlu_laporan'));
+    }
 }

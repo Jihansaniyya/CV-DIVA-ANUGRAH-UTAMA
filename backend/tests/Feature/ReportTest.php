@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
@@ -59,14 +60,12 @@ class ReportTest extends TestCase
         $qs = $this->konteks['qs'];
         $project = $this->konteks['project'];
 
-        $this->actingAs($qs)->getJson("/api/reports/daily?project_id={$project->id}")->assertForbidden();
         $this->actingAs($qs)->getJson("/api/reports/weekly?project_id={$project->id}")->assertForbidden();
         $this->actingAs($qs)->getJson("/api/reports/monthly?project_id={$project->id}")->assertForbidden();
-        $this->actingAs($qs)->getJson("/api/reports/milestone?project_id={$project->id}")->assertForbidden();
         $this->actingAs($qs)->getJson("/api/reports/final?project_id={$project->id}")->assertForbidden();
         $this->actingAs($qs)->postJson('/api/reports/export/final', ['project_id' => $project->id])->assertForbidden();
         $this->actingAs($qs)->getJson('/api/reports/documents')->assertForbidden();
-        $this->actingAs($qs)->postJson('/api/reports/export/excel', ['tipe' => 'HARIAN', 'project_id' => $project->id])->assertForbidden();
+        $this->actingAs($qs)->postJson('/api/reports/export/excel', ['tipe' => 'MINGGUAN', 'project_id' => $project->id])->assertForbidden();
         $this->actingAs($qs)->getJson("/api/projects/{$project->id}/curve-s")->assertForbidden();
     }
 
@@ -210,18 +209,21 @@ class ReportTest extends TestCase
         $this->actingAs($this->konteks['qs'])->getJson("/api/progress/{$draf}")->assertOk();
     }
 
-    public function test_laporan_harian_menampilkan_seluruh_laporan_pada_rentang_tanggal(): void
+    public function test_laporan_harian_dan_milestone_tidak_tersedia(): void
     {
         $project = $this->konteks['project'];
 
-        $data = $this->actingAs($this->kontraktor)
-            ->getJson("/api/reports/daily?project_id={$project->id}&dari={$project->tanggal_mulai->toDateString()}&sampai={$project->tanggal_selesai->toDateString()}")
-            ->assertOk()
-            ->json('data');
+        $this->actingAs($this->kontraktor)->getJson("/api/reports/daily?project_id={$project->id}")->assertNotFound();
+        $this->actingAs($this->kontraktor)->getJson("/api/reports/milestone?project_id={$project->id}")->assertNotFound();
 
-        $this->assertSame(2, $data['ringkasan']['jumlah_laporan']);
-        $this->assertSame(2, $data['ringkasan']['jumlah_dikirim']);
-        $this->assertEqualsWithDelta(62.5, $data['ringkasan']['bobot_realisasi'], 0.001);
+        foreach (['HARIAN', 'MILESTONE'] as $tipe) {
+            $this->actingAs($this->kontraktor)
+                ->postJson('/api/reports/export/excel', ['tipe' => $tipe, 'project_id' => $project->id])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('tipe');
+        }
+
+        $this->assertSame(0, ReportDocument::count());
     }
 
     public function test_export_excel_menghasilkan_dokumen(): void
@@ -239,6 +241,8 @@ class ReportTest extends TestCase
         $dokumen = ReportDocument::where('format', 'EXCEL')->firstOrFail();
         Storage::disk('public')->assertExists($dokumen->file_path);
         $this->assertStringEndsWith('.xlsx', $dokumen->file_name);
+        // Jenis laporan di depan, lalu nama proyek.
+        $this->assertStringStartsWith('laporan-mingguan-'.Str::slug($this->konteks['project']->nama_proyek).'-', $dokumen->file_name);
     }
 
     public function test_laporan_akhir_merekap_sampai_laporan_progres_terakhir(): void
@@ -262,14 +266,16 @@ class ReportTest extends TestCase
         $this->assertEqualsWithDelta(100.0, $baris[$this->konteks['items'][1]->id]['realisasi_sd_bulan_ini']['volume'], 0.001);
         $this->assertEqualsWithDelta(50.0, $baris[$this->konteks['items'][1]->id]['keterangan_persen'], 0.001);
 
-        // Rekap progres berhenti di periode laporan terakhir dan identik dengan Kurva S.
+        // Rekap progres berhenti di periode laporan terakhir; rencana identik dengan Kurva S.
         $this->assertCount(2, $data['rekap_mingguan']);
         $this->assertCount(1, $data['rekap_bulanan']);
         $kurva = $this->actingAs($this->kontraktor)->getJson("/api/projects/{$project->id}/curve-s")->assertOk()->json('data.titik');
-        $this->assertEquals(array_slice($kurva, 0, 2), array_map(
-            fn ($titik) => array_diff_key($titik, array_flip(['minggu_ke_romawi', 'jumlah_laporan', 'pekerjaan', 'kendala', 'catatan'])),
-            $data['rekap_mingguan'],
-        ));
+        $kolomRencana = fn (array $titik) => array_intersect_key($titik, array_flip(['period_id', 'rencana', 'rencana_kumulatif']));
+        $this->assertEquals(array_map($kolomRencana, array_slice($kurva, 0, 2)), array_map($kolomRencana, $data['rekap_mingguan']));
+
+        // Realisasi mengacu pada tanggal laporan terakhir, bukan tanggal hari ini.
+        $this->assertEqualsWithDelta(25.0, $data['rekap_mingguan'][0]['aktual_kumulatif'], 0.001);
+        $this->assertEqualsWithDelta(62.5, $data['rekap_mingguan'][1]['aktual_kumulatif'], 0.001);
 
         // Angka akhir sama dengan laporan mingguan minggu II.
         $mingguan = $this->actingAs($this->kontraktor)
@@ -333,6 +339,7 @@ class ReportTest extends TestCase
         $dokumen = ReportDocument::where('tipe_laporan', 'AKHIR')->firstOrFail();
         Storage::disk('public')->assertExists($dokumen->file_path);
         $this->assertStringEndsWith('.xlsx', $dokumen->file_name);
+        $this->assertStringStartsWith('laporan-akhir-'.Str::slug($project->nama_proyek).'-s-d-m-ii-', $dokumen->file_name);
 
         $reader = IOFactory::createReader('Xlsx');
         $reader->setIncludeCharts(true);
@@ -365,5 +372,38 @@ class ReportTest extends TestCase
         $this->assertCount(1, $dokumentasi->getDrawingCollection());
         $this->assertStringContainsString('Berkas foto tidak ditemukan', $teks('Dokumentasi'));
         $this->assertStringContainsString('Keterangan foto: Pembesian kolom', $teks('Dokumentasi'));
+    }
+
+    public function test_export_ulang_laporan_yang_sama_menggantikan_dokumen_sebelumnya(): void
+    {
+        Storage::fake('public');
+        $project = $this->konteks['project'];
+        $periode = $project->periods()->orderBy('urutan')->firstOrFail();
+        $payload = ['tipe' => 'MINGGUAN', 'project_id' => $project->id, 'period_id' => $periode->id];
+
+        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/excel', $payload)->assertCreated();
+        $pertama = ReportDocument::firstOrFail();
+
+        $this->travel(2)->seconds();
+        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/excel', $payload)->assertCreated();
+
+        $this->assertSame(1, ReportDocument::count());
+        Storage::disk('public')->assertMissing($pertama->file_path);
+        Storage::disk('public')->assertExists(ReportDocument::firstOrFail()->file_path);
+
+        // Periode lain tetap disimpan sebagai dokumen terpisah.
+        $mingguDua = $project->periods()->where('urutan', 2)->firstOrFail();
+        $this->actingAs($this->kontraktor)->postJson('/api/reports/export/excel', ['period_id' => $mingguDua->id] + $payload)->assertCreated();
+        $this->assertSame(2, ReportDocument::count());
+    }
+
+    public function test_perintah_bersihkan_menghapus_berkas_laporan_tanpa_riwayat(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('reports/1/tertinggal.xlsx', 'x');
+
+        $this->artisan('laporan:bersihkan')->assertSuccessful();
+
+        Storage::disk('public')->assertMissing('reports/1/tertinggal.xlsx');
     }
 }

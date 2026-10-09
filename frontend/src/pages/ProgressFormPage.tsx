@@ -61,7 +61,7 @@ export function ProgressFormPage() {
   const workItemAwal: number | '' = params.get('work_item_id') ? Number(params.get('work_item_id')) : ''
 
   const [projectIdDipilih, setProjectId] = useState<number | ''>(params.get('project_id') ? Number(params.get('project_id')) : '')
-  const [tanggal, setTanggal] = useState(hariIni())
+  const [tanggalDipilih, setTanggal] = useState(hariIni())
   const [lokasi, setLokasi] = useState('')
   const [keterangan, setKeterangan] = useState('')
   const [details, setDetails] = useState<BarisDetail[]>([{ work_item_id: workItemAwal, volume_realisasi: '' }])
@@ -78,6 +78,13 @@ export function ProgressFormPage() {
   // Tanggal progres dibatasi pada jadwal proyek agar laporan selalu masuk ke salah satu periode.
   const tanggalMulai = proyekDipilih?.tanggal_mulai?.slice(0, 10)
   const tanggalSelesai = proyekDipilih?.tanggal_selesai?.slice(0, 10)
+  // Bawaan "hari ini" bisa di luar jadwal (proyek belum mulai / sudah lewat); geser ke batas jadwal terdekat.
+  const tanggal =
+    tanggalDipilih && tanggalMulai && tanggalDipilih < tanggalMulai
+      ? tanggalMulai
+      : tanggalDipilih && tanggalSelesai && tanggalDipilih > tanggalSelesai
+        ? tanggalSelesai
+        : tanggalDipilih
 
   useEffect(() => {
     if (!projectId || !projects) return

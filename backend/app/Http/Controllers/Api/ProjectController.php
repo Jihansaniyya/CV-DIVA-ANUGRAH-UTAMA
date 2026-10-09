@@ -9,6 +9,7 @@ use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\Services\CurveSService;
 use App\Services\ProjectScheduleService;
+use App\Services\ProjectStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,11 +19,13 @@ class ProjectController extends Controller
     public function __construct(
         private readonly ProjectScheduleService $schedule,
         private readonly CurveSService $curve,
+        private readonly ProjectStatusService $status,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Project::class);
+        $this->status->sinkronkanHarian();
 
         $projects = Project::visibleTo($request->user())
             ->with('qs')
@@ -63,6 +66,7 @@ class ProjectController extends Controller
 
         // Periode mingguan (M-I, M-II, ...) selalu dibentuk dari durasi proyek.
         $this->schedule->generateWeeklyPeriods($project);
+        $this->status->sinkronkan($project);
 
         $this->sinkronkanPenugasanQs($project);
 
@@ -96,6 +100,8 @@ class ProjectController extends Controller
         if ($tanggalBerubah) {
             $this->schedule->generateWeeklyPeriods($project);
         }
+
+        $this->status->sinkronkan($project);
 
         $this->sinkronkanPenugasanQs($project);
 

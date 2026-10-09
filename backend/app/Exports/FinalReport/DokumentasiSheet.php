@@ -3,6 +3,7 @@
 namespace App\Exports\FinalReport;
 
 use App\Exports\ReportFormatter;
+use App\Services\ImageService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -13,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 /**
  * Sheet 6 — foto dokumentasi dari laporan progres terkirim, disisipkan langsung ke sel.
  *
- * Foto diperkecil (sisi terpanjang maksimal 1000 px) ke berkas sementara sebelum disisipkan agar
+ * Foto diperkecil (sisi terpanjang maksimal 1000 px, lewat ImageService) ke berkas sementara sebelum disisipkan agar
  * ukuran file Excel tetap wajar; berkas sementara dihapus setelah export selesai.
  */
 class DokumentasiSheet extends FinalReportSheet
@@ -153,44 +154,14 @@ class DokumentasiSheet extends FinalReportSheet
     /** Salinan foto yang diperkecil; foto kecil atau tanpa dukungan GD dipakai apa adanya. */
     private function perkecil(string $path): ?string
     {
-        $info = @getimagesize($path);
-
-        if (! $info) {
+        if (! @getimagesize($path)) {
             return null;
         }
 
-        [$lebar, $tinggi] = $info;
-
-        if (max($lebar, $tinggi) <= self::SISI_MAKSIMUM || ! function_exists('imagecreatefromstring')) {
-            return $path;
-        }
-
-        $gambar = @imagecreatefromstring((string) file_get_contents($path));
-
-        if ($gambar === false) {
-            return $path;
-        }
-
-        $skala = self::SISI_MAKSIMUM / max($lebar, $tinggi);
-        $kecil = imagescale($gambar, (int) round($lebar * $skala), (int) round($tinggi * $skala));
-        imagedestroy($gambar);
-
-        if ($kecil === false) {
-            return $path;
-        }
-
-        // Latar putih untuk PNG transparan karena hasil disimpan sebagai JPEG.
-        $kanvas = imagecreatetruecolor(imagesx($kecil), imagesy($kecil));
-        imagefill($kanvas, 0, 0, (int) imagecolorallocate($kanvas, 255, 255, 255));
-        imagecopy($kanvas, $kecil, 0, 0, 0, 0, imagesx($kecil), imagesy($kecil));
-        imagedestroy($kecil);
-
         $dasar = (string) tempnam(sys_get_temp_dir(), 'foto_');
         $tujuan = $dasar.'.jpg';
-        imagejpeg($kanvas, $tujuan, 82);
-        imagedestroy($kanvas);
         array_push($this->berkasSementara, $dasar, $tujuan);
 
-        return $tujuan;
+        return app(ImageService::class)->perkecil($path, $tujuan, self::SISI_MAKSIMUM) ? $tujuan : $path;
     }
 }

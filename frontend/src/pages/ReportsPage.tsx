@@ -1,61 +1,41 @@
-import { DailyReportTable } from '@/components/reports/DailyReportTable'
 import { FinalReportTable } from '@/components/reports/FinalReportTable'
 import { MonthlyReportTable } from '@/components/reports/MonthlyReportTable'
-import { ReportCurveSection } from '@/components/reports/ReportCurveSection'
-import { ReportHeader } from '@/components/reports/ReportHeader'
 import { WeeklyReportTable } from '@/components/reports/WeeklyReportTable'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Dropdown } from '@/components/ui/Dropdown'
-import { DatePicker, Select } from '@/components/ui/Field'
+import { Select } from '@/components/ui/Field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
-import {
-  useDailyReport,
-  useFinalReport,
-  useMilestoneReport,
-  useMonthlyReport,
-  usePeriods,
-  useProjects,
-  useWeeklyReport,
-} from '@/hooks/queries'
-import { useAuth } from '@/hooks/useAuth'
+import { useFinalReport, useMonthlyReport, usePeriods, useProjects, useWeeklyReport } from '@/hooks/queries'
 import { useToast } from '@/hooks/useToast'
 import { pesanError } from '@/lib/api'
 import { reportService, type ExportParams } from '@/services/reportService'
-import { angka, rentangTanggal, romawi, tanggal, tanggalSingkat } from '@/utils/format'
+import { rentangTanggal, romawi, tanggal, tanggalSingkat } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FileSearch, FileSpreadsheet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-type Jenis = 'harian' | 'mingguan' | 'bulanan' | 'milestone' | 'akhir'
+type Jenis = 'mingguan' | 'bulanan' | 'akhir'
 
+/** Jenis laporan Kontraktor (satu-satunya peran yang membuka halaman ini). */
 const JENIS: { key: Jenis; label: string }[] = [
-  { key: 'harian', label: 'Laporan Harian' },
   { key: 'mingguan', label: 'Laporan Mingguan' },
   { key: 'bulanan', label: 'Laporan Bulanan' },
-  { key: 'milestone', label: 'Laporan Milestone' },
   { key: 'akhir', label: 'Laporan Akhir' },
 ]
-
-// Laporan Kontraktor: mingguan, bulanan, dan akhir; milestone ditampilkan di dalam laporan mingguan & bulanan.
-const JENIS_KONTRAKTOR: Jenis[] = ['mingguan', 'bulanan', 'akhir']
 
 export function ReportsPage() {
   const toast = useToast()
   const queryClient = useQueryClient()
-  const { punyaPeran } = useAuth()
   const [params, setParams] = useSearchParams()
 
-  const daftarJenis = punyaPeran('KONTRAKTOR') ? JENIS.filter((item) => JENIS_KONTRAKTOR.includes(item.key)) : JENIS
-  const jenisAwal = daftarJenis.find((item) => item.key === params.get('jenis'))?.key ?? 'mingguan'
+  const jenisAwal = JENIS.find((item) => item.key === params.get('jenis'))?.key ?? 'mingguan'
 
   const [jenis, setJenis] = useState<Jenis>(jenisAwal)
   const [projectId, setProjectId] = useState<number | null>(params.get('project_id') ? Number(params.get('project_id')) : null)
   const [periodId, setPeriodId] = useState<number | undefined>(undefined)
   const [bulanKe, setBulanKe] = useState(1)
-  const [dari, setDari] = useState('')
-  const [sampai, setSampai] = useState('')
 
   const { data: projects, isLoading: memuatProyek } = useProjects({ per_page: 100 })
   const { data: periods } = usePeriods(projectId)
@@ -72,21 +52,18 @@ export function ReportsPage() {
     }
   }, [periods, periodId])
 
-  const harian = useDailyReport(jenis === 'harian' ? projectId : null, dari || undefined, sampai || undefined)
   const mingguan = useWeeklyReport(jenis === 'mingguan' ? projectId : null, periodId)
   const bulanan = useMonthlyReport(jenis === 'bulanan' ? projectId : null, bulanKe)
-  const milestone = useMilestoneReport(jenis === 'milestone' ? projectId : null)
   const akhir = useFinalReport(jenis === 'akhir' ? projectId : null)
 
-  const aktif = { harian, mingguan, bulanan, milestone, akhir }[jenis]
+  const aktif = { mingguan, bulanan, akhir }[jenis]
 
   const paramExport = (): ExportParams | null => {
-    if (!projectId || jenis === 'milestone' || jenis === 'akhir') return null
+    if (!projectId || jenis === 'akhir') return null
 
-    if (jenis === 'mingguan') return { tipe: 'MINGGUAN', project_id: projectId, period_id: periodId }
-    if (jenis === 'bulanan') return { tipe: 'BULANAN', project_id: projectId, bulan_ke: bulanKe }
-
-    return { tipe: 'HARIAN', project_id: projectId, dari: dari || undefined, sampai: sampai || undefined }
+    return jenis === 'mingguan'
+      ? { tipe: 'MINGGUAN', project_id: projectId, period_id: periodId }
+      : { tipe: 'BULANAN', project_id: projectId, bulan_ke: bulanKe }
   }
 
   const ekspor = useMutation({
@@ -111,8 +88,7 @@ export function ReportsPage() {
 
   const bulanTersedia = periods ? Array.from(new Set(periods.map((period) => period.bulan_ke))) : [1]
 
-  const labelJenis = daftarJenis.find((item) => item.key === jenis)?.label ?? 'Laporan'
-  const proyekTerpilih = projects?.data.find((project) => project.id === projectId)
+  const labelJenis = JENIS.find((item) => item.key === jenis)?.label ?? 'Laporan'
   const periodeMinggu = periods?.find((period) => period.id === periodId)
   const periodeBulan = periods?.filter((period) => period.bulan_ke === bulanKe) ?? []
 
@@ -123,20 +99,14 @@ export function ReportsPage() {
         : '-'
       : jenis === 'bulanan'
         ? `Bulan ${romawi(bulanKe)}${periodeBulan.length > 0 ? ` · ${rentangTanggal(periodeBulan[0].tanggal_mulai, periodeBulan[periodeBulan.length - 1].tanggal_selesai)}` : ''}`
-        : jenis === 'harian'
-          ? dari || sampai
-            ? rentangTanggal(dari || proyekTerpilih?.tanggal_mulai, sampai || proyekTerpilih?.tanggal_selesai)
-            : 'Seluruh masa pelaksanaan'
-          : jenis === 'akhir'
-            ? akhir.data?.laporan_terakhir
-              ? `s/d laporan progres ${tanggal(akhir.data.laporan_terakhir.tanggal_laporan)} (${akhir.data.laporan_terakhir.nama_periode})`
-              : 'Belum ada laporan progres'
-            : 'Seluruh periode'
+        : akhir.data?.laporan_terakhir
+          ? `s/d laporan progres ${tanggal(akhir.data.laporan_terakhir.tanggal_laporan)} (${akhir.data.laporan_terakhir.nama_periode})`
+          : 'Belum ada laporan progres'
 
   // Laporan akhir baru dapat direkap setelah ada laporan progres yang dikirim.
   const akhirKosong = jenis === 'akhir' && akhir.data?.laporan_terakhir === null
   const siap = !aktif.isLoading && !aktif.error && Boolean(aktif.data) && !akhirKosong
-  const bisaEkspor = siap && jenis !== 'milestone'
+  const bisaEkspor = siap
 
   if (memuatProyek) return <LoadingState pesan="Memuat daftar proyek..." />
   if (!projects || projects.data.length === 0) {
@@ -174,7 +144,7 @@ export function ReportsPage() {
               setParams(params, { replace: true })
             }}
           >
-            {daftarJenis.map((item) => (
+            {JENIS.map((item) => (
               <option key={item.key} value={item.key}>
                 {item.label}
               </option>
@@ -201,13 +171,6 @@ export function ReportsPage() {
               ))}
             </Select>
           )}
-
-          {jenis === 'harian' && (
-            <div className="grid grid-cols-2 gap-3">
-              <DatePicker label="Dari tanggal" value={dari} max={sampai || undefined} onChange={(event) => setDari(event.target.value)} />
-              <DatePicker label="Sampai tanggal" value={sampai} min={dari || undefined} onChange={(event) => setSampai(event.target.value)} />
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col gap-3 border-t border-line bg-surface/50 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
@@ -222,7 +185,7 @@ export function ReportsPage() {
               onClick={() => ekspor.mutate()}
               className="w-full sm:w-auto"
             >
-              {jenis === 'akhir' ? 'Unduh Laporan Akhir (Excel)' : 'Unduh Excel'}
+              {jenis === 'akhir' ? 'Unduh Excel' : 'Unduh Excel'}
             </Button>
           </div>
         </div>
@@ -261,26 +224,9 @@ export function ReportsPage() {
               </div>
             ) : (
               <>
-                {jenis === 'harian' && harian.data && <DailyReportTable data={harian.data} />}
                 {jenis === 'mingguan' && mingguan.data && <WeeklyReportTable data={mingguan.data} />}
                 {jenis === 'bulanan' && bulanan.data && <MonthlyReportTable data={bulanan.data} />}
                 {jenis === 'akhir' && akhir.data && <FinalReportTable data={akhir.data} />}
-                {jenis === 'milestone' && milestone.data && (
-                  <div className="bg-white p-4 sm:p-6">
-                    <ReportHeader
-                      judul="LAPORAN MILESTONE"
-                      header={milestone.data.header}
-                      kanan={[
-                        { label: 'Progres Rencana', nilai: `${angka(milestone.data.kurva.ringkasan.progres_rencana, 2)}%` },
-                        { label: 'Progres Realisasi', nilai: `${angka(milestone.data.kurva.ringkasan.progres_aktual, 2)}%` },
-                        { label: 'Deviasi', nilai: `${angka(milestone.data.kurva.ringkasan.deviasi, 2)}%` },
-                        { label: 'Kontraktor Pelaksana', nilai: milestone.data.header.kontraktor_pelaksana ?? '-' },
-                      ]}
-                    />
-
-                    <ReportCurveSection kurva={milestone.data.kurva} milestone={milestone.data.milestone} />
-                  </div>
-                )}
               </>
             )}
           </div>

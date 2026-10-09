@@ -22,10 +22,8 @@ export const qk = {
   milestones: (id: number) => ['project', id, 'milestones'] as const,
   progressList: (filter: ProgressFilter) => ['progress', filter] as const,
   progress: (id: number) => ['progress', id] as const,
-  reportDaily: (id: number, dari?: string, sampai?: string) => ['report', 'daily', id, dari, sampai] as const,
   reportWeekly: (id: number, periodId?: number) => ['report', 'weekly', id, periodId] as const,
   reportMonthly: (id: number, bulan: number) => ['report', 'monthly', id, bulan] as const,
-  reportMilestone: (id: number) => ['report', 'milestone', id] as const,
   reportFinal: (id: number) => ['report', 'final', id] as const,
   documents: (id?: number) => ['report', 'documents', id] as const,
 }
@@ -68,13 +66,6 @@ export const useProgressList = (filter: ProgressFilter) =>
 export const useProgress = (id: number | null) =>
   useQuery({ queryKey: qk.progress(id ?? 0), queryFn: () => progressService.detail(id as number), enabled: Boolean(id) })
 
-export const useDailyReport = (id: number | null, dari?: string, sampai?: string) =>
-  useQuery({
-    queryKey: qk.reportDaily(id ?? 0, dari, sampai),
-    queryFn: () => reportService.daily(id as number, dari, sampai),
-    enabled: Boolean(id),
-  })
-
 export const useWeeklyReport = (id: number | null, periodId?: number) =>
   useQuery({
     queryKey: qk.reportWeekly(id ?? 0, periodId),
@@ -86,13 +77,6 @@ export const useMonthlyReport = (id: number | null, bulan: number) =>
   useQuery({
     queryKey: qk.reportMonthly(id ?? 0, bulan),
     queryFn: () => reportService.monthly(id as number, bulan),
-    enabled: Boolean(id),
-  })
-
-export const useMilestoneReport = (id: number | null) =>
-  useQuery({
-    queryKey: qk.reportMilestone(id ?? 0),
-    queryFn: () => reportService.milestone(id as number),
     enabled: Boolean(id),
   })
 
