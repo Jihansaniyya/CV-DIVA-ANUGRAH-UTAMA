@@ -242,7 +242,8 @@ function ProgresTerbaru({ laporan }: { laporan: Laporan[] }) {
           <ChevronRight className="size-3.5" aria-hidden />
         </Link>
       }
-      className="flex flex-col xl:min-h-0"
+      // Tinggi mengikuti jumlah progres (tidak ikut meregang setinggi tabel), tetapi dibatasi tinggi area.
+      className="flex flex-col xl:max-h-full xl:min-h-0 xl:self-start"
       bodyClassName="xl:min-h-0 xl:flex-1 xl:overflow-y-auto"
       flush
     >

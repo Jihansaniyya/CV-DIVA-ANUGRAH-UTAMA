@@ -45,7 +45,7 @@ Eloquent ORM ──► MySQL
 | `WorkPlanService` | Menyimpan rencana per periode, memvalidasi total target volume, menyusun matriks rencana untuk frontend |
 | `ProgressService` | Menyimpan laporan progres beserta detail, foto, material, kendala; memvalidasi sisa volume; mengirim laporan |
 | `CurveSService` | Menyusun titik Kurva S, progres rencana/aktual, deviasi, dan akumulasi realisasi per pekerjaan |
-| `ReportService` | Menyusun data laporan harian, mingguan, bulanan, dan milestone sesuai format dokumen resmi |
+| `ReportService` | Menyusun data laporan harian, mingguan, bulanan, milestone, dan akhir sesuai format dokumen resmi |
 | `DashboardService` | Menyusun ringkasan dashboard per peran |
 
 Controller tidak pernah menghitung bobot, progres, maupun deviasi. Hal ini menjaga satu sumber
@@ -238,8 +238,8 @@ diunduh ulang.
 | POST | `/api/progress/{progress}` | Admin, QS (pembaruan, mendukung unggah foto) |
 | PATCH | `/api/progress/{progress}/submit` | Admin, QS |
 | DELETE | `/api/progress/{progress}`, `/api/progress-photos/{photo}` | Admin, QS |
-| GET | `/api/reports/daily`, `/weekly`, `/monthly`, `/milestone`, `/documents` | terautentikasi |
-| POST | `/api/reports/export/excel` | terautentikasi |
+| GET | `/api/reports/daily`, `/weekly`, `/monthly`, `/milestone`, `/final`, `/documents` | terautentikasi |
+| POST | `/api/reports/export/excel` (harian/mingguan/bulanan), `/api/reports/export/final` (laporan akhir) | terautentikasi |
 
 Seluruh respons memakai API Resource sehingga bentuk JSON konsisten: koleksi berpaginasi
 mengembalikan `{ data, links, meta }`, sedangkan aksi tunggal mengembalikan `{ message, data }`.

@@ -4,7 +4,7 @@ export type ProjectStatus = 'BELUM_DIMULAI' | 'BERJALAN' | 'SELESAI' | 'TERLAMBA
 
 export type ReportStatus = 'DRAFT' | 'DIKIRIM'
 
-export type ReportType = 'HARIAN' | 'MINGGUAN' | 'BULANAN' | 'MILESTONE'
+export type ReportType = 'HARIAN' | 'MINGGUAN' | 'BULANAN' | 'MILESTONE' | 'AKHIR'
 
 export type ExportFormat = 'EXCEL' | 'WORD'
 
@@ -393,6 +393,127 @@ export interface MonthlyReport {
     rencana_sd_bulan_ini: number
     deviasi: number
   }
+}
+
+export interface FinalReportItem {
+  no: number
+  no_global: number
+  work_item_id: number
+  uraian: string
+  satuan: string | null
+  volume: number
+  harga_satuan: number | null
+  harga_pekerjaan: number | null
+  bobot: number
+  rencana_sd: ReportVolumeBobot
+  persen_rencana: number
+  realisasi_bulan_lalu: ReportVolumeBobot
+  realisasi_bulan_ini: ReportVolumeBobot
+  realisasi_sd_bulan_ini: ReportVolumeBobot
+  keterangan_persen: number
+  sisa_volume: number
+  selisih_volume: number
+  selisih_bobot: number
+  selesai: boolean
+}
+
+export interface FinalReportWork {
+  uraian: string
+  satuan: string | null
+  volume: number
+  bobot: number
+}
+
+export interface FinalReportIssue {
+  tanggal_laporan: string
+  nama_periode: string | null
+  jenis_kendala: string | null
+  pekerjaan: string | null
+  deskripsi: string
+  tindak_lanjut: string | null
+  status: string
+}
+
+export interface FinalReportPhoto {
+  id: number
+  file_path: string
+  url: string
+  caption: string | null
+  diunggah_pada: string | null
+  tanggal_laporan: string
+  nama_periode: string | null
+  lokasi: string | null
+  uraian_pekerjaan: string | null
+  keterangan: string | null
+}
+
+/** Satu baris rekap progres; realisasi `null` berarti periode belum berjalan. */
+export interface FinalReportProgressRow {
+  rencana: number
+  rencana_kumulatif: number
+  realisasi: number | null
+  realisasi_kumulatif: number | null
+  deviasi: number | null
+}
+
+export interface FinalReport {
+  header: ReportHeaderData
+  status_proyek: { kode: ProjectStatus; label: string }
+  keterangan_proyek: string | null
+  kurva_s: { titik: CurvePoint[]; total_bobot_rencana: number }
+  /** `null` bila belum ada laporan progres yang dikirim. */
+  laporan_terakhir: {
+    tanggal_laporan: string
+    period_id: number
+    nama_periode: string
+    minggu_ke: number
+    minggu_ke_romawi: string
+    bulan_ke: number
+    bulan_ke_romawi: string
+    tanggal_mulai: string
+    tanggal_selesai: string
+    bulan_tanggal_mulai: string
+    bulan_tanggal_selesai: string
+    jumlah_laporan: number
+  } | null
+  kategori: ReportCategory<FinalReportItem>[]
+  total: Record<string, number | { bobot: number }> | null
+  rekap_bulanan: ({
+    bulan_ke: number
+    bulan_ke_romawi: string
+    tanggal_mulai: string
+    tanggal_selesai: string
+    jumlah_minggu: number
+    jumlah_laporan: number
+    pekerjaan: FinalReportWork[]
+    kendala: FinalReportIssue[]
+  } & FinalReportProgressRow)[]
+  rekap_mingguan: (CurvePoint & {
+    minggu_ke_romawi: string
+    jumlah_laporan: number
+    pekerjaan: FinalReportWork[]
+    kendala: FinalReportIssue[]
+    catatan: string[]
+  })[]
+  dokumentasi: FinalReportPhoto[]
+  kendala: FinalReportIssue[]
+  ringkasan: {
+    realisasi_periode_terakhir: number
+    realisasi_bulan_lalu: number
+    realisasi_bulan_terakhir: number
+    realisasi_kumulatif: number
+    rencana_kumulatif: number
+    deviasi: number
+    total_rencana: number
+    sisa_progres: number
+    jumlah_pekerjaan: number
+    jumlah_pekerjaan_selesai: number
+    jumlah_kendala: number
+    jumlah_kendala_terbuka: number
+    jumlah_foto: number
+  } | null
+  /** Kalimat kesimpulan yang disusun backend dari angka laporan. */
+  kesimpulan: string[]
 }
 
 export interface DailyReport {

@@ -1,4 +1,5 @@
 import { DailyReportTable } from '@/components/reports/DailyReportTable'
+import { FinalReportTable } from '@/components/reports/FinalReportTable'
 import { MonthlyReportTable } from '@/components/reports/MonthlyReportTable'
 import { ReportCurveSection } from '@/components/reports/ReportCurveSection'
 import { ReportHeader } from '@/components/reports/ReportHeader'
@@ -10,6 +11,7 @@ import { DatePicker, Select } from '@/components/ui/Field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import {
   useDailyReport,
+  useFinalReport,
   useMilestoneReport,
   useMonthlyReport,
   usePeriods,
@@ -20,23 +22,24 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { pesanError } from '@/lib/api'
 import { reportService, type ExportParams } from '@/services/reportService'
-import { angka, rentangTanggal, romawi, tanggalSingkat } from '@/utils/format'
+import { angka, rentangTanggal, romawi, tanggal, tanggalSingkat } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FileSearch, FileSpreadsheet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-type Jenis = 'harian' | 'mingguan' | 'bulanan' | 'milestone'
+type Jenis = 'harian' | 'mingguan' | 'bulanan' | 'milestone' | 'akhir'
 
 const JENIS: { key: Jenis; label: string }[] = [
   { key: 'harian', label: 'Laporan Harian' },
   { key: 'mingguan', label: 'Laporan Mingguan' },
   { key: 'bulanan', label: 'Laporan Bulanan' },
   { key: 'milestone', label: 'Laporan Milestone' },
+  { key: 'akhir', label: 'Laporan Akhir' },
 ]
 
-// Laporan Kontraktor: mingguan & bulanan, milestone ditampilkan di dalam kedua laporan tersebut.
-const JENIS_KONTRAKTOR: Jenis[] = ['mingguan', 'bulanan']
+// Laporan Kontraktor: mingguan, bulanan, dan akhir; milestone ditampilkan di dalam laporan mingguan & bulanan.
+const JENIS_KONTRAKTOR: Jenis[] = ['mingguan', 'bulanan', 'akhir']
 
 export function ReportsPage() {
   const toast = useToast()
@@ -73,11 +76,12 @@ export function ReportsPage() {
   const mingguan = useWeeklyReport(jenis === 'mingguan' ? projectId : null, periodId)
   const bulanan = useMonthlyReport(jenis === 'bulanan' ? projectId : null, bulanKe)
   const milestone = useMilestoneReport(jenis === 'milestone' ? projectId : null)
+  const akhir = useFinalReport(jenis === 'akhir' ? projectId : null)
 
-  const aktif = jenis === 'harian' ? harian : jenis === 'mingguan' ? mingguan : jenis === 'bulanan' ? bulanan : milestone
+  const aktif = { harian, mingguan, bulanan, milestone, akhir }[jenis]
 
   const paramExport = (): ExportParams | null => {
-    if (!projectId || jenis === 'milestone') return null
+    if (!projectId || jenis === 'milestone' || jenis === 'akhir') return null
 
     if (jenis === 'mingguan') return { tipe: 'MINGGUAN', project_id: projectId, period_id: periodId }
     if (jenis === 'bulanan') return { tipe: 'BULANAN', project_id: projectId, bulan_ke: bulanKe }
@@ -87,6 +91,8 @@ export function ReportsPage() {
 
   const ekspor = useMutation({
     mutationFn: async () => {
+      if (jenis === 'akhir' && projectId) return reportService.exportFinalExcel(projectId)
+
       const payload = paramExport()
 
       if (!payload) {
@@ -121,9 +127,15 @@ export function ReportsPage() {
           ? dari || sampai
             ? rentangTanggal(dari || proyekTerpilih?.tanggal_mulai, sampai || proyekTerpilih?.tanggal_selesai)
             : 'Seluruh masa pelaksanaan'
-          : 'Seluruh periode'
+          : jenis === 'akhir'
+            ? akhir.data?.laporan_terakhir
+              ? `s/d laporan progres ${tanggal(akhir.data.laporan_terakhir.tanggal_laporan)} (${akhir.data.laporan_terakhir.nama_periode})`
+              : 'Belum ada laporan progres'
+            : 'Seluruh periode'
 
-  const siap = !aktif.isLoading && !aktif.error && Boolean(aktif.data)
+  // Laporan akhir baru dapat direkap setelah ada laporan progres yang dikirim.
+  const akhirKosong = jenis === 'akhir' && akhir.data?.laporan_terakhir === null
+  const siap = !aktif.isLoading && !aktif.error && Boolean(aktif.data) && !akhirKosong
   const bisaEkspor = siap && jenis !== 'milestone'
 
   if (memuatProyek) return <LoadingState pesan="Memuat daftar proyek..." />
@@ -135,7 +147,7 @@ export function ReportsPage() {
     <div className="flex flex-col gap-4">
       <div className="no-print">
         <h2 className="text-lg font-semibold text-ink">Laporan</h2>
-        <p className="text-xs text-muted">Pembuatan laporan progres mingguan dan bulanan.</p>
+        <p className="text-xs text-muted">Pembuatan laporan progres mingguan, bulanan, dan laporan akhir.</p>
       </div>
       <Card title="Buat Laporan" description="Pilih proyek, jenis laporan, dan periode. Pratinjau diperbarui otomatis." className="no-print" flush>
         <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
@@ -210,7 +222,7 @@ export function ReportsPage() {
               onClick={() => ekspor.mutate()}
               className="w-full sm:w-auto"
             >
-              Export Excel
+              {jenis === 'akhir' ? 'Unduh Laporan Akhir (Excel)' : 'Unduh Excel'}
             </Button>
           </div>
         </div>
@@ -233,6 +245,13 @@ export function ReportsPage() {
               <div className="py-12">
                 <ErrorState pesan={pesanError(aktif.error)} onRetry={() => void aktif.refetch()} />
               </div>
+            ) : akhirKosong ? (
+              <div className="py-12">
+                <EmptyState
+                  judul="Laporan Akhir belum dapat dibuat"
+                  pesan="Belum tersedia data laporan. Laporan Akhir merekap laporan progres yang sudah dikirim QS, sehingga dapat dibuat setelah ada laporan progres pertama."
+                />
+              </div>
             ) : !aktif.data ? (
               <div className="py-12">
                 <EmptyState
@@ -245,6 +264,7 @@ export function ReportsPage() {
                 {jenis === 'harian' && harian.data && <DailyReportTable data={harian.data} />}
                 {jenis === 'mingguan' && mingguan.data && <WeeklyReportTable data={mingguan.data} />}
                 {jenis === 'bulanan' && bulanan.data && <MonthlyReportTable data={bulanan.data} />}
+                {jenis === 'akhir' && akhir.data && <FinalReportTable data={akhir.data} />}
                 {jenis === 'milestone' && milestone.data && (
                   <div className="bg-white p-4 sm:p-6">
                     <ReportHeader

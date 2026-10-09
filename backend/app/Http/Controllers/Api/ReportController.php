@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\ReportType;
 use App\Exports\DailyReportExport;
+use App\Exports\FinalReportExport;
 use App\Exports\MonthlyReportExport;
 use App\Exports\WeeklyReportExport;
 use App\Http\Controllers\Controller;
@@ -52,6 +53,14 @@ class ReportController extends Controller
         return response()->json(['data' => $this->reports->milestone($project)]);
     }
 
+    /** Laporan akhir: rekap kondisi proyek sampai laporan progres terakhir. */
+    public function final(Request $request): JsonResponse
+    {
+        $project = $this->project($request);
+
+        return response()->json(['data' => $this->reports->final($project)]);
+    }
+
     /** Daftar dokumen laporan yang pernah digenerate. */
     public function documents(Request $request): JsonResponse
     {
@@ -87,6 +96,30 @@ class ReportController extends Controller
         Excel::store($export, $relatif, 'public');
 
         return $this->responseDokumen($request, $project, $tipe, 'EXCEL', $relatif, $namaFile, $periodeMulai, $periodeSelesai);
+    }
+
+    /** Export laporan akhir ke Excel (.xlsx). */
+    public function exportFinalExcel(Request $request): JsonResponse
+    {
+        $project = $this->project($request);
+        $data = $this->reports->final($project);
+
+        abort_if(
+            $data['laporan_terakhir'] === null,
+            422,
+            'Laporan Akhir belum dapat dibuat karena belum ada laporan progres yang dikirim.',
+        );
+
+        $tipe = ReportType::AKHIR->value;
+        $namaFile = $this->namaFile($project, $tipe, 's-d-'.$data['laporan_terakhir']['nama_periode'], 'xlsx');
+        $relatif = 'reports/'.$project->id.'/'.$namaFile;
+
+        Excel::store(new FinalReportExport($data), $relatif, 'public');
+
+        return $this->responseDokumen(
+            $request, $project, $tipe, 'EXCEL', $relatif, $namaFile,
+            $data['header']['tanggal_mulai'], $data['laporan_terakhir']['tanggal_laporan'],
+        );
     }
 
     /** @return array{0:Project,1:array,2:?string,3:?string,4:string} */

@@ -21,7 +21,7 @@ CV-DIVA-ANUGRAH-UTAMA/
 ├── backend/                  # Laravel 12 REST API
 │   ├── app/
 │   │   ├── Enums/            # RoleCode, ProjectStatus, ReportStatus, ReportType
-│   │   ├── Exports/          # Export Excel (harian, mingguan, bulanan)
+│   │   ├── Exports/          # Export Excel (harian, mingguan, bulanan, akhir)
 │   │   ├── Http/
 │   │   │   ├── Controllers/Api/
 │   │   │   ├── Middleware/   # EnsureUserHasRole
@@ -176,7 +176,7 @@ php artisan test --filter=ReportTest   # satu berkas
 
 Cakupan pengujian: login/logout, otorisasi per peran, CRUD proyek, CRUD pekerjaan, perhitungan bobot,
 validasi rencana pekerjaan, input progres (termasuk unggah foto, material, kendala), perhitungan
-progres & Kurva S, deviasi, laporan harian/mingguan/bulanan, dan export Excel.
+progres & Kurva S, deviasi, laporan harian/mingguan/bulanan/akhir, dan export Excel.
 
 Frontend:
 

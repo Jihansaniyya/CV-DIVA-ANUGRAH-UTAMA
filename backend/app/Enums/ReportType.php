@@ -8,4 +8,5 @@ enum ReportType: string
     case MINGGUAN = 'MINGGUAN';
     case BULANAN = 'BULANAN';
     case MILESTONE = 'MILESTONE';
+    case AKHIR = 'AKHIR';
 }

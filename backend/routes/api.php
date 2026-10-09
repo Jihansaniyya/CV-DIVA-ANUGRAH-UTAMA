@@ -95,7 +95,9 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
         Route::get('weekly', [ReportController::class, 'weekly']);
         Route::get('monthly', [ReportController::class, 'monthly']);
         Route::get('milestone', [ReportController::class, 'milestone']);
+        Route::get('final', [ReportController::class, 'final']);
         Route::get('documents', [ReportController::class, 'documents']);
         Route::post('export/excel', [ReportController::class, 'exportExcel']);
+        Route::post('export/final', [ReportController::class, 'exportFinalExcel']);
     });
 });

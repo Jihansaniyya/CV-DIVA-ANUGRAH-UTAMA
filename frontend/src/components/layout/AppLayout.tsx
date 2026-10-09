@@ -21,7 +21,7 @@ const DESKRIPSI: Record<string, string> = {
   '/proyek': 'Data proyek, pekerjaan, dan rencana pelaksanaan',
   '/kurva-s': 'Perbandingan progres rencana dan realisasi',
   '/progres': 'Laporan progres pekerjaan yang dikirim QS',
-  '/laporan': 'Pembuatan laporan progres mingguan dan bulanan',
+  '/laporan': 'Pembuatan laporan progres mingguan, bulanan, dan laporan akhir',
   '/pengguna': 'Pengelolaan akun dan peran pengguna',
   '/pengaturan': 'Pengaturan aplikasi',
 }

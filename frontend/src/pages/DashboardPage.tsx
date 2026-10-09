@@ -154,10 +154,10 @@ export function DashboardPage() {
       </div>
 
       <section className="grid grid-cols-2 gap-3 xl:shrink-0 xl:grid-cols-4">
-        <KpiCard compact label="Total Proyek" value={data.kpi.total_proyek} icon={ClipboardList} tone="navy" />
-        <KpiCard compact label="Total Pekerjaan" value={data.kpi.total_pekerjaan} icon={HardHat} tone="primary" />
-        <KpiCard compact label="Total Pengguna" value={data.kpi.total_pengguna} icon={Users} tone="success" />
-        <KpiCard compact label="Progres Rata-rata" value={persen(data.kpi.progres_rata_rata)} icon={Percent} tone="warning" />
+        <KpiCard compact accent label="Total Proyek" value={data.kpi.total_proyek} icon={ClipboardList} tone="navy" />
+        <KpiCard compact accent label="Total Pekerjaan" value={data.kpi.total_pekerjaan} icon={HardHat} tone="info" />
+        <KpiCard compact accent label="Total Pengguna" value={data.kpi.total_pengguna} icon={Users} tone="neutral" />
+        <KpiCard compact accent label="Progres Rata-rata" value={persen(data.kpi.progres_rata_rata)} icon={Percent} tone="primary" />
 
       </section>
 

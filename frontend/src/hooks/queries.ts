@@ -26,6 +26,7 @@ export const qk = {
   reportWeekly: (id: number, periodId?: number) => ['report', 'weekly', id, periodId] as const,
   reportMonthly: (id: number, bulan: number) => ['report', 'monthly', id, bulan] as const,
   reportMilestone: (id: number) => ['report', 'milestone', id] as const,
+  reportFinal: (id: number) => ['report', 'final', id] as const,
   documents: (id?: number) => ['report', 'documents', id] as const,
 }
 
@@ -92,6 +93,13 @@ export const useMilestoneReport = (id: number | null) =>
   useQuery({
     queryKey: qk.reportMilestone(id ?? 0),
     queryFn: () => reportService.milestone(id as number),
+    enabled: Boolean(id),
+  })
+
+export const useFinalReport = (id: number | null) =>
+  useQuery({
+    queryKey: qk.reportFinal(id ?? 0),
+    queryFn: () => reportService.final(id as number),
     enabled: Boolean(id),
   })
 

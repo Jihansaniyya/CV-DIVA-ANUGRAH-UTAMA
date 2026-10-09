@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\ProjectStatus;
 use App\Enums\ReportStatus;
 use App\Models\Period;
+use App\Models\ProgressReport;
 use App\Models\Project;
 use App\Models\WorkItem;
 use Carbon\CarbonImmutable;
@@ -282,6 +284,288 @@ class ReportService
         ];
     }
 
+    /**
+     * Laporan akhir: rekap pelaksanaan proyek sampai laporan progres terakhir yang sudah dikirim.
+     *
+     * Tidak ada data tersimpan baru. Seluruh angka diturunkan dari sumber yang sama dengan laporan
+     * mingguan/bulanan dan Kurva S, sehingga perubahan progres langsung tercermin di sini:
+     *   - realisasi per pekerjaan = logika laporan bulanan untuk bulan laporan terakhir
+     *     (s/d bulan lalu, bulan terakhir, s/d akhir);
+     *   - rencana per pekerjaan  = SUM(work_plans) sampai periode laporan terakhir;
+     *   - rekap progres per minggu/bulan = titik Kurva S sampai periode laporan terakhir,
+     *     rekap bulanan hanya menjumlahkan minggu di dalam bulannya (tidak dihitung ganda);
+     *   - uraian pekerjaan, kendala, dan dokumentasi = isi laporan progres DIKIRIM.
+     */
+    public function final(Project $project): array
+    {
+        $laporanTerakhir = $project->progressReports()->submitted()
+            ->orderByDesc('tanggal_laporan')
+            ->orderByDesc('id')
+            ->first();
+
+        $periods = $project->periods()->orderBy('urutan')->get();
+        $periodeTerakhir = $laporanTerakhir === null ? null : ($periods->firstWhere('id', $laporanTerakhir->period_id)
+            ?? $periods->last(fn (Period $p) => $p->tanggal_mulai->lessThanOrEqualTo($laporanTerakhir->tanggal_laporan)));
+
+        $kurva = $this->curve->build($project);
+
+        $dasar = [
+            'header' => $this->header($project),
+            'status_proyek' => ['kode' => $project->status->value, 'label' => $project->status->label()],
+            'keterangan_proyek' => $project->keterangan,
+            'kurva_s' => [
+                'titik' => $kurva['titik'],
+                'total_bobot_rencana' => $kurva['ringkasan']['total_bobot_rencana'],
+            ],
+        ];
+
+        if ($laporanTerakhir === null || $periodeTerakhir === null) {
+            return $dasar + [
+                'laporan_terakhir' => null,
+                'kategori' => [],
+                'total' => null,
+                'rekap_bulanan' => [],
+                'rekap_mingguan' => [],
+                'dokumentasi' => [],
+                'kendala' => [],
+                'ringkasan' => null,
+                'kesimpulan' => [],
+            ];
+        }
+
+        $bulanTerakhir = $periodeTerakhir->bulan_ke;
+        $periodeBulanTerakhir = $periods->where('bulan_ke', $bulanTerakhir);
+        $awalProyek = $project->tanggal_mulai->toDateString();
+        $mulaiBulan = CarbonImmutable::parse($periodeBulanTerakhir->first()->tanggal_mulai);
+        $selesaiBulan = CarbonImmutable::parse($periodeBulanTerakhir->last()->tanggal_selesai);
+
+        $bulanLalu = $mulaiBulan->subDay()->lessThan(CarbonImmutable::parse($awalProyek))
+            ? collect()
+            : $this->curve->actualVolumeBetween($project, $awalProyek, $mulaiBulan->subDay()->toDateString());
+        $bulanIni = $this->curve->actualVolumeBetween($project, $mulaiBulan->toDateString(), $selesaiBulan->toDateString());
+
+        $rencanaSd = $project->workPlans()
+            ->whereHas('period', fn ($q) => $q->where('urutan', '<=', $periodeTerakhir->urutan))
+            ->selectRaw('work_item_id, SUM(target_volume) as volume, SUM(target_bobot) as bobot')
+            ->groupBy('work_item_id')
+            ->get()
+            ->keyBy('work_item_id');
+
+        $kategori = $this->groupedRows($project, function (WorkItem $item) use ($bulanLalu, $bulanIni, $rencanaSd) {
+            $volume = (float) $item->volume;
+            $volLalu = (float) ($bulanLalu[$item->id]->volume ?? 0);
+            $bobotLalu = (float) ($bulanLalu[$item->id]->bobot ?? 0);
+            $volIni = (float) ($bulanIni[$item->id]->volume ?? 0);
+            $bobotIni = (float) ($bulanIni[$item->id]->bobot ?? 0);
+            $volSd = round($volLalu + $volIni, 3);
+            $bobotSd = round($bobotLalu + $bobotIni, 4);
+            $volRencana = round((float) ($rencanaSd[$item->id]->volume ?? 0), 3);
+            $bobotRencana = round((float) ($rencanaSd[$item->id]->bobot ?? 0), 4);
+            $persen = $volume > 0 ? round($volSd / $volume * 100, 2) : 0.0;
+
+            return [
+                'rencana_sd' => ['volume' => $volRencana, 'bobot' => $bobotRencana],
+                'persen_rencana' => $volume > 0 ? round($volRencana / $volume * 100, 2) : 0.0,
+                'realisasi_bulan_lalu' => ['volume' => $volLalu, 'bobot' => $bobotLalu],
+                'realisasi_bulan_ini' => ['volume' => $volIni, 'bobot' => $bobotIni],
+                'realisasi_sd_bulan_ini' => ['volume' => $volSd, 'bobot' => $bobotSd],
+                'keterangan_persen' => $persen,
+                'sisa_volume' => round(max($volume - $volSd, 0), 3),
+                'selisih_volume' => round($volSd - $volRencana, 3),
+                'selisih_bobot' => round($bobotSd - $bobotRencana, 4),
+                'selesai' => $volume > 0 && $volSd >= $volume - 0.0005,
+            ];
+        });
+
+        $total = $this->totalOf($kategori, ['rencana_sd', 'realisasi_bulan_lalu', 'realisasi_bulan_ini', 'realisasi_sd_bulan_ini']);
+
+        // Isi laporan progres terkirim sampai laporan terakhir, dikelompokkan per periode (minggu).
+        $laporan = $project->progressReports()->submitted()
+            ->with(['details.workItem.unit', 'issues.workItem', 'photos.detail.workItem', 'period'])
+            ->whereDate('tanggal_laporan', '<=', $laporanTerakhir->tanggal_laporan)
+            ->orderBy('tanggal_laporan')
+            ->orderBy('id')
+            ->get();
+        $laporanPerPeriode = $laporan->groupBy('period_id');
+
+        // Titik Kurva S sampai periode laporan terakhir menjadi rekap progres mingguan.
+        $rekapMingguan = collect($kurva['titik'])
+            ->filter(fn (array $titik) => $titik['urutan'] <= $periodeTerakhir->urutan)
+            ->map(function (array $titik) use ($laporanPerPeriode) {
+                $isi = $laporanPerPeriode->get($titik['period_id'], collect());
+
+                return $titik + [
+                    'minggu_ke_romawi' => ProjectScheduleService::romawi($titik['minggu_ke']),
+                    'jumlah_laporan' => $isi->count(),
+                    'pekerjaan' => $this->uraianDilaksanakan($isi),
+                    'kendala' => $this->daftarKendala($isi),
+                    'catatan' => $isi->pluck('keterangan')->map(fn ($k) => trim((string) $k))->filter()->unique()->values()->all(),
+                ];
+            })
+            ->values();
+
+        $rekapBulanan = $rekapMingguan->groupBy('bulan_ke')->map(function (Collection $minggu, int $bulanKe) use ($laporanPerPeriode) {
+            $akhir = $minggu->last();
+            $sudahBerjalan = $minggu->contains(fn (array $titik) => $titik['aktual'] !== null);
+            $isi = $minggu->flatMap(fn (array $titik) => $laporanPerPeriode->get($titik['period_id'], collect()));
+
+            return [
+                'bulan_ke' => $bulanKe,
+                'bulan_ke_romawi' => ProjectScheduleService::romawi($bulanKe),
+                'tanggal_mulai' => $minggu->first()['tanggal_mulai'],
+                'tanggal_selesai' => $akhir['tanggal_selesai'],
+                'jumlah_minggu' => $minggu->count(),
+                'jumlah_laporan' => $isi->count(),
+                'rencana' => round((float) $minggu->sum('rencana'), 4),
+                'rencana_kumulatif' => $akhir['rencana_kumulatif'],
+                'realisasi' => $sudahBerjalan ? round((float) $minggu->sum(fn (array $titik) => $titik['aktual'] ?? 0), 4) : null,
+                'realisasi_kumulatif' => $minggu->whereNotNull('aktual_kumulatif')->last()['aktual_kumulatif'] ?? null,
+                'deviasi' => $minggu->whereNotNull('deviasi')->last()['deviasi'] ?? null,
+                'pekerjaan' => $this->uraianDilaksanakan($isi),
+                'kendala' => $this->daftarKendala($isi),
+            ];
+        })->values();
+
+        $titikTerakhir = $rekapMingguan->last();
+        $rencanaKumulatif = (float) $titikTerakhir['rencana_kumulatif'];
+        $realisasiKumulatif = (float) ($titikTerakhir['aktual_kumulatif'] ?? $total['realisasi_sd_bulan_ini']['bobot']);
+        $totalRencana = (float) $kurva['ringkasan']['total_bobot_rencana'];
+        $semuaItem = collect($kategori)->flatMap(fn (array $k) => $k['items']);
+        $kendala = $laporan->flatMap(fn ($r) => $this->daftarKendala(collect([$r])));
+
+        $ringkasan = [
+            'realisasi_periode_terakhir' => (float) ($titikTerakhir['aktual'] ?? 0),
+            'realisasi_bulan_lalu' => $total['realisasi_bulan_lalu']['bobot'],
+            'realisasi_bulan_terakhir' => $total['realisasi_bulan_ini']['bobot'],
+            'realisasi_kumulatif' => round($realisasiKumulatif, 4),
+            'rencana_kumulatif' => round($rencanaKumulatif, 4),
+            'deviasi' => round($realisasiKumulatif - $rencanaKumulatif, 4),
+            'total_rencana' => round($totalRencana, 4),
+            'sisa_progres' => round(max($totalRencana - $realisasiKumulatif, 0), 4),
+            'jumlah_pekerjaan' => $semuaItem->count(),
+            'jumlah_pekerjaan_selesai' => $semuaItem->where('selesai', true)->count(),
+            'jumlah_kendala' => $kendala->count(),
+            'jumlah_kendala_terbuka' => $kendala->where('status', '!=', 'SELESAI')->count(),
+            'jumlah_foto' => $laporan->sum(fn ($r) => $r->photos->count()),
+        ];
+
+        return $dasar + [
+            'laporan_terakhir' => [
+                'tanggal_laporan' => $laporanTerakhir->tanggal_laporan->toDateString(),
+                'period_id' => $periodeTerakhir->id,
+                'nama_periode' => $periodeTerakhir->nama_periode,
+                'minggu_ke' => $periodeTerakhir->minggu_ke,
+                'minggu_ke_romawi' => ProjectScheduleService::romawi($periodeTerakhir->minggu_ke),
+                'bulan_ke' => $bulanTerakhir,
+                'bulan_ke_romawi' => ProjectScheduleService::romawi($bulanTerakhir),
+                'tanggal_mulai' => $periodeTerakhir->tanggal_mulai->toDateString(),
+                'tanggal_selesai' => $periodeTerakhir->tanggal_selesai->toDateString(),
+                'bulan_tanggal_mulai' => $mulaiBulan->toDateString(),
+                'bulan_tanggal_selesai' => $selesaiBulan->toDateString(),
+                'jumlah_laporan' => $laporan->count(),
+            ],
+            'kategori' => $kategori,
+            'total' => $total,
+            'rekap_bulanan' => $rekapBulanan->all(),
+            'rekap_mingguan' => $rekapMingguan->all(),
+            'dokumentasi' => $laporan->flatMap(fn ($r) => $r->photos->map(fn ($foto) => [
+                'id' => $foto->id,
+                'file_path' => $foto->file_path,
+                'url' => $foto->url(),
+                'caption' => $foto->caption,
+                'diunggah_pada' => $foto->diunggah_pada?->toIso8601String(),
+                'tanggal_laporan' => $r->tanggal_laporan->toDateString(),
+                'nama_periode' => $r->period?->nama_periode,
+                'lokasi' => $r->lokasi,
+                'uraian_pekerjaan' => $foto->detail?->workItem?->uraian_pekerjaan,
+                'keterangan' => $r->keterangan,
+            ]))->values()->all(),
+            'kendala' => $kendala->values()->all(),
+            'ringkasan' => $ringkasan,
+            'kesimpulan' => $this->kesimpulanAkhir($project, $periodeTerakhir, $ringkasan),
+        ];
+    }
+
+    /**
+     * Pekerjaan yang dilaporkan pada sekumpulan laporan progres, volume dijumlahkan per pekerjaan.
+     *
+     * @param  Collection<int,ProgressReport>  $laporan
+     * @return list<array{uraian:string,satuan:?string,volume:float,bobot:float}>
+     */
+    private function uraianDilaksanakan(Collection $laporan): array
+    {
+        return $laporan->flatMap->details
+            ->filter(fn ($d) => (float) $d->volume_realisasi > 0 && $d->workItem !== null)
+            ->groupBy('work_item_id')
+            ->map(fn (Collection $baris) => [
+                'uraian' => $baris->first()->workItem->uraian_pekerjaan,
+                'satuan' => $baris->first()->workItem->unit?->code,
+                'volume' => round((float) $baris->sum('volume_realisasi'), 3),
+                'bobot' => round((float) $baris->sum('bobot_realisasi'), 4),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int,ProgressReport>  $laporan
+     * @return list<array<string,mixed>>
+     */
+    private function daftarKendala(Collection $laporan): array
+    {
+        return $laporan->flatMap(fn ($r) => $r->issues->map(fn ($i) => [
+            'tanggal_laporan' => $r->tanggal_laporan->toDateString(),
+            'nama_periode' => $r->period?->nama_periode,
+            'jenis_kendala' => $i->jenis_kendala,
+            'pekerjaan' => $i->workItem?->uraian_pekerjaan,
+            'deskripsi' => ProgressService::gabungKendala($i->deskripsi, $i->alasan_keterlambatan),
+            'tindak_lanjut' => $i->tindak_lanjut,
+            'status' => $i->status,
+        ]))->values()->all();
+    }
+
+    /**
+     * Kesimpulan pelaksanaan berdasarkan angka laporan. Proyek hanya disebut selesai bila status
+     * proyek SELESAI dan realisasi kumulatif sudah mencapai total rencana.
+     *
+     * @return list<string>
+     */
+    private function kesimpulanAkhir(Project $project, Period $periodeTerakhir, array $r): array
+    {
+        $persen = fn (float $nilai) => number_format($nilai, 2, ',', '.').'%';
+        $statusSelesai = $project->status === ProjectStatus::SELESAI;
+        $progresPenuh = $r['total_rencana'] > 0 && $r['realisasi_kumulatif'] >= $r['total_rencana'] - 0.005;
+
+        $hasil = [];
+
+        if ($statusSelesai && $progresPenuh) {
+            $hasil[] = 'Proyek telah selesai dilaksanakan dengan realisasi progres '.$persen($r['realisasi_kumulatif'])
+                .' dari total rencana '.$persen($r['total_rencana']).'.';
+        } else {
+            $hasil[] = 'Proyek belum dinyatakan selesai. Realisasi progres sampai '.$periodeTerakhir->nama_periode
+                .' sebesar '.$persen($r['realisasi_kumulatif']).' dari total rencana '.$persen($r['total_rencana'])
+                .', sisa progres '.$persen($r['sisa_progres']).'.';
+
+            if ($statusSelesai) {
+                $hasil[] = 'Status proyek tercatat Selesai, namun realisasi progres yang dilaporkan belum mencapai total rencana sehingga perlu diverifikasi.';
+            }
+        }
+
+        $hasil[] = match (true) {
+            $r['deviasi'] < -0.005 => 'Realisasi tertinggal '.$persen(abs($r['deviasi'])).' dari rencana kumulatif '.$persen($r['rencana_kumulatif']).' pada periode laporan terakhir.',
+            $r['deviasi'] > 0.005 => 'Realisasi lebih cepat '.$persen($r['deviasi']).' dari rencana kumulatif '.$persen($r['rencana_kumulatif']).' pada periode laporan terakhir.',
+            default => 'Realisasi sesuai dengan rencana kumulatif '.$persen($r['rencana_kumulatif']).' pada periode laporan terakhir.',
+        };
+
+        $hasil[] = $r['jumlah_pekerjaan_selesai'].' dari '.$r['jumlah_pekerjaan'].' item pekerjaan telah mencapai volume kontrak.';
+
+        if ($r['jumlah_kendala'] > 0) {
+            $hasil[] = 'Tercatat '.$r['jumlah_kendala'].' kendala selama pelaksanaan, '.$r['jumlah_kendala_terbuka'].' di antaranya belum berstatus selesai.';
+        }
+
+        return $hasil;
+    }
+
     /** Laporan milestone: target tahapan penting vs capaian progres. */
     public function milestone(Project $project): array
     {
@@ -384,7 +668,7 @@ class ReportService
             'bobot' => round((float) $koleksi->sum('bobot'), 4),
         ];
 
-        foreach (['realisasi_lalu', 'realisasi_ini', 'realisasi_sd', 'realisasi_bulan_lalu', 'realisasi_bulan_ini', 'realisasi_sd_bulan_ini'] as $kolom) {
+        foreach (['rencana_sd', 'realisasi_lalu', 'realisasi_ini', 'realisasi_sd', 'realisasi_bulan_lalu', 'realisasi_bulan_ini', 'realisasi_sd_bulan_ini'] as $kolom) {
             if ($koleksi->first() && array_key_exists($kolom, $koleksi->first())) {
                 $subtotal[$kolom] = [
                     'bobot' => round((float) $koleksi->sum(fn ($r) => $r[$kolom]['bobot']), 4),

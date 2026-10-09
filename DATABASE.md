@@ -142,7 +142,7 @@ Kendala dan alasan keterlambatan diisi sebagai **satu narasi** pada `deskripsi`.
 data lama digabung oleh `ProgressService::gabungKendala()`.
 
 ### `report_documents`
-`id`, `project_id` FK, `user_id` FK nullable, `tipe_laporan` enum(`HARIAN`,`MINGGUAN`,`BULANAN`,`MILESTONE`),
+`id`, `project_id` FK, `user_id` FK nullable, `tipe_laporan` enum(`HARIAN`,`MINGGUAN`,`BULANAN`,`MILESTONE`,`AKHIR`),
 `format` enum(`EXCEL`,`WORD`), `periode_mulai`, `periode_selesai`, `file_path`, `file_name`, `digenerate_pada`.
 
 ## 3. Relasi dan Kardinalitas
@@ -257,6 +257,33 @@ bobot realisasi          = persentase × bobot pekerjaan / 100
 
 Prinsip yang sama dipakai pada laporan bulanan dengan istilah *realisasi bulan lalu*, *realisasi bulan
 ini*, dan *realisasi s/d bulan ini*.
+
+### 4.5a Laporan akhir — `ReportService::final()`
+
+Laporan akhir tidak menyimpan data baru; seluruh angka diturunkan dari laporan progres berstatus
+`DIKIRIM`, sumber yang sama dengan laporan mingguan, bulanan, dan Kurva S.
+
+```
+laporan terakhir       = laporan progres DIKIRIM dengan tanggal_laporan paling akhir
+periode terakhir       = periode laporan tersebut; bulan terakhir = bulan_ke periode tersebut
+realisasi per pekerjaan = rumus §4.5 untuk bulan terakhir (s/d bulan lalu, bulan terakhir, s/d akhir)
+rekap progres          = titik Kurva S (§4.4) periode 1..periode terakhir, juga dijumlahkan per bulan
+deviasi akhir          = realisasi kumulatif − rencana kumulatif pada periode terakhir
+rencana per pekerjaan  = SUM(work_plans.target_volume / target_bobot) periode 1..periode terakhir
+sisa volume            = MAX(volume kontrak − volume realisasi s/d akhir, 0)
+selisih                = realisasi s/d akhir − rencana s/d periode terakhir (volume & bobot)
+pekerjaan selesai      = volume realisasi s/d akhir ≥ volume kontrak
+rekap bulanan          = jumlah minggu di dalam bulan itu saja (satu minggu tidak terhitung di dua bulan)
+uraian/kendala/foto    = isi laporan progres DIKIRIM, dikelompokkan per period_id
+```
+
+Status proyek diambil dari `projects.status`. Kesimpulan hanya menyatakan proyek selesai bila status
+`SELESAI` **dan** realisasi kumulatif sudah mencapai total bobot rencana. Bila belum ada laporan progres
+yang dikirim, laporan akhir belum dapat dibuat.
+
+Export Excel (`FinalReportExport`) berisi tujuh sheet: Informasi Proyek, Rekap Mingguan, Rekap Bulanan,
+Rencana & Realisasi, Kurva S (tabel + grafik garis rencana vs realisasi kumulatif), Dokumentasi (foto
+disisipkan, diperkecil maks. 1000 px), dan Rekapitulasi Akhir (kendala, kesimpulan, kolom pengesahan).
 
 ### 4.6 Periode pelaksanaan — `ProjectScheduleService`
 

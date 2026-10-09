@@ -1,5 +1,5 @@
 import { api } from '@/lib/api'
-import type { DailyReport, MilestoneReport, MonthlyReport, ReportDocument, WeeklyReport } from '@/types'
+import type { DailyReport, FinalReport, MilestoneReport, MonthlyReport, ReportDocument, WeeklyReport } from '@/types'
 
 export const reportService = {
   async daily(projectId: number, dari?: string, sampai?: string): Promise<DailyReport> {
@@ -34,6 +34,14 @@ export const reportService = {
     return data.data
   },
 
+  async final(projectId: number): Promise<FinalReport> {
+    const { data } = await api.get<{ data: FinalReport }>('/reports/final', {
+      params: { project_id: projectId },
+    })
+
+    return data.data
+  },
+
   async documents(projectId?: number): Promise<ReportDocument[]> {
     const { data } = await api.get<{ data: ReportDocument[] }>('/reports/documents', {
       params: { project_id: projectId },
@@ -44,6 +52,12 @@ export const reportService = {
 
   async exportExcel(params: ExportParams): Promise<ReportDocument> {
     const { data } = await api.post<{ data: ReportDocument }>('/reports/export/excel', params)
+
+    return data.data
+  },
+
+  async exportFinalExcel(projectId: number): Promise<ReportDocument> {
+    const { data } = await api.post<{ data: ReportDocument }>('/reports/export/final', { project_id: projectId })
 
     return data.data
   },
