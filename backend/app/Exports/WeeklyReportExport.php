@@ -14,11 +14,16 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 /** Export Excel laporan mingguan mengikuti struktur laporan-mingguan.png. */
 class WeeklyReportExport implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
+    use MenataIdentitasProyek;
+
     private int $barisTabelMulai = 11;
 
     private int $barisTabelSelesai = 11;
 
     private int $barisRekapSelesai = 11;
+
+    /** @var array<int, array{0: string, 1: ?string, 2: ?string, 3: ?string}> */
+    private array $identitas = [];
 
     public function __construct(private readonly array $data) {}
 
@@ -37,12 +42,18 @@ class WeeklyReportExport implements FromArray, WithColumnWidths, WithEvents, Wit
         $rows[] = $this->row(['LAPORAN MINGGUAN']);
         $rows[] = $kosong;
 
-        $rows[] = $this->row(['PEKERJAAN', ':', $h['nama_proyek'], null, null, null, null, null, null, 'Bulan Ke', ':', ReportFormatter::romawi((int) $p['bulan_ke'])]);
-        $rows[] = $this->row(['LOKASI', ':', $h['lokasi'], null, null, null, null, null, null, 'Minggu Ke', ':', ReportFormatter::romawi((int) $p['minggu_ke'])]);
-        $rows[] = $this->row(['SUMBER DANA', ':', $h['sumber_dana'], null, null, null, null, null, null, 'Periode', ':', ReportFormatter::rentangTanggal($p['tanggal_mulai'], $p['tanggal_selesai'])]);
-        $rows[] = $this->row(['TAHUN ANGGARAN', ':', $h['tahun_anggaran'], null, null, null, null, null, null, 'Kontraktor Pelaksana', ':', $h['kontraktor_pelaksana']]);
-        $rows[] = $this->row(['NO. SPK', ':', $h['nomor_spk'], null, null, null, null, null, null, 'Konsultan Pengawas', ':', $h['konsultan_pengawas']]);
-        $rows[] = $this->row(['TANGGAL SPK', ':', ReportFormatter::tanggal($h['tanggal_spk'])]);
+        $this->identitas = [
+            ['PEKERJAAN', $h['nama_proyek'], 'Bulan Ke', ReportFormatter::romawi((int) $p['bulan_ke'])],
+            ['LOKASI', $h['lokasi'], 'Minggu Ke', ReportFormatter::romawi((int) $p['minggu_ke'])],
+            ['SUMBER DANA', $h['sumber_dana'], 'Periode', ReportFormatter::rentangTanggal($p['tanggal_mulai'], $p['tanggal_selesai'])],
+            ['TAHUN ANGGARAN', (string) $h['tahun_anggaran'], 'Kontraktor Pelaksana', $h['kontraktor_pelaksana']],
+            ['NO. SPK', $h['nomor_spk'], 'Konsultan Pengawas', $h['konsultan_pengawas']],
+            ['TANGGAL SPK', ReportFormatter::tanggal($h['tanggal_spk']), null, null],
+        ];
+
+        foreach ($this->identitas as $item) {
+            $rows[] = $this->row($this->barisIdentitas($item));
+        }
         $rows[] = $kosong;
 
         // Header tabel (2 baris, kolom grup di-merge pada registerEvents).
@@ -167,8 +178,7 @@ class WeeklyReportExport implements FromArray, WithColumnWidths, WithEvents, Wit
                     ->getNumberFormat()->setFormatCode('#,##0.00');
                 $sheet->getStyle('E'.$this->barisTabelMulai.':F'.$this->barisTabelSelesai)
                     ->getNumberFormat()->setFormatCode('#,##0.00');
-                $sheet->getStyle('A3:A8')->getFont()->setBold(true);
-                $sheet->getStyle('J3:J7')->getFont()->setBold(true);
+                $this->styleIdentitas($sheet, $this->identitas, 'N', $this->columnWidths());
                 $sheet->getStyle('B'.$this->barisTabelSelesai.':N'.$this->barisRekapSelesai)->getFont()->setBold(true);
                 $sheet->getStyle('M'.($this->barisTabelSelesai + 1).':M'.$this->barisRekapSelesai)
                     ->getNumberFormat()->setFormatCode('#,##0.00');

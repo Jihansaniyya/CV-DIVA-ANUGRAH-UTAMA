@@ -15,6 +15,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 /** Export Excel laporan bulanan mengikuti struktur laporan-bulanan.png. */
 class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
+    use MenataIdentitasProyek;
+
     private int $barisRingkasanMulai = 12;
 
     private int $barisRingkasanSelesai = 12;
@@ -31,11 +33,18 @@ class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, Wi
 
     private int $barisRekapMulai = 12;
 
+    /** Blok identitas kanan minimal sampai kolom N agar isinya tidak terlalu sempit. */
+    private int $kolomIdentitasAkhir;
+
+    /** @var array<int, array{0: string, 1: ?string, 2: ?string, 3: ?string}> */
+    private array $identitas = [];
+
     public function __construct(private readonly array $data)
     {
         $this->jumlahPeriode = count($this->data['kolom_periode']);
         // 7 kolom identitas + kolom periode + 1 kolom keterangan
         $this->jumlahKolom = 7 + $this->jumlahPeriode + 1;
+        $this->kolomIdentitasAkhir = max($this->jumlahKolom, 14);
     }
 
     public function title(): string
@@ -54,12 +63,18 @@ class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, Wi
         $rows = [];
         $rows[] = $this->row(['LAPORAN BULANAN']);
         $rows[] = $kosong;
-        $rows[] = $this->rowWithRight(['PEKERJAAN', ':', $h['nama_proyek']], $kolomKanan, ['Bulan Ke', ':', ReportFormatter::romawi((int) $p['bulan_ke'])]);
-        $rows[] = $this->rowWithRight(['LOKASI', ':', $h['lokasi']], $kolomKanan, ['Periode', ':', ReportFormatter::rentangTanggal($p['tanggal_mulai'], $p['tanggal_selesai'])]);
-        $rows[] = $this->rowWithRight(['SUMBER DANA', ':', $h['sumber_dana']], $kolomKanan, ['Kontraktor Pelaksana', ':', $h['kontraktor_pelaksana']]);
-        $rows[] = $this->rowWithRight(['TAHUN ANGGARAN', ':', $h['tahun_anggaran']], $kolomKanan, ['Konsultan Pengawas', ':', $h['konsultan_pengawas']]);
-        $rows[] = $this->row(['NO. SPK', ':', $h['nomor_spk']]);
-        $rows[] = $this->row(['TANGGAL SPK', ':', ReportFormatter::tanggal($h['tanggal_spk'])]);
+        $this->identitas = [
+            ['PEKERJAAN', $h['nama_proyek'], 'Bulan Ke', ReportFormatter::romawi((int) $p['bulan_ke'])],
+            ['LOKASI', $h['lokasi'], 'Periode', ReportFormatter::rentangTanggal($p['tanggal_mulai'], $p['tanggal_selesai'])],
+            ['SUMBER DANA', $h['sumber_dana'], 'Kontraktor Pelaksana', $h['kontraktor_pelaksana']],
+            ['TAHUN ANGGARAN', (string) $h['tahun_anggaran'], 'Konsultan Pengawas', $h['konsultan_pengawas']],
+            ['NO. SPK', $h['nomor_spk'], null, null],
+            ['TANGGAL SPK', ReportFormatter::tanggal($h['tanggal_spk']), null, null],
+        ];
+
+        foreach ($this->identitas as $item) {
+            $rows[] = $this->row($this->barisIdentitas($item));
+        }
         $rows[] = $kosong;
 
         $this->barisHeaderTabel = count($rows) + 1;
@@ -189,6 +204,11 @@ class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, Wi
 
         $widths[Coordinate::stringFromColumnIndex($this->jumlahKolom)] = 13;
 
+        // Kolom tambahan di luar tabel bila periode sedikit, khusus untuk blok identitas.
+        for ($i = $this->jumlahKolom + 1; $i <= $this->kolomIdentitasAkhir; $i++) {
+            $widths[Coordinate::stringFromColumnIndex($i)] = 12;
+        }
+
         return $widths;
     }
 
@@ -225,7 +245,12 @@ class MonthlyReportExport implements FromArray, WithColumnWidths, WithEvents, Wi
                 $sheet->getStyle('D'.$this->barisTabelMulai.':'.$kolomTerakhir.$this->barisTabelSelesai)
                     ->getNumberFormat()->setFormatCode('#,##0.00');
 
-                $sheet->getStyle('A3:A8')->getFont()->setBold(true);
+                $this->styleIdentitas(
+                    $sheet,
+                    $this->identitas,
+                    Coordinate::stringFromColumnIndex($this->kolomIdentitasAkhir),
+                    $this->columnWidths(),
+                );
                 $sheet->getStyle('B'.$this->barisRekapMulai.':'.$kolomTerakhir.$this->barisTabelSelesai)->getFont()->setBold(true);
 
                 $ringkasan = 'B'.$this->barisRingkasanMulai.':C'.$this->barisRingkasanSelesai;

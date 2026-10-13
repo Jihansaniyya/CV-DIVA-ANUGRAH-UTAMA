@@ -1,5 +1,7 @@
 import { StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
+import { Select } from '@/components/ui/Field'
+import { KpiCard } from '@/components/ui/KpiCard'
 import { Pagination } from '@/components/ui/Pagination'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState } from '@/components/ui/State'
@@ -8,6 +10,7 @@ import type { DashboardData, DashboardProjectRow } from '@/types'
 import { cn } from '@/utils/cn'
 import { deviasi, hariIni, persen, tanggal, tanggalSingkat } from '@/utils/format'
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, HardHat, type LucideIcon } from 'lucide-react'
+import type { ComponentProps } from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -28,26 +31,14 @@ const COCOK: Record<Filter, (baris: DashboardProjectRow) => boolean> = {
   belum: (baris) => baris.status === 'BELUM_DIMULAI',
 }
 
-type Nada = 'navy' | 'warning' | 'success' | 'netral' | 'danger'
-
-/**
- * Warna kartu filter: garis atas, lencana ikon, dan tampilan saat dipilih.
- * Kelas ditulis lengkap (bukan dirangkai) agar terbaca oleh Tailwind.
- */
-const WARNA: Record<Nada, { garis: string; ikon: string; aktif: string }> = {
-  navy: { garis: 'border-t-navy', ikon: 'bg-navy/8 text-navy', aktif: 'bg-navy/4 ring-navy/60' },
-  warning: { garis: 'border-t-warning', ikon: 'bg-warning-soft text-warning', aktif: 'bg-warning-soft/50 ring-warning/70' },
-  success: { garis: 'border-t-success', ikon: 'bg-success-soft text-success', aktif: 'bg-success-soft/50 ring-success/60' },
-  netral: { garis: 'border-t-muted/40', ikon: 'bg-surface text-muted', aktif: 'bg-surface ring-muted/50' },
-  danger: { garis: 'border-t-danger', ikon: 'bg-danger-soft text-danger', aktif: 'bg-danger-soft/50 ring-danger/60' },
-}
+type Nada = NonNullable<ComponentProps<typeof KpiCard>['tone']>
 
 /** Pembagian proyek per status; jumlah keempatnya sama dengan total proyek. */
 const FILTER_STATUS: { kunci: Exclude<Filter, 'tertinggal'>; label: string; ikon: LucideIcon; nada: Nada }[] = [
   { kunci: 'semua', label: 'Semua Proyek', ikon: ClipboardList, nada: 'navy' },
   { kunci: 'berjalan', label: 'Sedang Berjalan', ikon: HardHat, nada: 'warning' },
   { kunci: 'selesai', label: 'Selesai', ikon: CheckCircle2, nada: 'success' },
-  { kunci: 'belum', label: 'Belum Dimulai', ikon: CalendarClock, nada: 'netral' },
+  { kunci: 'belum', label: 'Belum Dimulai', ikon: CalendarClock, nada: 'neutral' },
 ]
 
 const JUDUL_FILTER: Record<Filter, string> = {
@@ -67,55 +58,6 @@ function TeksDeviasi({ nilai, className }: { nilai: number; className?: string }
   )
 }
 
-/** Kartu angka yang sekaligus menjadi filter tabel proyek. */
-function KartuFilter({
-  label,
-  jumlah,
-  ikon: Ikon,
-  nada,
-  keterangan,
-  aktif,
-  onClick,
-  className,
-}: {
-  label: string
-  jumlah: number
-  ikon: LucideIcon
-  nada: Nada
-  keterangan?: string
-  aktif: boolean
-  onClick: () => void
-  className?: string
-}) {
-  const warna = WARNA[nada]
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={aktif}
-      className={cn(
-        'app-card flex items-start justify-between gap-3 border-t-[3px] px-4 py-3.5 text-left transition-colors',
-        'focus-visible:ring-2 focus-visible:ring-navy/30 focus-visible:outline-none',
-        warna.garis,
-        aktif ? cn('ring-1', warna.aktif) : 'hover:bg-surface/50',
-        className,
-      )}
-    >
-      <span className="min-w-0">
-        <span className="block truncate text-xs font-medium text-muted">{label}</span>
-        <span className="mt-1.5 flex items-baseline gap-2">
-          <span className={cn('text-2xl leading-none font-semibold tabular-nums', nada === 'danger' ? 'text-danger' : 'text-ink')}>{jumlah}</span>
-          {keterangan && <span className="truncate text-xs text-muted">{keterangan}</span>}
-        </span>
-      </span>
-      <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', warna.ikon)}>
-        <Ikon className="size-[18px]" aria-hidden />
-      </span>
-    </button>
-  )
-}
-
 function NamaProyek({ proyek }: { proyek: DashboardProjectRow }) {
   return (
     <Link to={`/kurva-s?project_id=${proyek.id}`} className="font-medium text-ink hover:text-primary" title="Lihat Kurva S">
@@ -124,7 +66,15 @@ function NamaProyek({ proyek }: { proyek: DashboardProjectRow }) {
   )
 }
 
-function MonitoringProyek({ proyek, filter }: { proyek: DashboardProjectRow[]; filter: Filter }) {
+function MonitoringProyek({
+  proyek,
+  filter,
+  onFilterChange,
+}: {
+  proyek: DashboardProjectRow[]
+  filter: Filter
+  onFilterChange: (filter: Filter) => void
+}) {
   const [halaman, setHalaman] = useState(1)
   const [filterSebelumnya, setFilterSebelumnya] = useState(filter)
 
@@ -145,6 +95,20 @@ function MonitoringProyek({ proyek, filter }: { proyek: DashboardProjectRow[]; f
     <Card
       title="Monitoring Proyek"
       description={`${JUDUL_FILTER[filter]} · paling tertinggal di atas`}
+      action={
+        <Select
+          aria-label="Filter proyek"
+          value={filter}
+          onChange={(event) => onFilterChange(event.target.value as Filter)}
+          className="py-1.5 text-xs"
+        >
+          {(Object.keys(JUDUL_FILTER) as Filter[]).map((kunci) => (
+            <option key={kunci} value={kunci}>
+              {JUDUL_FILTER[kunci]}
+            </option>
+          ))}
+        </Select>
+      }
       className="flex flex-col xl:min-h-0"
       bodyClassName="flex flex-col xl:min-h-0 xl:flex-1"
       flush
@@ -293,36 +257,36 @@ export function KontraktorDashboard({ data }: { data: DashboardData }) {
       </div>
 
       {/* Empat kartu status membagi seluruh proyek; kartu Tertinggal adalah peringatan dari proyek berjalan, sengaja dipisah. */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:gap-0 xl:shrink-0" role="group" aria-label="Filter proyek">
+      <div className="flex flex-col gap-3 lg:flex-row lg:gap-0 xl:shrink-0">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:flex-[4]">
           {FILTER_STATUS.map((item) => (
-            <KartuFilter
+            <KpiCard
               key={item.kunci}
+              compact
+              accent
               label={item.label}
-              jumlah={proyek.filter(COCOK[item.kunci]).length}
-              ikon={item.ikon}
-              nada={item.nada}
-              aktif={filter === item.kunci}
-              onClick={() => setFilter(item.kunci)}
+              value={proyek.filter(COCOK[item.kunci]).length}
+              icon={item.ikon}
+              tone={item.nada}
             />
           ))}
         </div>
         <div className="hidden w-px shrink-0 bg-line lg:mx-4 lg:block" aria-hidden />
-        <KartuFilter
+        <KpiCard
+          compact
+          accent
           className="lg:flex-1"
           label="Tertinggal"
-          jumlah={jumlahTertinggal}
-          ikon={jumlahTertinggal > 0 ? AlertTriangle : CheckCircle2}
-          nada={jumlahTertinggal > 0 ? 'danger' : 'netral'}
-          keterangan={jumlahTertinggal > 0 ? `dari ${jumlahBerjalan} berjalan` : 'Semua sesuai rencana'}
-          aktif={filter === 'tertinggal'}
-          onClick={() => setFilter('tertinggal')}
+          value={jumlahTertinggal}
+          icon={jumlahTertinggal > 0 ? AlertTriangle : CheckCircle2}
+          tone={jumlahTertinggal > 0 ? 'danger' : 'neutral'}
+          hint={jumlahTertinggal > 0 ? `dari ${jumlahBerjalan} berjalan` : 'Semua sesuai rencana'}
         />
       </div>
 
       {/* Layar lebar: tabel dan progres terbaru mengisi sisa tinggi layar dan menggulir isinya sendiri. */}
       <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-[minmax(0,1fr)]">
-        <MonitoringProyek proyek={proyek} filter={filter} />
+        <MonitoringProyek proyek={proyek} filter={filter} onFilterChange={setFilter} />
         <ProgresTerbaru laporan={data.laporan_terbaru ?? []} />
       </div>
     </div>
