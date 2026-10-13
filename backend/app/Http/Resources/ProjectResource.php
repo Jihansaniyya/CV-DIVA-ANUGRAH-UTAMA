@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\WorkPlanService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -34,7 +35,18 @@ class ProjectResource extends JsonResource
             'progres_aktual' => $this->when(isset($this->progres_aktual), fn () => (float) $this->progres_aktual),
             'progres_rencana' => $this->when(isset($this->progres_rencana), fn () => (float) $this->progres_rencana),
             'deviasi' => $this->when(isset($this->deviasi), fn () => (float) $this->deviasi),
+            // Diisi lewat withSum/loadSum; progres hanya dapat ditambahkan bila rencana sudah 100%.
+            'total_bobot_rencana' => $this->when($this->dimuatTotalBobotRencana(), fn () => round((float) $this->total_bobot_rencana, 4)),
+            'rencana_lengkap' => $this->when(
+                $this->dimuatTotalBobotRencana(),
+                fn () => round((float) $this->total_bobot_rencana, 4) >= WorkPlanService::BATAS_RENCANA_LENGKAP
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
+    }
+
+    private function dimuatTotalBobotRencana(): bool
+    {
+        return array_key_exists('total_bobot_rencana', $this->resource->getAttributes());
     }
 }

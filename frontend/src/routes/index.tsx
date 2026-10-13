@@ -34,7 +34,10 @@ export function AppRoutes() {
             <Route path="/kurva-s" element={<CurveSPage />} />
           </Route>
 
-          <Route path="/progres" element={<ProgressPage />} />
+          {/* Admin melihat progres per proyek lewat tab Progres pada detail proyek, bukan daftar gabungan. */}
+          <Route element={<RoleRoute roles={['QS', 'KONTRAKTOR']} />}>
+            <Route path="/progres" element={<ProgressPage />} />
+          </Route>
           <Route element={<RoleRoute roles={['QS']} />}>
             <Route path="/progres/baru" element={<ProgressFormPage />} />
           </Route>

@@ -1,14 +1,17 @@
 import { CurveSChart } from '@/components/charts/CurveSChart'
 import { Badge, DeviationBadge, warnaDeviasi } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { useCurveS } from '@/hooks/queries'
+import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
 import { cn } from '@/utils/cn'
 import { angka, deviasi, persen, rentangTanggal, tanggalSingkat } from '@/utils/format'
 import { Flag, LineChart, Target, TrendingUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const STATUS_MILESTONE: Record<string, { label: string; tone: 'success' | 'danger' | 'neutral' }> = {
   TERCAPAI: { label: 'Tercapai', tone: 'success' },
@@ -18,6 +21,7 @@ const STATUS_MILESTONE: Record<string, { label: string; tone: 'success' | 'dange
 
 export function CurveTab({ projectId }: { projectId: number }) {
   const { data, isLoading, error, refetch } = useCurveS(projectId)
+  const { punyaPeran } = useAuth()
 
   if (isLoading) return <LoadingState pesan="Memuat Kurva S..." />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
@@ -30,6 +34,25 @@ export function CurveTab({ projectId }: { projectId: number }) {
   }
 
   const { ringkasan } = data
+
+  // Sejalan dengan aturan progres: Kurva S baru terbentuk setelah bobot rencana pekerjaan 100%.
+  if (!ringkasan.rencana_lengkap) {
+    return (
+      <Card>
+        <EmptyState
+          judul="Kurva S belum terbentuk"
+          pesan={`Rencana pekerjaan baru dijadwalkan ${persen(ringkasan.total_bobot_rencana)} dari total bobot pekerjaan. Kurva S terbentuk setelah Admin melengkapi rencana hingga 100%.`}
+          aksi={
+            punyaPeran('ADMIN') ? (
+              <Link to={`/proyek/${projectId}?tab=rencana`}>
+                <Button size="sm">Lengkapi Rencana</Button>
+              </Link>
+            ) : undefined
+          }
+        />
+      </Card>
+    )
+  }
   const periodeBerjalan = [...data.titik].reverse().find((titik) => titik.aktual_kumulatif !== null)
   const titikPerPeriode = new Map(data.titik.map((titik) => [titik.period_id, titik]))
 

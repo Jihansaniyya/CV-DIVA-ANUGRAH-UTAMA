@@ -76,6 +76,9 @@ export function ProgressDetailPage() {
 
   const bolehUbah = punyaPeran('QS') && laporan.user_id === user?.id && laporan.status === 'DRAFT'
   const kontraktor = punyaPeran('KONTRAKTOR')
+  // Admin tidak punya daftar progres gabungan; kembali ke tab Progres pada proyek laporan ini.
+  const admin = punyaPeran('ADMIN')
+  const tautanKembali = admin ? `/proyek/${laporan.project_id}?tab=progres` : '/progres'
 
   const foto = laporan.foto ?? []
   const kendala = laporan.kendala ?? []
@@ -85,9 +88,9 @@ export function ProgressDetailPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <Link to="/progres" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-ink">
+          <Link to={tautanKembali} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-ink">
             <ArrowLeft className="size-4" aria-hidden />
-            Kembali ke daftar progres
+            {admin ? 'Kembali ke progres proyek' : 'Kembali ke daftar progres'}
           </Link>
           <h2 className="mt-2 flex flex-wrap items-center gap-2 text-lg leading-tight font-semibold text-ink">
             Laporan Progres {tanggal(laporan.tanggal_laporan)}

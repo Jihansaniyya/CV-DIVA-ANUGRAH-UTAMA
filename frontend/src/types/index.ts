@@ -57,6 +57,9 @@ export interface Project {
   progres_aktual?: number
   progres_rencana?: number
   deviasi?: number
+  /** Total bobot rencana (%) seluruh periode; progres baru dapat ditambahkan bila sudah 100%. */
+  total_bobot_rencana?: number
+  rencana_lengkap?: boolean
   created_at: string | null
 }
 
@@ -175,6 +178,7 @@ export interface CurveData {
   }[]
   ringkasan: {
     total_bobot_rencana: number
+    rencana_lengkap: boolean
     progres_rencana: number
     progres_aktual: number
     deviasi: number

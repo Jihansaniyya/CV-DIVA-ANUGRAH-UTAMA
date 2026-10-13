@@ -82,7 +82,7 @@ export function ProjectDetailPage() {
       {tab === 'informasi' && <InfoTab project={project} />}
       {tab === 'pekerjaan' && <WorkItemsTab projectId={projectId} />}
       {tab === 'rencana' && <WorkPlanTab projectId={projectId} />}
-      {tab === 'progres' && <ProgressTab projectId={projectId} />}
+      {tab === 'progres' && <ProgressTab projectId={projectId} project={project} />}
       {tab === 'kurva-s' && <CurveTab projectId={projectId} />}
       {tab === 'dokumentasi' && <DocumentationTab project={project} />}
     </div>

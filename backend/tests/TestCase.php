@@ -70,4 +70,22 @@ abstract class TestCase extends BaseTestCase
             'items' => [$galian->refresh(), $besi->refresh()],
         ];
     }
+
+    /**
+     * Rencana 100%: seluruh volume pekerjaan pertama pada periode 1, pekerjaan kedua pada periode 2.
+     * Progres baru hanya dapat ditambahkan setelah bobot rencana proyek mencapai 100%.
+     */
+    protected function susunRencana(array $konteks): void
+    {
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+        $project = $konteks['project'];
+        $periods = $project->periods()->orderBy('urutan')->get();
+
+        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans", [
+            'rows' => [
+                ['work_item_id' => $konteks['items'][0]->id, 'period_id' => $periods[0]->id, 'target_volume' => 100],
+                ['work_item_id' => $konteks['items'][1]->id, 'period_id' => $periods[1]->id, 'target_volume' => 200],
+            ],
+        ])->assertOk();
+    }
 }

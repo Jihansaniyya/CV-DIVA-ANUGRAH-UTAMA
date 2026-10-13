@@ -114,7 +114,9 @@ class AuthorizationTest extends TestCase
 
     public function test_admin_hanya_dapat_melihat_progres_dan_tidak_mengakses_laporan(): void
     {
-        ['project' => $project, 'items' => $items, 'qs' => $qs] = $this->proyekContoh();
+        $konteks = $this->proyekContoh();
+        ['project' => $project, 'items' => $items, 'qs' => $qs] = $konteks;
+        $this->susunRencana($konteks);
         $admin = $this->userDenganPeran(RoleCode::ADMIN);
 
         $progres = $this->actingAs($qs)->postJson('/api/progress', [

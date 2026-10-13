@@ -30,6 +30,7 @@ class ProjectController extends Controller
         $projects = Project::visibleTo($request->user())
             ->with('qs')
             ->withCount(['workItems', 'periods'])
+            ->withSum('workPlans as total_bobot_rencana', 'target_bobot')
             ->when($request->filled('q'), function ($query) use ($request) {
                 $q = '%'.$request->string('q').'%';
                 $query->where(fn ($sub) => $sub->where('nama_proyek', 'like', $q)
@@ -80,7 +81,8 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
-        $project->load(['qs', 'creator'])->loadCount(['workItems', 'periods']);
+        $project->load(['qs', 'creator'])->loadCount(['workItems', 'periods'])
+            ->loadSum('workPlans as total_bobot_rencana', 'target_bobot');
         $aktual = $this->curve->totalActual($project);
         $rencana = $this->curve->plannedToDate($project);
         $project->progres_aktual = $aktual;

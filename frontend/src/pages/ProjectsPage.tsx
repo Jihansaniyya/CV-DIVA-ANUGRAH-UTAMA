@@ -199,7 +199,7 @@ export function ProjectsPage() {
                           </Td>
                           {adminMode && <Td className="break-words text-muted">{project.qs?.name ?? '-'}</Td>}
                           <Td>
-                            <RencanaRealisasiBar rencana={project.progres_rencana ?? 0} realisasi={project.progres_aktual ?? 0} />
+                            <RencanaRealisasiBar rencana={project.total_bobot_rencana ?? 0} realisasi={project.progres_aktual ?? 0} />
                           </Td>
                           <Td align="center">
                             <StatusBadge status={project.status} bertumpuk />
@@ -256,7 +256,7 @@ export function ProjectsPage() {
                       </dl>
                       <RencanaRealisasiBar
                         className="mt-3"
-                        rencana={project.progres_rencana ?? 0}
+                        rencana={project.total_bobot_rencana ?? 0}
                         realisasi={project.progres_aktual ?? 0}
                       />
                       {!adminMode && <div className="mt-3 flex justify-end">{tombolDetail(project)}</div>}

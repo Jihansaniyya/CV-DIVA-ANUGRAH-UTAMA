@@ -20,25 +20,11 @@ class ProgressAndCurveTest extends TestCase
         $this->seedMasterData();
     }
 
-    /** Rencana: seluruh volume pekerjaan pertama pada periode 1, pekerjaan kedua pada periode 2. */
-    private function susunRencana(array $konteks): void
-    {
-        $admin = $this->userDenganPeran(RoleCode::ADMIN);
-        $project = $konteks['project'];
-        $periods = $project->periods()->orderBy('urutan')->get();
-
-        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans", [
-            'rows' => [
-                ['work_item_id' => $konteks['items'][0]->id, 'period_id' => $periods[0]->id, 'target_volume' => 100],
-                ['work_item_id' => $konteks['items'][1]->id, 'period_id' => $periods[1]->id, 'target_volume' => 200],
-            ],
-        ])->assertOk();
-    }
-
     public function test_qs_dapat_menyimpan_laporan_progres_beserta_foto_dan_kendala(): void
     {
         Storage::fake('public');
         $konteks = $this->proyekContoh();
+        $this->susunRencana($konteks);
 
         $response = $this->actingAs($konteks['qs'])->postJson('/api/progress', [
             'project_id' => $konteks['project']->id,
@@ -75,6 +61,7 @@ class ProgressAndCurveTest extends TestCase
     public function test_tanggal_progres_di_luar_jadwal_proyek_ditolak(): void
     {
         $konteks = $this->proyekContoh();
+        $this->susunRencana($konteks);
 
         $this->actingAs($konteks['qs'])->postJson('/api/progress', [
             'project_id' => $konteks['project']->id,
@@ -85,9 +72,46 @@ class ProgressAndCurveTest extends TestCase
         $this->assertSame(0, ProgressReport::count());
     }
 
+    public function test_progres_ditolak_bila_bobot_rencana_belum_100_persen(): void
+    {
+        $konteks = $this->proyekContoh();
+        $project = $konteks['project'];
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+        $periods = $project->periods()->orderBy('urutan')->get();
+
+        // Hanya pekerjaan pertama yang direncanakan (bobot 25%).
+        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans", [
+            'rows' => [['work_item_id' => $konteks['items'][0]->id, 'period_id' => $periods[0]->id, 'target_volume' => 100]],
+        ])->assertOk();
+
+        $this->actingAs($konteks['qs'])->getJson("/api/projects/{$project->id}")
+            ->assertOk()
+            ->assertJsonPath('data.rencana_lengkap', false);
+
+        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+            'project_id' => $project->id,
+            'tanggal_laporan' => $project->tanggal_mulai->toDateString(),
+            'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 10]],
+        ])->assertStatus(422)->assertJsonValidationErrors('project_id');
+
+        $this->assertSame(0, ProgressReport::count());
+
+        $this->susunRencana($konteks);
+
+        $this->actingAs($konteks['qs'])->getJson("/api/projects/{$project->id}")
+            ->assertJsonPath('data.rencana_lengkap', true);
+
+        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+            'project_id' => $project->id,
+            'tanggal_laporan' => $project->tanggal_mulai->toDateString(),
+            'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 10]],
+        ])->assertCreated();
+    }
+
     public function test_volume_realisasi_tidak_boleh_melebihi_volume_rencana(): void
     {
         $konteks = $this->proyekContoh();
+        $this->susunRencana($konteks);
 
         $this->actingAs($konteks['qs'])->postJson('/api/progress', [
             'project_id' => $konteks['project']->id,
@@ -168,6 +192,7 @@ class ProgressAndCurveTest extends TestCase
     {
         Storage::fake('public');
         $konteks = $this->proyekContoh();
+        $this->susunRencana($konteks);
 
         $this->actingAs($konteks['qs'])->postJson('/api/progress', [
             'project_id' => $konteks['project']->id,

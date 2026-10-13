@@ -128,7 +128,9 @@ class ProjectManagementTest extends TestCase
 
     public function test_pekerjaan_tidak_dapat_dihapus_bila_sudah_memiliki_laporan(): void
     {
-        ['project' => $project, 'qs' => $qs, 'items' => $items] = $this->proyekContoh();
+        $konteks = $this->proyekContoh();
+        ['project' => $project, 'qs' => $qs, 'items' => $items] = $konteks;
+        $this->susunRencana($konteks);
         $admin = $this->userDenganPeran(RoleCode::ADMIN);
 
         $this->actingAs($qs)->postJson('/api/progress', [

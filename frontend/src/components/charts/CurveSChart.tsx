@@ -12,8 +12,12 @@ import {
   type TooltipContentProps,
 } from 'recharts'
 
-const NAVY = '#071a52'
-const MERAH = '#d71920'
+// Warna garis disamakan dengan grafik Kurva S pada laporan referensi.
+const BIRU = '#1170ef'
+const BIRU_TUA = '#3b5b8c'
+const MERAH = '#c00000'
+// Harus sama dengan kelas -translate-y-2.5 (10px) pada garis realisasi.
+const CELAH_REALISASI = 10
 const AMBER = '#f59e0b'
 const TICK_PERSEN = [0, 20, 40, 60, 80, 100]
 
@@ -25,7 +29,7 @@ interface CurveSChartProps {
 
 interface Titik {
   nama: string
-  rencana: number
+  rencana: number | null
   aktual: number | null
   deviasi: number | null
   periodId: number
@@ -45,7 +49,7 @@ function TooltipKurva({ active, payload }: TooltipContentProps) {
       <p className="mb-1 font-semibold text-ink">{titik.nama}</p>
       <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5">
         <dt className="text-muted">Rencana</dt>
-        <dd className="text-right font-medium text-ink tabular-nums">{angka(titik.rencana, 2)}%</dd>
+        <dd className="text-right font-medium text-ink tabular-nums">{titik.rencana === null ? '-' : `${angka(titik.rencana, 2)}%`}</dd>
         <dt className="text-muted">Realisasi</dt>
         <dd className="text-right font-medium text-ink tabular-nums">{titik.aktual === null ? '-' : `${angka(titik.aktual, 2)}%`}</dd>
         <dt className="text-muted">Deviasi</dt>
@@ -58,13 +62,15 @@ function TooltipKurva({ active, payload }: TooltipContentProps) {
 }
 
 /**
- * Kurva S: rencana kumulatif (putus-putus) vs realisasi kumulatif (tebal) per periode.
+ * Kurva S: rencana kumulatif (garis biru) vs realisasi kumulatif (putus-putus merah) per periode.
+ * Kedua garis hanya digambar sampai periode yang sudah berjalan (aktual_kumulatif tidak null),
+ * sehingga ujung garis rencana sama dengan Progres Rencana s/d hari ini.
  * Milestone ditandai sebagai titik pada target persentasenya.
  */
 export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: CurveSChartProps) {
   const titik: Titik[] = data.titik.map((item) => ({
     nama: item.nama_periode,
-    rencana: item.rencana_kumulatif,
+    rencana: item.aktual_kumulatif === null ? null : item.rencana_kumulatif,
     aktual: item.aktual_kumulatif,
     deviasi: item.deviasi,
     periodId: item.period_id,
@@ -107,24 +113,39 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
               width={48}
             />
             <Tooltip content={TooltipKurva} cursor={{ stroke: '#cbd5e1', strokeDasharray: '4 4' }} />
+            {/* Gaya mengikuti Kurva S laporan referensi: garis lurus antartitik, rencana biru utuh,
+                realisasi merah putus-putus di atasnya dengan ketebalan yang sama. */}
             <Line
-              type="monotone"
+              type="linear"
               dataKey="rencana"
               name="Rencana"
-              stroke={NAVY}
-              strokeWidth={2}
-              strokeDasharray="6 4"
-              dot={{ r: 2.5, fill: NAVY, strokeWidth: 0 }}
-              activeDot={{ r: 5 }}
+              stroke={BIRU}
+              strokeWidth={3}
+              dot={{ r: 4, fill: BIRU, stroke: BIRU_TUA, strokeWidth: 1 }}
+              activeDot={{ r: 6 }}
+              connectNulls={false}
             />
             <Line
-              type="monotone"
+              type="linear"
               dataKey="aktual"
               name="Realisasi"
               stroke={MERAH}
               strokeWidth={3}
-              dot={{ r: 3.5, fill: MERAH, strokeWidth: 0 }}
-              activeDot={{ r: 6 }}
+              strokeDasharray="9 6"
+              // Garis dan titik digeser ke atas beberapa piksel (hanya tampilan) agar ada celah dengan
+              // garis rencana saat nilainya sama; tooltip tetap menampilkan nilai asli. Titik digambar
+              // Recharts di lapisan terpisah dari garis, jadi pergeserannya diterapkan sendiri.
+              className="-translate-y-2.5"
+              dot={({ cx, cy, index }: { cx?: number; cy?: number | null; index?: number }) =>
+                cy == null ? (
+                  <g key={`titik-realisasi-${index}`} />
+                ) : (
+                  <circle key={`titik-realisasi-${index}`} cx={cx} cy={cy - CELAH_REALISASI} r={4} fill={MERAH} stroke={BIRU_TUA} strokeWidth={1} />
+                )
+              }
+              activeDot={({ cx, cy }: { cx?: number; cy?: number }) => (
+                <circle cx={cx} cy={(cy ?? 0) - CELAH_REALISASI} r={6} fill={MERAH} stroke="#ffffff" strokeWidth={2} />
+              )}
               connectNulls={false}
             />
             {milestone.map((item) => (
@@ -146,13 +167,13 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
       <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-muted">
         <li className="flex items-center gap-2">
           <svg width="22" height="6" aria-hidden>
-            <line x1="0" y1="3" x2="22" y2="3" stroke={NAVY} strokeWidth="2" strokeDasharray="5 3" />
+            <line x1="0" y1="3" x2="22" y2="3" stroke={BIRU} strokeWidth="3" />
           </svg>
           Rencana kumulatif
         </li>
         <li className="flex items-center gap-2">
           <svg width="22" height="6" aria-hidden>
-            <line x1="0" y1="3" x2="22" y2="3" stroke={MERAH} strokeWidth="3" />
+            <line x1="0" y1="3" x2="22" y2="3" stroke={MERAH} strokeWidth="3" strokeDasharray="6 4" />
           </svg>
           Realisasi kumulatif
         </li>

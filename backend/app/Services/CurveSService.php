@@ -73,6 +73,7 @@ class CurveSService
         }
 
         $progresAktual = $this->totalActual($project);
+        $totalBobotRencana = round((float) $project->workPlans()->sum('target_bobot'), 4);
 
         return [
             'titik' => $titik,
@@ -87,7 +88,9 @@ class CurveSService
                 'status' => $m->status,
             ])->all(),
             'ringkasan' => [
-                'total_bobot_rencana' => round((float) $project->workPlans()->sum('target_bobot'), 4),
+                'total_bobot_rencana' => $totalBobotRencana,
+                // Kurva S baru terbentuk (dan progres baru dapat diinput) setelah bobot rencana 100%.
+                'rencana_lengkap' => $totalBobotRencana >= WorkPlanService::BATAS_RENCANA_LENGKAP,
                 'progres_rencana' => round($progresRencanaSaatIni, 4),
                 'progres_aktual' => round($progresAktual, 4),
                 'deviasi' => round($progresAktual - $progresRencanaSaatIni, 4),

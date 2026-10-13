@@ -26,7 +26,22 @@ class WorkPlanService
 
     private const TOLERANSI = 0.00005;
 
+    /** Batas bawah total bobot rencana yang dianggap lengkap (toleransi sisa pembulatan bobot). */
+    public const BATAS_RENCANA_LENGKAP = 99.99;
+
     public function __construct(private readonly WeightCalculatorService $weights) {}
+
+    /** Total bobot rencana (%) seluruh pekerjaan pada seluruh periode proyek. */
+    public function totalBobotRencana(Project $project): float
+    {
+        return round((float) $project->workPlans()->sum('target_bobot'), 4);
+    }
+
+    /** Progres hanya boleh diinput bila total bobot rencana proyek sudah 100%. */
+    public function rencanaLengkap(Project $project): bool
+    {
+        return $this->totalBobotRencana($project) >= self::BATAS_RENCANA_LENGKAP;
+    }
 
     /**
      * Simpan/perbarui sekumpulan baris rencana sekaligus.

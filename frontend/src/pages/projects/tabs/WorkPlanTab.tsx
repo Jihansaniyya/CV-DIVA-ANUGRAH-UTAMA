@@ -54,6 +54,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
       await queryClient.invalidateQueries({ queryKey: qk.workPlans(projectId) })
       await queryClient.invalidateQueries({ queryKey: qk.curve(projectId) })
       await queryClient.invalidateQueries({ queryKey: qk.project(projectId) })
+      await queryClient.invalidateQueries({ queryKey: ['projects'] })
     },
     onError: (err) => toast.gagal(pesanError(err)),
   })

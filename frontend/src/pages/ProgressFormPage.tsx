@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { progressService, type ProgressPayload } from '@/services/progressService'
 import { cn } from '@/utils/cn'
-import { angka, hariIni, rentangTanggal } from '@/utils/format'
+import { angka, hariIni, persen, rentangTanggal } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Save, Send, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -75,6 +75,11 @@ export function ProgressFormPage() {
   const projectId: number | '' = projectIdDipilih !== '' ? projectIdDipilih : projects?.data.length === 1 ? projects.data[0].id : ''
   const { data: pekerjaan, isLoading: memuatPekerjaan } = useWorkItems(projectId ? Number(projectId) : null)
   const proyekDipilih = projects?.data.find((item) => item.id === Number(projectId))
+  // Progres baru hanya dapat ditambahkan bila total bobot rencana proyek sudah 100% (backend ikut memvalidasi).
+  const pesanRencanaBelumLengkap =
+    proyekDipilih?.rencana_lengkap === false
+      ? `Rencana pekerjaan proyek ini baru dijadwalkan ${persen(proyekDipilih.total_bobot_rencana ?? 0)} dari total bobot pekerjaan. Progres dapat ditambahkan setelah Admin melengkapi rencana hingga 100%.`
+      : null
   // Tanggal progres dibatasi pada jadwal proyek agar laporan selalu masuk ke salah satu periode.
   const tanggalMulai = proyekDipilih?.tanggal_mulai?.slice(0, 10)
   const tanggalSelesai = proyekDipilih?.tanggal_selesai?.slice(0, 10)
@@ -180,6 +185,7 @@ export function ProgressFormPage() {
     const validasi: Record<string, string> = {}
 
     if (!projectId) validasi.project_id = 'Proyek wajib dipilih.'
+    else if (pesanRencanaBelumLengkap) validasi.project_id = pesanRencanaBelumLengkap
     if (!tanggal) {
       validasi.tanggal_laporan = 'Tanggal progres wajib diisi.'
     } else if (tanggalMulai && tanggalSelesai && (tanggal < tanggalMulai || tanggal > tanggalSelesai)) {
@@ -295,7 +301,10 @@ export function ProgressFormPage() {
             label="Proyek"
             required
             value={projectId === '' ? '' : String(projectId)}
-            options={projects.data.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            options={projects.data.map((project) => ({
+              value: String(project.id),
+              label: project.rencana_lengkap === false ? `${project.nama_proyek} (rencana belum 100%)` : project.nama_proyek,
+            }))}
             onChange={(nilai) => {
               setProjectId(nilai ? Number(nilai) : '')
               aturDetails([{ work_item_id: '', volume_realisasi: '' }])
@@ -352,6 +361,8 @@ export function ProgressFormPage() {
       >
         {!projectId ? (
           <EmptyState judul="Pilih proyek terlebih dahulu" pesan="Pilih proyek pada bagian Informasi Progres di atas untuk menampilkan daftar pekerjaan." />
+        ) : pesanRencanaBelumLengkap ? (
+          <EmptyState judul="Rencana pekerjaan belum lengkap" pesan={pesanRencanaBelumLengkap} />
         ) : memuatPekerjaan ? (
           <LoadingState pesan="Memuat daftar pekerjaan..." />
         ) : daftarPekerjaan.length === 0 ? (

@@ -23,6 +23,7 @@ class ProgressService
         private readonly ProjectScheduleService $schedule,
         private readonly ProjectStatusService $status,
         private readonly ImageService $images,
+        private readonly WorkPlanService $plans,
     ) {}
 
     /**
@@ -31,6 +32,8 @@ class ProgressService
      */
     public function create(Project $project, User $user, array $data, array $photos = []): ProgressReport
     {
+        $this->assertRencanaLengkap($project);
+
         $report = DB::transaction(function () use ($project, $user, $data, $photos) {
             $period = $this->periodeLaporan($project, $data['tanggal_laporan']);
 
@@ -113,6 +116,8 @@ class ProgressService
             ]);
         }
 
+        $this->assertRencanaLengkap($report->project);
+
         $report->forceFill([
             'status' => ReportStatus::DIKIRIM->value,
             'dikirim_pada' => now(),
@@ -187,6 +192,20 @@ class ProgressService
                 'keterangan' => $row['keterangan'] ?? null,
             ]);
         }
+    }
+
+    /** Progres baru hanya dapat ditambahkan setelah total bobot rencana pekerjaan proyek mencapai 100%. */
+    private function assertRencanaLengkap(Project $project): void
+    {
+        if ($this->plans->rencanaLengkap($project)) {
+            return;
+        }
+
+        $total = number_format($this->plans->totalBobotRencana($project), 2, ',', '.');
+
+        throw ValidationException::withMessages([
+            'project_id' => "Progres belum dapat ditambahkan karena rencana pekerjaan proyek baru dijadwalkan {$total}% dari total bobot pekerjaan. Rencana harus mencapai 100% terlebih dahulu.",
+        ]);
     }
 
     /** Realisasi kumulatif sebuah pekerjaan tidak boleh melebihi volume rencananya. */

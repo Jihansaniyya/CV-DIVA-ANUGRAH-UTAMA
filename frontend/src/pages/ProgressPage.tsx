@@ -108,7 +108,7 @@ export function ProgressPage() {
             : 'Progres harian beserta status pengirimannya.'
         }
         action={
-          punyaPeran('QS', 'ADMIN') ? (
+          punyaPeran('QS') ? (
             <Link to="/progres/baru">
               <Button size="sm" icon={<Plus className="size-4" />}>
                 Tambah Progres

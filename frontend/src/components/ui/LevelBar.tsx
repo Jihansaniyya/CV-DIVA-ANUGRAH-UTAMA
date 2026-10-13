@@ -50,7 +50,7 @@ export function LevelBar({ nilai, className }: LevelBarProps) {
   )
 }
 
-/** Dua bar bertumpuk: rencana di atas, realisasi di bawah; label berada di atas masing-masing bar. */
+/** Dua bar bertumpuk: rencana keseluruhan (bobot rencana tersusun) di atas, realisasi keseluruhan di bawah; label berada di atas masing-masing bar. */
 export function RencanaRealisasiBar({ rencana, realisasi, className }: { rencana: number; realisasi: number; className?: string }) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>

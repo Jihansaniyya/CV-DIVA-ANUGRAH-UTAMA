@@ -6,28 +6,42 @@ import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { useProgressList } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
+import type { Project } from '@/types'
 import { persen, tanggalSingkat } from '@/utils/format'
 import { Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-export function ProgressTab({ projectId }: { projectId: number }) {
+export function ProgressTab({ projectId, project }: { projectId: number; project: Project }) {
   const { punyaPeran } = useAuth()
   const { data, isLoading, error, refetch } = useProgressList({ project_id: projectId, per_page: 25 })
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
 
+  // Progres baru hanya dapat ditambahkan bila total bobot rencana sudah 100% (backend ikut memvalidasi).
+  const rencanaBelumLengkap = project.rencana_lengkap === false
+
   return (
     <Card
       title="Progres Harian"
-      description="Progres harian yang diinput QS untuk proyek ini."
+      description={
+        rencanaBelumLengkap
+          ? `Rencana pekerjaan baru dijadwalkan ${persen(project.total_bobot_rencana ?? 0)} dari total bobot pekerjaan. Progres dapat ditambahkan setelah rencana mencapai 100%.`
+          : 'Progres harian yang diinput QS untuk proyek ini.'
+      }
       action={
         punyaPeran('QS') ? (
-          <Link to={`/progres/baru?project_id=${projectId}`}>
-            <Button size="sm" icon={<Plus className="size-4" />}>
+          rencanaBelumLengkap ? (
+            <Button size="sm" icon={<Plus className="size-4" />} disabled title="Rencana pekerjaan belum mencapai 100%">
               Tambah Progres
             </Button>
-          </Link>
+          ) : (
+            <Link to={`/progres/baru?project_id=${projectId}`}>
+              <Button size="sm" icon={<Plus className="size-4" />}>
+                Tambah Progres
+              </Button>
+            </Link>
+          )
         ) : undefined
       }
       bodyClassName="pt-0"

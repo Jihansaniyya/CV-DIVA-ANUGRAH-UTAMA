@@ -46,8 +46,8 @@ function ProyekTerbaruAdmin({ proyek, className }: { proyek: DashboardProjectRow
                 <Th className="w-10">No</Th>
                 <Th className="min-w-56">Nama Proyek</Th>
                 <Th>QS</Th>
-                <Th align="right">Rencana</Th>
-                <Th className="min-w-40">Realisasi</Th>
+                <Th align="right">Rencana s/d Hari Ini</Th>
+                <Th className="min-w-40">Realisasi s/d Hari Ini</Th>
                 <Th align="center">Deviasi</Th>
                 <Th align="center">Status</Th>
               </tr>

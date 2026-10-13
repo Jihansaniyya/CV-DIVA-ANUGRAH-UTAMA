@@ -38,6 +38,7 @@ class ProjectStatusTest extends TestCase
     public function test_status_menjadi_selesai_saat_seluruh_volume_dilaporkan(): void
     {
         $konteks = $this->proyekContoh();
+        $this->susunRencana($konteks);
         $project = $konteks['project'];
 
         $this->actingAs($konteks['qs'])->postJson('/api/progress', [
