@@ -7,6 +7,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { useDashboard } from '@/hooks/queries'
+import { MuatUlangDashboard } from '@/pages/dashboard/MuatUlangDashboard'
 import { pesanError } from '@/lib/api'
 import { KontraktorDashboard } from '@/pages/dashboard/KontraktorDashboard'
 import { QsDashboard } from '@/pages/dashboard/QsDashboard'
@@ -147,10 +148,13 @@ export function DashboardPage() {
     <div className="flex flex-col gap-4 xl:h-[calc(100dvh-7rem)] xl:gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 xl:shrink-0">
         <h2 className="text-lg font-semibold text-ink">Beranda</h2>
-        <p className="flex items-center gap-1.5 text-xs text-muted">
-          <CalendarDays className="size-3.5" aria-hidden />
-          Data per {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="flex items-center gap-1.5 text-xs text-muted">
+            <CalendarDays className="size-3.5" aria-hidden />
+            Data per {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
+          </p>
+          <MuatUlangDashboard />
+        </div>
       </div>
 
       <section className="grid grid-cols-2 gap-3 xl:shrink-0 xl:grid-cols-4">
@@ -161,7 +165,7 @@ export function DashboardPage() {
 
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3 xl:shrink-0 xl:gap-3">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:shrink-0 xl:gap-3">
         {data.status_proyek && (
           <Card title="Status Proyek" bodyClassName="p-4 sm:p-4">
             <StatusDonut
@@ -180,7 +184,7 @@ export function DashboardPage() {
         )}
       </section>
 
-      <section className={cn('grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-rows-[minmax(0,1fr)] xl:gap-3', adaLaporan && 'xl:grid-cols-3')}>
+      <section className={cn('grid grid-cols-1 gap-4 xl:min-h-0 xl:flex-1 xl:grid-rows-[minmax(0,1fr)] xl:gap-3', adaLaporan && 'xl:grid-cols-3')}>
         <ProyekTerbaruAdmin proyek={proyek} className={cn(adaLaporan && 'xl:col-span-2')} />
 
         {data.laporan_terbaru && adaLaporan && <LaporanTerbaru laporan={data.laporan_terbaru} tampilLihatSemua={false} />}

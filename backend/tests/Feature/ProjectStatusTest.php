@@ -41,7 +41,7 @@ class ProjectStatusTest extends TestCase
         $this->susunRencana($konteks);
         $project = $konteks['project'];
 
-        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+        $this->kirimProgres($konteks['qs'], [
             'project_id' => $project->id,
             'tanggal_laporan' => $project->tanggal_mulai->toDateString(),
             'status' => 'DIKIRIM',

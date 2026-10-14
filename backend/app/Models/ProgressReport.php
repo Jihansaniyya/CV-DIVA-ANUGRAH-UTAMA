@@ -23,6 +23,7 @@ class ProgressReport extends Model
         'cuaca',
         'status',
         'dikirim_pada',
+        'client_request_id',
     ];
 
     protected function casts(): array
@@ -67,5 +68,28 @@ class ProgressReport extends Model
     public function scopeSubmitted(Builder $query): Builder
     {
         return $query->where('status', ReportStatus::DIKIRIM);
+    }
+
+    /**
+     * Laporan yang memakai volume pekerjaan: laporan terkirim, ditambah draf milik QS yang masih
+     * ditugaskan pada proyeknya. Draf QS yang sudah diganti tetap tersimpan, tetapi tidak lagi
+     * mengurangi sisa volume karena tidak mungkin dikirim olehnya.
+     */
+    public function scopeMemakaiVolume(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->where('progress_reports.status', ReportStatus::DIKIRIM->value)
+                ->orWhere(function (Builder $draf) {
+                    $draf->where('progress_reports.status', ReportStatus::DRAFT->value)
+                        ->where(function (Builder $akses) {
+                            $akses->whereExists(fn ($sub) => $sub->selectRaw('1')->from('projects')
+                                ->whereColumn('projects.id', 'progress_reports.project_id')
+                                ->whereColumn('projects.qs_user_id', 'progress_reports.user_id'))
+                                ->orWhereExists(fn ($sub) => $sub->selectRaw('1')->from('project_assignments')
+                                    ->whereColumn('project_assignments.project_id', 'progress_reports.project_id')
+                                    ->whereColumn('project_assignments.user_id', 'progress_reports.user_id'));
+                        });
+                });
+        });
     }
 }

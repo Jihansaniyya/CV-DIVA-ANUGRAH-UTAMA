@@ -37,7 +37,7 @@ class CurveSService
 
         $hariIni = $tanggalAcuan !== null
             ? CarbonImmutable::parse($tanggalAcuan)->startOfDay()
-            : CarbonImmutable::now()->startOfDay();
+            : ZonaWaktu::hariIni();
         $rencanaKumulatif = 0.0;
         $aktualKumulatif = 0.0;
 
@@ -125,7 +125,7 @@ class CurveSService
     /** Progres rencana sampai hari ini (%) berdasarkan periode yang sudah berjalan. */
     public function plannedToDate(Project $project): float
     {
-        $hariIni = CarbonImmutable::now()->toDateString();
+        $hariIni = ZonaWaktu::hariIni()->toDateString();
 
         return round((float) $project->workPlans()
             ->whereHas('period', fn ($q) => $q->whereDate('tanggal_mulai', '<=', $hariIni))
@@ -158,7 +158,7 @@ class CurveSService
         return WorkPlan::query()
             ->join('periods', 'periods.id', '=', 'work_plans.period_id')
             ->whereIn('work_plans.project_id', collect($projectIds))
-            ->whereDate('periods.tanggal_mulai', '<=', CarbonImmutable::now()->toDateString())
+            ->whereDate('periods.tanggal_mulai', '<=', ZonaWaktu::hariIni()->toDateString())
             ->selectRaw('work_plans.project_id as project_id, SUM(work_plans.target_bobot) as total')
             ->groupBy('work_plans.project_id')
             ->pluck('total', 'project_id');

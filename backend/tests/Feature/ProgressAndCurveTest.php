@@ -34,6 +34,7 @@ class ProgressAndCurveTest extends TestCase
             'status' => 'DIKIRIM',
             'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 50]],
             'issues' => [[
+                'work_item_id' => $konteks['items'][0]->id,
                 'jenis_kendala' => 'CUACA',
                 'deskripsi' => 'Hujan deras sore hari.',
                 'alasan_keterlambatan' => 'Curah hujan tinggi.',
@@ -143,7 +144,7 @@ class ProgressAndCurveTest extends TestCase
         $periods = $project->periods()->orderBy('urutan')->get();
 
         // Realisasi periode 1 hanya separuh dari rencana -> deviasi negatif.
-        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+        $this->kirimProgres($konteks['qs'], [
             'project_id' => $project->id,
             'tanggal_laporan' => $periods[0]->tanggal_selesai->toDateString(),
             'status' => 'DIKIRIM',
@@ -166,12 +167,17 @@ class ProgressAndCurveTest extends TestCase
         $konteks = $this->proyekContoh();
         $this->susunRencana($konteks);
         $kontraktor = $this->userDenganPeran(RoleCode::KONTRAKTOR);
+        Storage::fake('public');
 
+        // Draf sudah memuat bukti lengkap sehingga dapat dikirim.
         $this->actingAs($konteks['qs'])->postJson('/api/progress', [
             'project_id' => $konteks['project']->id,
             'tanggal_laporan' => $konteks['project']->tanggal_mulai->toDateString(),
             'status' => 'DRAFT',
+            'lokasi' => 'Bontang',
+            'keterangan' => 'Galian selesai.',
             'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 100]],
+            'photos' => [UploadedFile::fake()->image('bukti.jpg')],
         ])->assertCreated();
 
         $sebelum = $this->actingAs($kontraktor)->getJson("/api/projects/{$konteks['project']->id}/curve-s")

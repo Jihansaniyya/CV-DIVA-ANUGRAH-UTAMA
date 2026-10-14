@@ -52,6 +52,7 @@ export function Dropdown({
   const tombolRef = useRef<HTMLButtonElement>(null)
   const daftarRef = useRef<HTMLUListElement>(null)
   const idDaftar = useId()
+  const idTombol = useId()
 
   const pilihan: DropdownOption[] = allowEmpty ? [{ value: '', label: placeholder }, ...options] : options
   const terpilih = options.find((option) => option.value === value)
@@ -139,9 +140,12 @@ export function Dropdown({
   }
 
   return (
-    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName}>
+    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName} htmlFor={idTombol}>
       <button
         ref={tombolRef}
+        id={idTombol}
+        // Id petunjuk/error dibentuk FieldWrap dari htmlFor: `${id}-error` / `${id}-petunjuk`.
+        aria-describedby={error ? `${idTombol}-error` : hint ? `${idTombol}-petunjuk` : undefined}
         type="button"
         disabled={disabled}
         onClick={() => (terbuka ? setTerbuka(false) : buka())}

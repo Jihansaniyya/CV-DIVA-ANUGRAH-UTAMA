@@ -7,11 +7,16 @@ use App\Models\Project;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Services\ProgressService;
 use App\Services\ProjectScheduleService;
 use App\Services\WeightCalculatorService;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\UnitSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -70,6 +75,45 @@ abstract class TestCase extends BaseTestCase
             'items' => [$galian->refresh(), $besi->refresh()],
         ];
     }
+
+    /**
+     * Kirim laporan progres yang lengkap (lokasi, keterangan, dan satu foto bukti) seperti dari form QS.
+     * Laporan bertanggal setelah hari ini dikirim dengan waktu dimajukan ke tanggal tersebut, seolah QS
+     * mengirimnya pada hari pelaksanaan, karena progres tidak boleh bertanggal di masa depan.
+     *
+     * @param  array<string,mixed>  $data
+     */
+    protected function kirimProgres(User $qs, array $data): TestResponse
+    {
+        if (! $this->diskPalsu) {
+            Storage::fake('public');
+            $this->diskPalsu = true;
+        }
+
+        $data += [
+            'status' => 'DIKIRIM',
+            'lokasi' => 'Kota Bontang',
+            'keterangan' => 'Pekerjaan dilaksanakan sesuai jadwal.',
+            'photos' => [UploadedFile::fake()->image('bukti.jpg')],
+        ];
+
+        $tanggal = CarbonImmutable::parse($data['tanggal_laporan'])->toDateString();
+        $majukan = $tanggal > ProgressService::hariIni()->toDateString();
+
+        if ($majukan) {
+            $this->travelTo(CarbonImmutable::parse($tanggal.' 04:00:00'));
+        }
+
+        $response = $this->actingAs($qs)->postJson('/api/progress', $data);
+
+        if ($majukan) {
+            $this->travelBack();
+        }
+
+        return $response;
+    }
+
+    private bool $diskPalsu = false;
 
     /**
      * Rencana 100%: seluruh volume pekerjaan pertama pada periode 1, pekerjaan kedua pada periode 2.

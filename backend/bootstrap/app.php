@@ -57,6 +57,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 403 => 'Kamu tidak memiliki akses ke halaman ini.',
                 404 => 'Data yang kamu cari tidak ditemukan.',
                 405 => 'Metode permintaan tidak diizinkan.',
+                // post_max_size PHP terlampaui: data form dibuang sebelum sampai ke Laravel.
+                413 => 'Ukuran total unggahan melebihi batas server. Kurangi jumlah atau ukuran foto, lalu kirim ulang.',
                 429 => 'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.',
                 500 => 'Terjadi kesalahan pada server.',
             ];
@@ -67,7 +69,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $pesanAsli = $e->getMessage();
 
             // Status 404 selalu memakai pesan baku agar nama model tidak bocor ke pengguna.
-            $pesan = (in_array($status, [404, 500], true) || in_array($pesanAsli, $bawaanFramework, true))
+            $pesan = (in_array($status, [404, 413, 500], true) || in_array($pesanAsli, $bawaanFramework, true))
                 ? ($pesanBaku[$status] ?? 'Permintaan tidak dapat diproses.')
                 : $pesanAsli;
 

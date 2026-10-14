@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn'
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 
 interface LabelWrapProps {
   label?: string
@@ -7,23 +7,55 @@ interface LabelWrapProps {
   hint?: string
   required?: boolean
   className?: string
+  /** id kontrol yang diberi label; label, petunjuk, dan pesan error dihubungkan ke kontrol ini. */
+  htmlFor?: string
   children: ReactNode
 }
 
-export function FieldWrap({ label, error, hint, required, className, children }: LabelWrapProps) {
+/** id elemen petunjuk/error milik kontrol `id`, untuk aria-describedby. */
+const idPetunjuk = (id: string) => `${id}-petunjuk`
+const idError = (id: string) => `${id}-error`
+
+/** Gabungkan aria-describedby milik kontrol dengan id petunjuk/error yang sedang tampil. */
+function describedBy(id: string, { hint, error }: { hint?: string; error?: string }, bawaan?: string): string | undefined {
+  const daftar = [bawaan, error ? idError(id) : hint ? idPetunjuk(id) : undefined].filter(Boolean)
+
+  return daftar.length > 0 ? daftar.join(' ') : undefined
+}
+
+export function FieldWrap({ label, error, hint, required, className, htmlFor, children }: LabelWrapProps) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
-        <label className="text-xs font-medium text-ink">
+        <label htmlFor={htmlFor} className="text-xs font-medium text-ink">
           {label}
-          {required && <span className="ml-0.5 text-primary">*</span>}
+          {required && (
+            <span className="ml-0.5 text-primary" aria-hidden>
+              *
+            </span>
+          )}
         </label>
       )}
       {children}
-      {hint && !error && <p className="text-[11px] text-muted">{hint}</p>}
-      {error && <p className="text-[11px] font-medium text-danger">{error}</p>}
+      {hint && !error && (
+        <p id={htmlFor ? idPetunjuk(htmlFor) : undefined} className="text-[11px] text-muted">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={htmlFor ? idError(htmlFor) : undefined} className="text-[11px] font-medium text-danger">
+          {error}
+        </p>
+      )}
     </div>
   )
+}
+
+/** id kontrol: id dari pemanggil bila ada, selain itu id unik otomatis. */
+function useIdKontrol(id?: string): string {
+  const otomatis = useId()
+
+  return id ?? otomatis
 }
 
 const BASE =
@@ -36,14 +68,18 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   wrapClassName?: string
 }
 
-export function Input({ label, error, hint, required, wrapClassName, className, ...props }: InputProps) {
+export function Input({ label, error, hint, required, wrapClassName, className, id, ...props }: InputProps) {
+  const idKontrol = useIdKontrol(id)
+
   return (
-    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName}>
+    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName} htmlFor={idKontrol}>
       <input
+        id={idKontrol}
         className={cn(BASE, error ? 'border-danger' : 'border-line focus:border-navy-light/45', className)}
         aria-invalid={Boolean(error)}
         required={required}
         {...props}
+        aria-describedby={describedBy(idKontrol, { hint, error }, props['aria-describedby'])}
       />
     </FieldWrap>
   )
@@ -57,10 +93,19 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   children: ReactNode
 }
 
-export function Select({ label, error, hint, required, wrapClassName, className, children, ...props }: SelectProps) {
+export function Select({ label, error, hint, required, wrapClassName, className, children, id, ...props }: SelectProps) {
+  const idKontrol = useIdKontrol(id)
+
   return (
-    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName}>
-      <select className={cn(BASE, error ? 'border-danger' : 'border-line focus:border-navy-light/45', className)} required={required} {...props}>
+    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName} htmlFor={idKontrol}>
+      <select
+        id={idKontrol}
+        className={cn(BASE, error ? 'border-danger' : 'border-line focus:border-navy-light/45', className)}
+        aria-invalid={Boolean(error)}
+        required={required}
+        {...props}
+        aria-describedby={describedBy(idKontrol, { hint, error }, props['aria-describedby'])}
+      >
         {children}
       </select>
     </FieldWrap>
@@ -74,14 +119,19 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   wrapClassName?: string
 }
 
-export function Textarea({ label, error, hint, required, wrapClassName, className, ...props }: TextareaProps) {
+export function Textarea({ label, error, hint, required, wrapClassName, className, id, ...props }: TextareaProps) {
+  const idKontrol = useIdKontrol(id)
+
   return (
-    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName}>
+    <FieldWrap label={label} error={error} hint={hint} required={required} className={wrapClassName} htmlFor={idKontrol}>
       <textarea
+        id={idKontrol}
         rows={3}
         className={cn(BASE, 'resize-y', error ? 'border-danger' : 'border-line focus:border-navy-light/45', className)}
+        aria-invalid={Boolean(error)}
         required={required}
         {...props}
+        aria-describedby={describedBy(idKontrol, { hint, error }, props['aria-describedby'])}
       />
     </FieldWrap>
   )

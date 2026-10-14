@@ -24,7 +24,16 @@ npm run lint
 npm run build
 ```
 
-Lingkungan pengembangan saat ini: PHP 8.2 (XAMPP) dan MariaDB 10.4 pada **port 3307**.
+Lingkungan pengembangan saat ini (diverifikasi 14 Okt 2026):
+
+- PHP CLI 8.5 (`C:\tools\php85`, `php.ini` di folder yang sama); `php artisan serve` dan `php artisan test`
+  memakai PHP ini. Batas unggah di `php.ini`: `upload_max_filesize` 2M, `post_max_size` 8M; aplikasi
+  menyesuaikan batas foto dengan nilai ini (`UploadLimitService`).
+- MySQL 8.4.3 dari Laragon pada **127.0.0.1:3306**. Database pengembangan `cv_diva_anugrah_utama`,
+  database pengujian `cv_diva_anugrah_utama_test` (diatur di `phpunit.xml`). Kredensial ada di `backend/.env`.
+- Zona waktu operasional `APP_TIMEZONE=Asia/Makassar` (WITA) dipakai untuk "hari ini" (`ZonaWaktu`);
+  `app.timezone` tetap UTC untuk timestamp tersimpan.
+
 Ekstensi `gd` wajib aktif di `php.ini` karena dipakai PhpSpreadsheet saat export Excel.
 
 ## Konvensi Backend

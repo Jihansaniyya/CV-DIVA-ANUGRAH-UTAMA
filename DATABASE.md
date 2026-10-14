@@ -115,7 +115,8 @@ tercatat pada `projects.qs_user_id` dan disinkronkan ke tabel ini.
 ### `progress_reports` (header laporan progres harian)
 `id`, `project_id` FK, `user_id` FK (QS pelapor), `period_id` FK nullable (diisi otomatis dari
 `tanggal_laporan`), `tanggal_laporan`, `keterangan`, `lokasi`, `cuaca`,
-`status` enum(`DRAFT`,`DIKIRIM`), `dikirim_pada`.
+`status` enum(`DRAFT`,`DIKIRIM`), `dikirim_pada`, `client_request_id` uuid nullable
+(unik per `user_id`; identitas isian form untuk idempotensi).
 
 ### `progress_details` (realisasi per pekerjaan)
 `id`, `progress_report_id` FK, `work_item_id` FK, `volume_realisasi` decimal(15,3) **(bukan kumulatif)**,
@@ -228,8 +229,22 @@ bobot_realisasi      = persentase_realisasi × bobot pekerjaan / 100
 progres proyek       = Σ bobot_realisasi seluruh laporan berstatus DIKIRIM
 ```
 
-Laporan berstatus `DRAFT` tidak ikut dihitung. Realisasi kumulatif sebuah pekerjaan tidak boleh
-melebihi volume rencananya.
+Laporan berstatus `DRAFT` tidak ikut dihitung sebagai realisasi (progres, Kurva S, laporan).
+
+Aturan penyimpanan laporan (`ProgressService`, berlaku sama untuk form, Beranda QS, dan API):
+
+```
+volume terpakai = Σ volume laporan DIKIRIM + Σ volume draf milik QS yang masih ditugaskan
+sisa volume     = volume pekerjaan − volume terpakai (laporan yang sedang diubah tidak dihitung)
+```
+
+- Volume laporan baru/draf yang diubah tidak boleh melebihi sisa volume. Draf milik QS yang sudah
+  diganti tetap tersimpan, tetapi tidak lagi mengurangi sisa volume.
+- Satu pekerjaan hanya boleh tercatat sekali per tanggal pada satu proyek (draf maupun terkirim).
+- `tanggal_laporan` berada dalam jadwal proyek dan tidak melewati hari ini menurut `APP_TIMEZONE`.
+- Laporan hanya dapat menjadi `DIKIRIM` bila lokasi, keterangan, dan minimal satu foto terisi.
+- Penyimpanan mengunci baris `work_items` proyek lebih dulu sehingga permintaan bersamaan diproses
+  bergantian; `client_request_id` mencegah permintaan yang dikirim ulang membuat laporan ganda.
 
 ### 4.4 Kurva S dan deviasi — `CurveSService`
 

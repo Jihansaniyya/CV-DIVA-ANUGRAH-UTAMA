@@ -68,6 +68,13 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | Zona waktu lokasi proyek. Dipakai untuk menentukan "hari ini" di lapangan (mis. tanggal progres
+    | tidak boleh melewati hari ini) dan menampilkan jam pada dokumen. Penyimpanan timestamp tetap UTC.
+    */
+
+    'zona_lokal' => env('APP_TIMEZONE', 'Asia/Makassar'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

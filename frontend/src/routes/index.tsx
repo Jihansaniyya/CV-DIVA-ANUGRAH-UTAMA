@@ -40,6 +40,7 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute roles={['QS']} />}>
             <Route path="/progres/baru" element={<ProgressFormPage />} />
+            <Route path="/progres/:id/ubah" element={<ProgressFormPage />} />
           </Route>
           <Route path="/progres/:id" element={<ProgressDetailPage />} />
 

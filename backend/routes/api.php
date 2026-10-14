@@ -35,6 +35,7 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
 
     // Proyek
     Route::get('projects', [ProjectController::class, 'index']);
+    Route::get('projects/options', [ProjectController::class, 'options']);
     Route::get('projects/{project}', [ProjectController::class, 'show']);
     Route::middleware('role:ADMIN')->group(function () {
         Route::post('projects', [ProjectController::class, 'store']);
@@ -80,6 +81,7 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
 
     // Progres
     Route::get('progress', [ProgressReportController::class, 'index']);
+    Route::get('progress/upload-limits', [ProgressReportController::class, 'uploadLimits'])->middleware('role:QS');
     Route::get('progress/{progress}', [ProgressReportController::class, 'show']);
     Route::middleware('role:QS')->group(function () {
         Route::post('progress', [ProgressReportController::class, 'store']);

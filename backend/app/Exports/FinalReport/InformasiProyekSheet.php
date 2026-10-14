@@ -3,6 +3,7 @@
 namespace App\Exports\FinalReport;
 
 use App\Exports\ReportFormatter;
+use App\Services\ZonaWaktu;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
@@ -106,7 +107,7 @@ class InformasiProyekSheet extends FinalReportSheet
             $baris++;
         }
 
-        $sheet->setCellValue('B'.$baris, 'Dokumen disusun otomatis dari data aplikasi pada '.now()->translatedFormat('d F Y H:i').'.');
+        $sheet->setCellValue('B'.$baris, 'Dokumen disusun otomatis dari data aplikasi pada '.ZonaWaktu::sekarang()->translatedFormat('d F Y H:i').'.');
         $sheet->mergeCells('B'.$baris.':D'.$baris);
         $sheet->getStyle('B'.$baris)->getFont()->setItalic(true)->setSize(8);
 

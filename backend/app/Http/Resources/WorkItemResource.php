@@ -29,6 +29,8 @@ class WorkItemResource extends JsonResource
             'keterangan' => $this->keterangan,
             'volume_realisasi' => $this->when(isset($this->volume_realisasi), fn () => (float) $this->volume_realisasi),
             'persentase_realisasi' => $this->when(isset($this->persentase_realisasi), fn () => (float) $this->persentase_realisasi),
+            // Volume yang masih boleh dilaporkan: dikurangi laporan terkirim dan draf yang belum dikirim.
+            'sisa_volume' => $this->when(isset($this->sisa_volume), fn () => (float) $this->sisa_volume),
         ];
     }
 }

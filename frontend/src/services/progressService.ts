@@ -1,5 +1,5 @@
-import { api } from '@/lib/api'
-import type { Paginated, ProgressReport } from '@/types'
+import { api, UNGGAH_TIMEOUT_MS } from '@/lib/api'
+import type { Paginated, ProgressReport, UploadLimits } from '@/types'
 
 export interface ProgressFilter {
   project_id?: number
@@ -34,6 +34,8 @@ export interface ProgressPayload {
   lokasi?: string | null
   cuaca?: string | null
   status?: 'DRAFT' | 'DIKIRIM'
+  /** Identitas unik isian form; pengiriman ulang dengan nilai sama tidak membuat laporan ganda. */
+  client_request_id?: string
   details: ProgressDetailInput[]
   issues?: ProgressIssueInput[]
   photos?: File[]
@@ -48,8 +50,10 @@ function buatFormData(payload: ProgressPayload): FormData {
   form.append('tanggal_laporan', payload.tanggal_laporan)
   form.append('status', payload.status ?? 'DRAFT')
 
-  if (payload.keterangan) form.append('keterangan', payload.keterangan)
-  if (payload.lokasi) form.append('lokasi', payload.lokasi)
+  if (payload.client_request_id) form.append('client_request_id', payload.client_request_id)
+  // Selalu dikirim (boleh kosong) agar isian yang dikosongkan pada draf ikut tersimpan.
+  form.append('keterangan', payload.keterangan ?? '')
+  form.append('lokasi', payload.lokasi ?? '')
   if (payload.cuaca) form.append('cuaca', payload.cuaca)
 
   form.append('details', JSON.stringify(payload.details))
@@ -68,6 +72,27 @@ export const progressService = {
     return data
   },
 
+  /**
+   * Seluruh laporan yang cocok dengan filter, diambil per 100 data (batas per halaman backend).
+   * Dipakai kalender dokumentasi yang memang perlu semua tanggal; hanya metadata foto yang dimuat.
+   */
+  async listAll(filter: Omit<ProgressFilter, 'page' | 'per_page'> = {}): Promise<ProgressReport[]> {
+    const hasil: ProgressReport[] = []
+
+    for (let page = 1; ; page++) {
+      const halaman = await progressService.list({ ...filter, page, per_page: 100 })
+      hasil.push(...halaman.data)
+
+      if (page >= halaman.meta.last_page) return hasil
+    }
+  },
+
+  async uploadLimits(): Promise<UploadLimits> {
+    const { data } = await api.get<{ data: UploadLimits }>('/progress/upload-limits')
+
+    return data.data
+  },
+
   async detail(id: number): Promise<ProgressReport> {
     const { data } = await api.get<{ data: ProgressReport }>(`/progress/${id}`)
 
@@ -75,13 +100,14 @@ export const progressService = {
   },
 
   async create(payload: ProgressPayload): Promise<ProgressReport> {
-    const { data } = await api.post<{ data: ProgressReport }>('/progress', buatFormData(payload))
+    // Unggah foto lewat jaringan seluler bisa lama; batas waktu lebih longgar dari permintaan biasa.
+    const { data } = await api.post<{ data: ProgressReport }>('/progress', buatFormData(payload), { timeout: UNGGAH_TIMEOUT_MS })
 
     return data.data
   },
 
   async update(id: number, payload: ProgressPayload): Promise<ProgressReport> {
-    const { data } = await api.post<{ data: ProgressReport }>(`/progress/${id}`, buatFormData(payload))
+    const { data } = await api.post<{ data: ProgressReport }>(`/progress/${id}`, buatFormData(payload), { timeout: UNGGAH_TIMEOUT_MS })
 
     return data.data
   },

@@ -163,7 +163,7 @@ class ReportService
         $aktualPerPeriode = $this->curve->actualByPeriod($project);
         // Acuan "sudah berjalan" = akhir bulan laporan (atau hari ini bila bulan belum berakhir),
         // sehingga laporan bulan lalu tetap sama walau dibuka/diekspor belakangan.
-        $hariIni = CarbonImmutable::now()->startOfDay()->min($selesaiBulan->startOfDay());
+        $hariIni = ZonaWaktu::hariIni()->min($selesaiBulan->startOfDay());
 
         $rencanaKum = 0.0;
         $aktualKum = 0.0;

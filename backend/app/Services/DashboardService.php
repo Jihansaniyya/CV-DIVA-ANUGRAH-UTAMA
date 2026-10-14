@@ -10,13 +10,15 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkPlan;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 /** Menyusun ringkasan dashboard untuk masing-masing peran. */
 class DashboardService
 {
-    public function __construct(private readonly CurveSService $curve) {}
+    public function __construct(
+        private readonly CurveSService $curve,
+        private readonly ProgressService $progress,
+    ) {}
 
     public function forUser(User $user): array
     {
@@ -53,12 +55,17 @@ class DashboardService
 
     public function qs(User $user): array
     {
-        $projects = Project::visibleTo($user)->with('qs')->get();
+        // Urutan sama dengan halaman Data Proyek (terbaru dibuat lebih dulu); Beranda mengambil 5 teratas.
+        $projects = Project::visibleTo($user)->with('qs')->terbaru()->get();
         $projectIds = $projects->pluck('id');
 
-        $laporan = ProgressReport::with(['project', 'period'])
-            ->where('user_id', $user->id)
+        // Hanya laporan pada proyek yang masih ditugaskan; laporan proyek yang sudah dialihkan ke QS lain
+        // tidak lagi dapat dibuka sehingga tidak ikut dihitung.
+        $laporanSaya = fn () => ProgressReport::where('user_id', $user->id)->whereIn('project_id', $projectIds);
+
+        $laporan = $laporanSaya()->with(['project', 'period'])
             ->orderByDesc('tanggal_laporan')
+            ->orderByDesc('id')
             ->limit(5)
             ->get();
 
@@ -69,11 +76,10 @@ class DashboardService
             'kpi' => [
                 'total_proyek' => $projects->count(),
                 'total_pekerjaan' => WorkItem::whereIn('project_id', $projectIds)->count(),
-                'laporan_draft' => ProgressReport::where('user_id', $user->id)->where('status', ReportStatus::DRAFT)->count(),
-                'laporan_dikirim' => ProgressReport::where('user_id', $user->id)->where('status', ReportStatus::DIKIRIM)->count(),
+                'laporan_draft' => $laporanSaya()->where('status', ReportStatus::DRAFT)->count(),
+                'laporan_dikirim' => $laporanSaya()->where('status', ReportStatus::DIKIRIM)->count(),
             ],
-            // Diurutkan dari yang terakhir diperbarui agar Beranda QS cukup mengambil beberapa teratas.
-            'proyek_ditugaskan' => $this->projectRows($projects->sortByDesc('updated_at')),
+            'proyek_ditugaskan' => $this->projectRows($projects),
             'pekerjaan_perlu_laporan' => $pekerjaanBelumSelesai,
             'laporan_terbaru' => $laporan->map(fn ($r) => [
                 'id' => $r->id,
@@ -193,7 +199,7 @@ class DashboardService
      */
     private function pekerjaanTertinggal(Collection $projects, int $batas = 8): array
     {
-        $hariIni = CarbonImmutable::today()->toDateString();
+        $hariIni = ZonaWaktu::hariIni()->toDateString();
         $projectIds = $projects
             ->filter(fn (Project $p) => $p->tanggal_mulai->toDateString() <= $hariIni && $p->status !== ProjectStatus::SELESAI)
             ->pluck('id');
@@ -220,11 +226,14 @@ class DashboardService
             ->get()
             ->keyBy('work_item_id');
 
+        // Sisa volume memakai aturan yang sama dengan validasi backend (terkirim + draf QS aktif).
+        $terpakai = $this->progress->volumeTerpakai($rencana->keys());
+
         return WorkItem::with(['project', 'unit'])
             ->whereIn('project_id', $projectIds)
             ->whereIn('id', $rencana->keys())
             ->get()
-            ->map(function (WorkItem $item) use ($rencana, $realisasi) {
+            ->map(function (WorkItem $item) use ($rencana, $realisasi, $terpakai) {
                 $volume = (float) $item->volume;
                 $volRealisasi = round((float) ($realisasi[$item->id]->volume ?? 0), 3);
                 $volRencana = round((float) ($rencana[$item->id]->volume ?? 0), 3);
@@ -238,7 +247,7 @@ class DashboardService
                     'volume' => $volume,
                     'volume_realisasi' => $volRealisasi,
                     'volume_rencana' => $volRencana,
-                    'sisa_volume' => round($volume - $volRealisasi, 3),
+                    'sisa_volume' => max(round($volume - (float) ($terpakai[$item->id] ?? 0), 3), 0.0),
                     'persentase' => $volume > 0 ? round($volRealisasi / $volume * 100, 2) : 0.0,
                     'kekurangan_bobot' => round((float) ($rencana[$item->id]->bobot ?? 0) - (float) ($realisasi[$item->id]->bobot ?? 0), 4),
                 ];

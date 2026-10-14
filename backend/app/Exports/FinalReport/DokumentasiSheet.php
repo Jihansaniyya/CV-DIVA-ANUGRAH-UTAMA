@@ -4,6 +4,7 @@ namespace App\Exports\FinalReport;
 
 use App\Exports\ReportFormatter;
 use App\Services\ImageService;
+use App\Services\ZonaWaktu;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -101,7 +102,7 @@ class DokumentasiSheet extends FinalReportSheet
     private function keterangan(array $f): string
     {
         $waktu = $f['diunggah_pada']
-            ? Carbon::parse($f['diunggah_pada'])->timezone(config('app.timezone'))->translatedFormat('d F Y, H:i')
+            ? Carbon::parse($f['diunggah_pada'])->timezone(ZonaWaktu::zona())->translatedFormat('d F Y, H:i')
             : null;
 
         $baris = [

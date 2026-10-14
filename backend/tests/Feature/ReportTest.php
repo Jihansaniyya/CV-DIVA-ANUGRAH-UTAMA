@@ -40,14 +40,14 @@ class ReportTest extends TestCase
         ])->assertOk();
 
         // Realisasi minggu I penuh, minggu II separuh.
-        $this->actingAs($this->konteks['qs'])->postJson('/api/progress', [
+        $this->kirimProgres($this->konteks['qs'], [
             'project_id' => $project->id,
             'tanggal_laporan' => $periods[0]->tanggal_selesai->toDateString(),
             'status' => 'DIKIRIM',
             'details' => [['work_item_id' => $this->konteks['items'][0]->id, 'volume_realisasi' => 100]],
         ])->assertCreated();
 
-        $this->actingAs($this->konteks['qs'])->postJson('/api/progress', [
+        $this->kirimProgres($this->konteks['qs'], [
             'project_id' => $project->id,
             'tanggal_laporan' => $periods[1]->tanggal_selesai->toDateString(),
             'status' => 'DIKIRIM',

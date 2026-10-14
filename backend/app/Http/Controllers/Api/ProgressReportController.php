@@ -11,6 +11,7 @@ use App\Models\ProgressPhoto;
 use App\Models\ProgressReport;
 use App\Models\Project;
 use App\Services\ProgressService;
+use App\Services\UploadLimitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -38,7 +39,7 @@ class ProgressReportController extends Controller
             ->when($request->filled('sampai'), fn ($q) => $q->whereDate('tanggal_laporan', '<=', $request->string('sampai')))
             ->orderByDesc('tanggal_laporan')
             ->orderByDesc('id')
-            ->paginate($request->integer('per_page', 10))
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return ProgressReportResource::collection($reports);
@@ -48,7 +49,7 @@ class ProgressReportController extends Controller
     {
         $project = Project::findOrFail($request->integer('project_id'));
 
-        $report = $this->progress->create(
+        ['report' => $report, 'baru' => $baru] = $this->progress->create(
             $project,
             $request->user(),
             $request->validated(),
@@ -56,9 +57,17 @@ class ProgressReportController extends Controller
         );
 
         return response()->json([
-            'message' => 'Laporan progres berhasil disimpan.',
+            'message' => $baru
+                ? 'Laporan progres berhasil disimpan.'
+                : 'Laporan progres ini sudah tersimpan sebelumnya, sehingga tidak dibuat ulang.',
             'data' => new ProgressReportResource($report->load(self::RELASI)),
-        ], 201);
+        ], $baru ? 201 : 200);
+    }
+
+    /** Batas unggah foto yang benar-benar dapat diterima server (dipakai form progres). */
+    public function uploadLimits(UploadLimitService $limits): JsonResponse
+    {
+        return response()->json(['data' => $limits->ringkasan()]);
     }
 
     public function show(ProgressReport $progress): JsonResponse

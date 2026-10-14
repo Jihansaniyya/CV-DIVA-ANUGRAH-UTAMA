@@ -91,6 +91,16 @@ export interface WorkItem {
   keterangan: string | null
   volume_realisasi?: number
   persentase_realisasi?: number
+  /** Volume yang masih boleh dilaporkan: volume - (laporan terkirim + draf yang belum dikirim). */
+  sisa_volume?: number
+}
+
+/** Batas unggah foto yang dapat diterima server (sudah memperhitungkan konfigurasi PHP). */
+export interface UploadLimits {
+  foto_maks_kb: number
+  foto_maks_jumlah: number
+  /** 0 = tanpa batas total. */
+  total_maks_kb: number
 }
 
 export interface Period {
@@ -213,7 +223,8 @@ export interface ProgressIssue {
   id: number
   work_item_id: number | null
   pekerjaan: string | null
-  jenis_kendala: string
+  /** Kosong bila draf belum memilih jenis kendala. */
+  jenis_kendala: string | null
   deskripsi: string
   tindak_lanjut: string | null
   status: string

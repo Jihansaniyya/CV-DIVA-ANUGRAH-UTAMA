@@ -2,7 +2,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { Dropdown } from '@/components/ui/Dropdown'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
-import { useProjects } from '@/hooks/queries'
+import { useProjectOptions } from '@/hooks/queries'
 import { pesanError } from '@/lib/api'
 import { CurveTab } from '@/pages/projects/tabs/CurveTab'
 import { rentangTanggal } from '@/utils/format'
@@ -13,20 +13,20 @@ import { useSearchParams } from 'react-router-dom'
 /** Halaman Kurva S mandiri dengan pemilih proyek (hanya pemantauan). */
 export function CurveSPage() {
   const [params, setParams] = useSearchParams()
-  const { data, isLoading, error, refetch } = useProjects({ per_page: 100 })
+  const { data, isLoading, error, refetch } = useProjectOptions()
   const [projectId, setProjectId] = useState<number | null>(params.get('project_id') ? Number(params.get('project_id')) : null)
 
   useEffect(() => {
-    if (!projectId && data && data.data.length > 0) {
-      setProjectId(data.data[0].id)
+    if (!projectId && data && data.length > 0) {
+      setProjectId(data[0].id)
     }
   }, [data, projectId])
 
   if (isLoading) return <LoadingState pesan="Memuat daftar proyek..." />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
-  if (!data || data.data.length === 0) return <EmptyState judul="Belum ada proyek" pesan="Kurva S tampil setelah proyek dibuat." />
+  if (!data || data.length === 0) return <EmptyState judul="Belum ada proyek" pesan="Kurva S tampil setelah proyek dibuat." />
 
-  const proyek = data.data.find((item) => item.id === projectId)
+  const proyek = data.find((item) => item.id === projectId)
 
   return (
     <div className="flex flex-col gap-4">
@@ -40,7 +40,7 @@ export function CurveSPage() {
           <Dropdown
             label="Proyek"
             value={projectId ? String(projectId) : ''}
-            options={data.data.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            options={data.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
             onChange={(nilai) => {
               setProjectId(Number(nilai))
               params.set('project_id', nilai)

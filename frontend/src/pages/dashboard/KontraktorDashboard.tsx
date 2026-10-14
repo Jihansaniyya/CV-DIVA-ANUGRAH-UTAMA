@@ -11,6 +11,7 @@ import { cn } from '@/utils/cn'
 import { deviasi, hariIni, persen, tanggal, tanggalSingkat } from '@/utils/format'
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, HardHat, type LucideIcon } from 'lucide-react'
 import type { ComponentProps } from 'react'
+import { MuatUlangDashboard } from '@/pages/dashboard/MuatUlangDashboard'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -250,10 +251,13 @@ export function KontraktorDashboard({ data }: { data: DashboardData }) {
     <div className="flex flex-col gap-4 xl:h-[calc(100dvh-7rem)]">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 xl:shrink-0">
         <h2 className="text-lg font-semibold text-ink">Beranda</h2>
-        <p className="flex items-center gap-1.5 text-xs text-muted">
-          <CalendarDays className="size-3.5" aria-hidden />
-          Data per {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="flex items-center gap-1.5 text-xs text-muted">
+            <CalendarDays className="size-3.5" aria-hidden />
+            Data per {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
+          </p>
+          <MuatUlangDashboard />
+        </div>
       </div>
 
       {/* Empat kartu status membagi seluruh proyek; kartu Tertinggal adalah peringatan dari proyek berjalan, sengaja dipisah. */}
@@ -285,7 +289,7 @@ export function KontraktorDashboard({ data }: { data: DashboardData }) {
       </div>
 
       {/* Layar lebar: tabel dan progres terbaru mengisi sisa tinggi layar dan menggulir isinya sendiri. */}
-      <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-[minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-[minmax(0,1fr)]">
         <MonitoringProyek proyek={proyek} filter={filter} onFilterChange={setFilter} />
         <ProgresTerbaru laporan={data.laporan_terbaru ?? []} />
       </div>

@@ -4,7 +4,7 @@ import { progressService, type ProgressFilter } from '@/services/progressService
 import { projectService, type ProjectFilter } from '@/services/projectService'
 import { reportService } from '@/services/reportService'
 import { userService, type UserFilter } from '@/services/userService'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 
 /** Kunci cache TanStack Query terpusat agar invalidasi konsisten. */
 export const qk = {
@@ -13,6 +13,8 @@ export const qk = {
   units: ['units'] as const,
   users: (filter: UserFilter) => ['users', filter] as const,
   projects: (filter: ProjectFilter) => ['projects', filter] as const,
+  projectOptions: ['projects', 'options'] as const,
+  uploadLimits: ['progress', 'upload-limits'] as const,
   project: (id: number) => ['project', id] as const,
   workItems: (id: number) => ['project', id, 'work-items'] as const,
   categories: (id: number) => ['project', id, 'categories'] as const,
@@ -22,13 +24,29 @@ export const qk = {
   milestones: (id: number) => ['project', id, 'milestones'] as const,
   progressList: (filter: ProgressFilter) => ['progress', filter] as const,
   progress: (id: number) => ['progress', id] as const,
+  progressAll: (projectId: number) => ['progress', 'all', projectId] as const,
   reportWeekly: (id: number, periodId?: number) => ['report', 'weekly', id, periodId] as const,
   reportMonthly: (id: number, bulan: number) => ['report', 'monthly', id, bulan] as const,
   reportFinal: (id: number) => ['report', 'final', id] as const,
   documents: (id?: number) => ['report', 'documents', id] as const,
 }
 
-export const useDashboard = () => useQuery({ queryKey: qk.dashboard, queryFn: dashboardService.get })
+/** Beranda selalu diambil ulang saat dibuka agar laporan terbaru langsung terlihat (bukan real-time). */
+export const useDashboard = () => useQuery({ queryKey: qk.dashboard, queryFn: dashboardService.get, staleTime: 0 })
+
+/**
+ * Data yang berubah setelah laporan progres disimpan, dikirim, diubah, atau dihapus: daftar & detail
+ * progres, Beranda, daftar proyek (progres %), sisa volume pekerjaan, Kurva S, dan laporan.
+ */
+export async function invalidasiSetelahProgres(queryClient: QueryClient, projectId?: number): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['progress'] }),
+    queryClient.invalidateQueries({ queryKey: qk.dashboard }),
+    queryClient.invalidateQueries({ queryKey: ['projects'] }),
+    queryClient.invalidateQueries({ queryKey: ['report'] }),
+    projectId ? queryClient.invalidateQueries({ queryKey: ['project', projectId] }) : Promise.resolve(),
+  ])
+}
 
 export const useRoles = () => useQuery({ queryKey: qk.roles, queryFn: masterService.roles, staleTime: 30 * 60 * 1000 })
 
@@ -38,6 +56,12 @@ export const useUsers = (filter: UserFilter) => useQuery({ queryKey: qk.users(fi
 
 export const useProjects = (filter: ProjectFilter) =>
   useQuery({ queryKey: qk.projects(filter), queryFn: () => projectService.list(filter) })
+
+/** Seluruh proyek yang boleh diakses untuk dropdown pilihan proyek (tidak terbatas 100 data). */
+export const useProjectOptions = () => useQuery({ queryKey: qk.projectOptions, queryFn: projectService.options })
+
+export const useUploadLimits = (enabled = true) =>
+  useQuery({ queryKey: qk.uploadLimits, queryFn: progressService.uploadLimits, staleTime: 30 * 60 * 1000, enabled })
 
 export const useProject = (id: number | null) =>
   useQuery({ queryKey: qk.project(id ?? 0), queryFn: () => projectService.detail(id as number), enabled: Boolean(id) })
@@ -63,6 +87,9 @@ export const useMilestones = (id: number | null) =>
 export const useProgressList = (filter: ProgressFilter) =>
   useQuery({ queryKey: qk.progressList(filter), queryFn: () => progressService.list(filter) })
 
+export const useAllProgress = (projectId: number) =>
+  useQuery({ queryKey: qk.progressAll(projectId), queryFn: () => progressService.listAll({ project_id: projectId }) })
+
 export const useProgress = (id: number | null) =>
   useQuery({ queryKey: qk.progress(id ?? 0), queryFn: () => progressService.detail(id as number), enabled: Boolean(id) })
 
@@ -87,5 +114,5 @@ export const useFinalReport = (id: number | null) =>
     enabled: Boolean(id),
   })
 
-export const useReportDocuments = (id?: number) =>
-  useQuery({ queryKey: qk.documents(id), queryFn: () => reportService.documents(id) })
+export const useReportDocuments = (id?: number, page = 1) =>
+  useQuery({ queryKey: [...qk.documents(id), page], queryFn: () => reportService.documents({ project_id: id, page }) })

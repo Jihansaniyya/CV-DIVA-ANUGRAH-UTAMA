@@ -25,7 +25,7 @@ class UserController extends Controller
             ->when($request->filled('role'), fn ($query) => $query->whereHas('role', fn ($r) => $r->where('code', $request->string('role'))))
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->string('status') === 'aktif'))
             ->orderBy('name')
-            ->paginate($request->integer('per_page', 10))
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return UserResource::collection($users);

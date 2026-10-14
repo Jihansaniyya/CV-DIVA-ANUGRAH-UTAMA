@@ -1,6 +1,7 @@
 import { ReportStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { useProgressList } from '@/hooks/queries'
@@ -9,11 +10,13 @@ import { pesanError } from '@/lib/api'
 import type { Project } from '@/types'
 import { persen, tanggalSingkat } from '@/utils/format'
 import { Plus } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 export function ProgressTab({ projectId, project }: { projectId: number; project: Project }) {
   const { punyaPeran } = useAuth()
-  const { data, isLoading, error, refetch } = useProgressList({ project_id: projectId, per_page: 25 })
+  const [page, setPage] = useState(1)
+  const { data, isLoading, error, refetch } = useProgressList({ project_id: projectId, page, per_page: 25 })
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
@@ -83,6 +86,16 @@ export function ProgressTab({ projectId, project }: { projectId: number; project
             </tbody>
           </Table>
         </TableWrap>
+      )}
+      {data && data.data.length > 0 && (
+        <Pagination
+          page={data.meta.current_page}
+          lastPage={data.meta.last_page}
+          total={data.meta.total}
+          from={data.meta.from}
+          to={data.meta.to}
+          onChange={setPage}
+        />
       )}
     </Card>
   )

@@ -6,7 +6,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { Dropdown } from '@/components/ui/Dropdown'
-import { useProgressList, useProjects } from '@/hooks/queries'
+import { useProgressList, useProjectOptions } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
 import type { ProgressReport } from '@/types'
@@ -30,7 +30,7 @@ export function ProgressPage() {
   const [dari, setDari] = useState('')
   const [sampai, setSampai] = useState('')
 
-  const { data: projects } = useProjects({ per_page: 100 })
+  const { data: projects } = useProjectOptions()
   const { data, isLoading, error, refetch } = useProgressList({
     page,
     per_page: 10,
@@ -69,7 +69,7 @@ export function ProgressPage() {
           <Dropdown
             label="Proyek"
             value={projectId}
-            options={(projects?.data ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            options={(projects ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
             onChange={ubah(setProjectId)}
             placeholder="Semua proyek"
             allowEmpty

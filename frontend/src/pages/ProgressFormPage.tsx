@@ -3,18 +3,20 @@ import { Card } from '@/components/ui/Card'
 import { DatePicker, FieldWrap, Input, Select, Textarea } from '@/components/ui/Field'
 import { FileUpload, type FotoTerpilih } from '@/components/ui/FileUpload'
 import { ConfirmDialog } from '@/components/ui/Modal'
-import { EmptyState, LoadingState } from '@/components/ui/State'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Dropdown } from '@/components/ui/Dropdown'
-import { qk, useProjects, useWorkItems } from '@/hooks/queries'
+import { invalidasiSetelahProgres, useProgress, useProjectOptions, useUploadLimits, useWorkItems } from '@/hooks/queries'
+import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { errorValidasi, pesanError } from '@/lib/api'
+import { errorValidasi, pesanError, statusTidakPasti } from '@/lib/api'
 import { progressService, type ProgressPayload } from '@/services/progressService'
 import { cn } from '@/utils/cn'
-import { angka, hariIni, persen, rentangTanggal } from '@/utils/format'
+import { angka, hariIni, persen, rentangTanggal, tanggal as formatTanggal } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Save, Send, Trash2 } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import type { ProgressReport } from '@/types'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 interface BarisDetail {
   work_item_id: number | ''
@@ -52,8 +54,59 @@ const kendalaKosong = (workItemIds: number[] = []): BarisKendala => ({
 const tanpaErrorKendala = (errors: Record<string, string>) =>
   Object.fromEntries(Object.entries(errors).filter(([key]) => key !== 'selesai' && !key.startsWith('issues')))
 
-/** Form input progres harian oleh QS. */
+/** Isian form yang dibandingkan untuk mendeteksi perubahan draf yang belum disimpan. */
+interface IsianForm {
+  tanggal: string
+  lokasi: string
+  keterangan: string
+  details: BarisDetail[]
+  selesai: boolean | null
+  issues: BarisKendala[]
+}
+
+const ringkasIsian = (isian: IsianForm) => JSON.stringify(isian)
+
+/** Tujuan khusus dialog keluar: tombol Kembali browser. */
+const KEMBALI = '__kembali__'
+
+const adaPenjagaRiwayat = () => Boolean((window.history.state as { penjagaForm?: boolean } | null)?.penjagaForm)
+
+const pasangPenjagaRiwayat = () => window.history.pushState({ ...(window.history.state ?? {}), penjagaForm: true }, '', window.location.href)
+
+/** Identitas unik isian form; dipakai backend untuk menolak pengiriman ganda dari permintaan yang sama. */
+function buatIdPermintaan(): string {
+  // randomUUID hanya tersedia pada konteks aman (HTTPS atau localhost).
+  if (window.isSecureContext) return crypto.randomUUID()
+
+  // Cadangan untuk koneksi non-HTTPS (mis. diakses lewat IP jaringan lokal) yang tidak menyediakan randomUUID.
+  const b = crypto.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
+
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
+/** Kendala tersimpan per pekerjaan; jenis "Lainnya" menyimpan sebutannya di awal deskripsi ("Perizinan: ..."). */
+function kendalaDariLaporan(laporan: ProgressReport): BarisKendala[] {
+  return (laporan.kendala ?? []).map((item) => {
+    const lainnya = item.jenis_kendala === 'LAINNYA' ? /^([^:]{1,60}):\s([\s\S]+)$/.exec(item.deskripsi) : null
+
+    return {
+      work_item_ids: item.work_item_id ? [item.work_item_id] : [],
+      jenis_kendala: item.jenis_kendala ?? '',
+      jenis_lainnya: lainnya ? lainnya[1] : '',
+      deskripsi: lainnya ? lainnya[2] : item.deskripsi,
+      tindak_lanjut: item.tindak_lanjut ?? '',
+    }
+  })
+}
+
+/** Form input progres harian oleh QS, juga dipakai untuk membuka dan mengubah draf (/progres/:id/ubah). */
 export function ProgressFormPage() {
+  const { id: idParam } = useParams<{ id: string }>()
+  const editId = idParam ? Number(idParam) : null
+  const { user } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -70,19 +123,70 @@ export function ProgressFormPage() {
   const [foto, setFoto] = useState<FotoTerpilih[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tujuanKeluar, setTujuanKeluar] = useState<string | null>(null)
+  const [idPermintaan] = useState(buatIdPermintaan)
+  const sudahDiisi = useRef(false)
+  const [isianAwal, setIsianAwal] = useState<string | null>(null)
+  const [tersimpan, setTersimpan] = useState(false)
+  /** Pengguna sudah memilih keluar (atau sudah tersimpan); penjaga tombol Kembali tidak lagi menahan. */
+  const keluar = useRef(false)
+  const adaPerubahanRef = useRef(false)
+  /** Form dibuka dari tombol "Ubah Draf" di halaman detail; setelah simpan cukup kembali ke halaman itu. */
+  const { state: stateLokasi } = useLocation() as { state: { dariDetail?: boolean } | null }
 
-  const { data: projects, isLoading: memuatProyek } = useProjects({ per_page: 100 })
-  const projectId: number | '' = projectIdDipilih !== '' ? projectIdDipilih : projects?.data.length === 1 ? projects.data[0].id : ''
+  const { data: laporanEdit, isLoading: memuatLaporan, error: errorLaporan } = useProgress(editId)
+  const { data: limits } = useUploadLimits()
+  const { data: projectList, isLoading: memuatProyek } = useProjectOptions()
+  const projects = projectList ?? []
+  const projectId: number | '' =
+    laporanEdit?.project_id ?? (projectIdDipilih !== '' ? projectIdDipilih : projects.length === 1 ? projects[0].id : '')
   const { data: pekerjaan, isLoading: memuatPekerjaan } = useWorkItems(projectId ? Number(projectId) : null)
-  const proyekDipilih = projects?.data.find((item) => item.id === Number(projectId))
+  const proyekDipilih = projects.find((item) => item.id === Number(projectId))
+  const fotoTersimpan = laporanEdit?.foto ?? []
+  const bolehDiubah = !editId || (laporanEdit?.status === 'DRAFT' && laporanEdit.user_id === user?.id)
+
+  /** Isi form dari draf yang dibuka, sekali saja agar isian yang sedang diubah tidak tertimpa saat data dimuat ulang. */
+  useEffect(() => {
+    if (!laporanEdit || sudahDiisi.current) return
+
+    sudahDiisi.current = true
+    const kendala = kendalaDariLaporan(laporanEdit)
+    const awal: IsianForm = {
+      tanggal: laporanEdit.tanggal_laporan.slice(0, 10),
+      lokasi: laporanEdit.lokasi ?? '',
+      keterangan: laporanEdit.keterangan ?? '',
+      details:
+        (laporanEdit.detail ?? []).length > 0
+          ? (laporanEdit.detail ?? []).map((detail) => ({ work_item_id: detail.work_item_id, volume_realisasi: detail.volume_realisasi }))
+          : [{ work_item_id: '', volume_realisasi: '' }],
+      // Pilihan "Selesai" tidak disimpan; draf berkendala berarti "Belum Selesai", selebihnya dipilih ulang saat dikirim.
+      selesai: kendala.length > 0 ? false : null,
+      issues: kendala,
+    }
+
+    setTanggal(awal.tanggal)
+    setLokasi(awal.lokasi)
+    setKeterangan(awal.keterangan)
+    setDetails(awal.details)
+    setIssues(awal.issues)
+    setSelesai(awal.selesai)
+    setIsianAwal(ringkasIsian(awal))
+  }, [laporanEdit])
+
+  /** Volume draf yang sedang diubah tidak ikut mengurangi sisa volume pekerjaannya sendiri. */
+  const volumeDrafIni = (workItemId: number) =>
+    laporanEdit?.detail?.filter((detail) => detail.work_item_id === workItemId).reduce((total, detail) => total + detail.volume_realisasi, 0) ?? 0
   // Progres baru hanya dapat ditambahkan bila total bobot rencana proyek sudah 100% (backend ikut memvalidasi).
   const pesanRencanaBelumLengkap =
     proyekDipilih?.rencana_lengkap === false
       ? `Rencana pekerjaan proyek ini baru dijadwalkan ${persen(proyekDipilih.total_bobot_rencana ?? 0)} dari total bobot pekerjaan. Progres dapat ditambahkan setelah Admin melengkapi rencana hingga 100%.`
       : null
-  // Tanggal progres dibatasi pada jadwal proyek agar laporan selalu masuk ke salah satu periode.
+  // Tanggal progres dibatasi pada jadwal proyek agar laporan selalu masuk ke salah satu periode,
+  // dan tidak melewati hari ini karena progres mencatat pekerjaan yang sudah dilaksanakan (backend ikut memvalidasi).
+  const hari = hariIni()
   const tanggalMulai = proyekDipilih?.tanggal_mulai?.slice(0, 10)
-  const tanggalSelesai = proyekDipilih?.tanggal_selesai?.slice(0, 10)
+  const jadwalSelesai = proyekDipilih?.tanggal_selesai?.slice(0, 10)
+  const tanggalSelesai = jadwalSelesai && jadwalSelesai < hari ? jadwalSelesai : hari
+  const proyekBelumDimulai = Boolean(tanggalMulai && tanggalMulai > hari)
   // Bawaan "hari ini" bisa di luar jadwal (proyek belum mulai / sudah lewat); geser ke batas jadwal terdekat.
   const tanggal =
     tanggalDipilih && tanggalMulai && tanggalDipilih < tanggalMulai
@@ -92,14 +196,14 @@ export function ProgressFormPage() {
         : tanggalDipilih
 
   useEffect(() => {
-    if (!projectId || !projects) return
+    if (!projectId || editId) return
 
-    const project = projects.data.find((item) => item.id === Number(projectId))
+    const project = projectList?.find((item) => item.id === Number(projectId))
 
     if (project && !lokasi) {
       setLokasi(project.lokasi)
     }
-  }, [projectId, projects, lokasi])
+  }, [projectId, projectList, lokasi, editId])
 
   /** ID pekerjaan unik yang sudah dipilih pada bagian Progres Pekerjaan. */
   const idPekerjaanDipilih = (rows: BarisDetail[] = details) => [
@@ -119,12 +223,22 @@ export function ProgressFormPage() {
   const ubahKendala = (index: number, perubahan: Partial<BarisKendala>) =>
     setIssues((current) => current.map((row, i) => (i === index ? { ...row, ...perubahan } : row)))
 
+  /**
+   * Ada isian yang belum disimpan.
+   * - Ubah draf: isian berbeda dari draf saat dibuka, atau ada foto baru. Foto tersimpan yang dihapus
+   *   langsung terhapus di server, jadi bukan perubahan yang tertunda.
+   * - Tambah progres: ada isian berarti (lokasi & tanggal bawaan yang terisi otomatis tidak dihitung).
+   * Setelah berhasil disimpan, form tidak lagi dianggap berubah.
+   */
   const adaPerubahan =
-    details.some((baris) => baris.volume_realisasi !== '') ||
-    foto.length > 0 ||
-    selesai !== null ||
-    keterangan.trim() !== '' ||
-    issues.some((baris) => baris.deskripsi.trim() !== '')
+    !tersimpan &&
+    (foto.length > 0 ||
+      (editId
+        ? isianAwal !== null && ringkasIsian({ tanggal: tanggalDipilih, lokasi, keterangan, details, selesai, issues }) !== isianAwal
+        : details.some((baris) => baris.volume_realisasi !== '') ||
+          selesai !== null ||
+          keterangan.trim() !== '' ||
+          issues.some((baris) => baris.deskripsi.trim() !== '')))
 
   /** Peringatkan pengguna saat menutup tab atau memuat ulang halaman selagi ada isian yang belum dikirim. */
   useEffect(() => {
@@ -139,6 +253,40 @@ export function ProgressFormPage() {
 
     return () => window.removeEventListener('beforeunload', konfirmasiUnload)
   }, [adaPerubahan])
+
+  // Dibaca oleh pendengar popstate yang dipasang sekali; selalu memuat nilai render terakhir.
+  useEffect(() => {
+    adaPerubahanRef.current = adaPerubahan
+  }, [adaPerubahan])
+
+  /**
+   * Tombol Kembali browser. BrowserRouter tidak menyediakan pemblokir navigasi, jadi saat form dibuka
+   * disisipkan satu entri riwayat penjaga dengan URL yang sama (sekali saja; setelah muat ulang entri
+   * penjaga yang sama dipakai lagi). Menekan Kembali melepas entri itu:
+   *   - tanpa perubahan -> diteruskan satu langkah lagi, jadi cukup sekali tekan untuk keluar;
+   *   - ada perubahan   -> penjaga dipasang lagi dan dialog konfirmasi ditampilkan.
+   */
+  useEffect(() => {
+    if (!adaPenjagaRiwayat()) pasangPenjagaRiwayat()
+
+    const tombolKembali = () => {
+      if (keluar.current) return
+
+      if (adaPerubahanRef.current) {
+        pasangPenjagaRiwayat()
+        setTujuanKeluar(KEMBALI)
+
+        return
+      }
+
+      keluar.current = true
+      window.history.back()
+    }
+
+    window.addEventListener('popstate', tombolKembali)
+
+    return () => window.removeEventListener('popstate', tombolKembali)
+  }, [])
 
   /** Cegat navigasi dalam aplikasi (menu, sidebar, tautan Kembali) selagi ada isian yang belum dikirim. */
   useEffect(() => {
@@ -165,19 +313,44 @@ export function ProgressFormPage() {
   }, [adaPerubahan])
 
   const simpan = useMutation({
-    mutationFn: (payload: ProgressPayload) => progressService.create(payload),
+    mutationFn: (payload: ProgressPayload) => (editId ? progressService.update(editId, payload) : progressService.create(payload)),
     onSuccess: async (laporan) => {
       toast.sukses(laporan.status === 'DIKIRIM' ? 'Progres berhasil dikirim.' : 'Progres tersimpan sebagai draf.')
-      await queryClient.invalidateQueries({ queryKey: ['progress'] })
-      await queryClient.invalidateQueries({ queryKey: qk.dashboard })
-      await queryClient.invalidateQueries({ queryKey: qk.curve(laporan.project_id) })
-      navigate(`/progres/${laporan.id}`)
+      // Isian sudah tersimpan: matikan penjaga keluar sebelum berpindah halaman.
+      keluar.current = true
+      setTersimpan(true)
+      await invalidasiSetelahProgres(queryClient, laporan.project_id)
+      if (editId && stateLokasi?.dariDetail && adaPenjagaRiwayat()) {
+        // Dibuka dari halaman detail: kembali ke entri riwayat detail itu (melewati penjaga dan form),
+        // sehingga tombol Kembali berikutnya tidak membuka form yang sudah tersimpan.
+        window.history.go(-2)
+      } else {
+        // Entri penjaga riwayat diganti halaman detail.
+        navigate(`/progres/${laporan.id}`, { replace: adaPenjagaRiwayat() })
+      }
     },
     onError: (error) => {
+      if (statusTidakPasti(error)) {
+        // Respons tidak diterima: server mungkin sudah menyimpan. Menekan simpan lagi aman karena isian ini
+        // membawa identitas permintaan yang sama, sehingga tidak akan menjadi laporan ganda.
+        toast.gagal(`${pesanError(error)} Status penyimpanan belum dapat dipastikan; menekan tombol simpan lagi tidak akan membuat laporan ganda.`)
+
+        return
+      }
+
       const validasi = errorValidasi(error)
       setErrors(validasi)
       toast.gagal(Object.keys(validasi).length > 0 ? Object.values(validasi)[0] : pesanError(error))
     },
+  })
+
+  const hapusFoto = useMutation({
+    mutationFn: (photoId: number) => progressService.removePhoto(photoId),
+    onSuccess: async () => {
+      toast.sukses('Foto berhasil dihapus.')
+      await invalidasiSetelahProgres(queryClient, laporanEdit?.project_id)
+    },
+    onError: (error) => toast.gagal(pesanError(error)),
   })
 
   const kirim = (event: FormEvent, status: 'DRAFT' | 'DIKIRIM') => {
@@ -188,8 +361,12 @@ export function ProgressFormPage() {
     else if (pesanRencanaBelumLengkap) validasi.project_id = pesanRencanaBelumLengkap
     if (!tanggal) {
       validasi.tanggal_laporan = 'Tanggal progres wajib diisi.'
-    } else if (tanggalMulai && tanggalSelesai && (tanggal < tanggalMulai || tanggal > tanggalSelesai)) {
-      validasi.tanggal_laporan = `Tanggal progres berada di luar jadwal proyek (${rentangTanggal(tanggalMulai, tanggalSelesai)}).`
+    } else if (proyekBelumDimulai && tanggalMulai) {
+      validasi.tanggal_laporan = `Proyek baru dimulai ${formatTanggal(tanggalMulai)}. Progres dapat diisi mulai tanggal tersebut.`
+    } else if (tanggal > hari) {
+      validasi.tanggal_laporan = 'Tanggal progres tidak boleh melewati hari ini.'
+    } else if (tanggalMulai && jadwalSelesai && (tanggal < tanggalMulai || tanggal > jadwalSelesai)) {
+      validasi.tanggal_laporan = `Tanggal progres berada di luar jadwal proyek (${rentangTanggal(tanggalMulai, jadwalSelesai)}).`
     }
 
     const detailValid = details.filter((baris) => baris.work_item_id !== '' && baris.volume_realisasi !== '')
@@ -207,7 +384,7 @@ export function ProgressFormPage() {
     if (status === 'DIKIRIM') {
       if (!lokasi.trim()) validasi.lokasi = 'Lokasi wajib diisi.'
       if (!keterangan.trim()) validasi.keterangan = 'Keterangan kegiatan hari ini wajib diisi.'
-      if (foto.length === 0) validasi.photos = 'Minimal satu foto bukti pekerjaan wajib diunggah.'
+      if (foto.length + fotoTersimpan.length === 0) validasi.photos = 'Minimal satu foto bukti pekerjaan wajib diunggah.'
     }
 
     // Kendala hanya relevan saat "Belum Selesai"; saat "Selesai" tidak divalidasi maupun dikirim.
@@ -243,6 +420,7 @@ export function ProgressFormPage() {
     }
 
     simpan.mutate({
+      client_request_id: editId ? undefined : idPermintaan,
       project_id: Number(projectId),
       tanggal_laporan: tanggal,
       lokasi: lokasi || null,
@@ -272,9 +450,27 @@ export function ProgressFormPage() {
     })
   }
 
-  if (memuatProyek) return <LoadingState />
+  if (memuatProyek || (editId && memuatLaporan)) return <LoadingState />
 
-  if (!projects || projects.data.length === 0) {
+  if (editId && (errorLaporan || !laporanEdit)) {
+    return <ErrorState pesan={errorLaporan ? pesanError(errorLaporan) : 'Draf progres tidak ditemukan.'} />
+  }
+
+  if (!bolehDiubah) {
+    return (
+      <EmptyState
+        judul="Laporan tidak dapat diubah"
+        pesan="Hanya draf milik Anda yang dapat diubah. Laporan yang sudah dikirim tidak dapat diubah lagi."
+        aksi={
+          <Link to={`/progres/${editId}`} className="text-sm font-medium text-primary hover:underline">
+            Lihat laporan
+          </Link>
+        }
+      />
+    )
+  }
+
+  if (projects.length === 0) {
     return <EmptyState judul="Belum ada proyek yang ditugaskan" pesan="Hubungi Admin untuk penugasan proyek." />
   }
 
@@ -287,11 +483,14 @@ export function ProgressFormPage() {
     <form className="flex flex-col gap-4" onSubmit={(event) => kirim(event, 'DIKIRIM')} noValidate>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link to="/progres" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-ink">
+          <Link
+            to={editId ? `/progres/${editId}` : '/progres'}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-ink"
+          >
             <ArrowLeft className="size-4" aria-hidden />
             Kembali
           </Link>
-          <h2 className="mt-1 text-lg font-semibold text-ink">Tambah Progres Harian</h2>
+          <h2 className="mt-1 text-lg font-semibold text-ink">{editId ? 'Ubah Draf Progres' : 'Tambah Progres Harian'}</h2>
         </div>
       </div>
 
@@ -301,7 +500,8 @@ export function ProgressFormPage() {
             label="Proyek"
             required
             value={projectId === '' ? '' : String(projectId)}
-            options={projects.data.map((project) => ({
+            disabled={Boolean(editId)}
+            options={projects.map((project) => ({
               value: String(project.id),
               label: project.rencana_lengkap === false ? `${project.nama_proyek} (rencana belum 100%)` : project.nama_proyek,
             }))}
@@ -321,7 +521,7 @@ export function ProgressFormPage() {
             max={tanggalSelesai}
             onChange={(event) => setTanggal(event.target.value)}
             error={errors.tanggal_laporan}
-            hint={tanggalMulai && tanggalSelesai ? `Jadwal proyek: ${rentangTanggal(tanggalMulai, tanggalSelesai)}` : undefined}
+            hint={tanggalMulai && jadwalSelesai ? `Jadwal proyek: ${rentangTanggal(tanggalMulai, jadwalSelesai)}; tidak boleh melewati hari ini.` : undefined}
           />
           <Input
             label="Lokasi"
@@ -371,7 +571,8 @@ export function ProgressFormPage() {
           <ul className="flex flex-col gap-3">
             {details.map((baris, index) => {
               const item = daftarPekerjaan.find((pekerjaanItem) => pekerjaanItem.id === Number(baris.work_item_id))
-              const sisa = item ? item.volume - (item.volume_realisasi ?? 0) : null
+              // Sisa dari backend: volume - (terkirim + draf lain), sama dengan batas yang divalidasi saat menyimpan.
+              const sisa = item ? (item.sisa_volume ?? item.volume - (item.volume_realisasi ?? 0)) + volumeDrafIni(item.id) : null
 
               return (
                 <li key={index} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-12">
@@ -432,7 +633,32 @@ export function ProgressFormPage() {
         }
         description="Unggah minimal satu foto. Foto ditampilkan sebagai pratinjau sebelum progres dikirim."
       >
-        <FileUpload files={foto} onChange={setFoto} error={errors.photos ?? errors['photos.0']} />
+        {fotoTersimpan.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-2 text-xs font-medium text-muted">Foto tersimpan pada draf ini</p>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {fotoTersimpan.map((item) => (
+                <li key={item.id} className="app-card overflow-hidden">
+                  <img src={item.url} alt={item.caption || 'Foto bukti pekerjaan'} className="h-28 w-full object-cover" loading="lazy" />
+                  <div className="space-y-2 p-2">
+                    <p className="truncate text-[11px] text-muted">{item.caption || item.original_name || 'Tanpa keterangan'}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-danger"
+                      icon={<Trash2 className="size-3.5" />}
+                      loading={hapusFoto.isPending && hapusFoto.variables === item.id}
+                      onClick={() => hapusFoto.mutate(item.id)}
+                    >
+                      Hapus
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <FileUpload files={foto} onChange={setFoto} limits={limits} error={errors.photos ?? errors['photos.0']} />
       </Card>
 
       <Card
@@ -619,7 +845,14 @@ export function ProgressFormPage() {
       onConfirm={() => {
         const tujuan = tujuanKeluar
         setTujuanKeluar(null)
-        if (tujuan) navigate(tujuan)
+        keluar.current = true
+
+        if (tujuan === KEMBALI) {
+          // Lewati entri penjaga dan entri form itu sendiri, sama seperti menekan Kembali tanpa penjaga.
+          window.history.go(-2)
+        } else if (tujuan) {
+          navigate(tujuan, { replace: adaPenjagaRiwayat() })
+        }
       }}
       onClose={() => setTujuanKeluar(null)}
     />

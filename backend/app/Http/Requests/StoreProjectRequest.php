@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesQsPenanggungJawab;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProjectRequest extends FormRequest
 {
+    use ValidatesQsPenanggungJawab;
+
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
@@ -27,7 +30,7 @@ class StoreProjectRequest extends FormRequest
             'konsultan_pengawas' => ['required', 'string', 'max:150'],
             'nama_site_engineer' => ['required', 'string', 'max:120'],
             'nama_pelaksana_lapangan' => ['nullable', 'string', 'max:120'],
-            'qs_user_id' => ['nullable', 'exists:users,id'],
+            'qs_user_id' => $this->qsRule(),
             'keterangan' => ['nullable', 'string'],
         ];
     }

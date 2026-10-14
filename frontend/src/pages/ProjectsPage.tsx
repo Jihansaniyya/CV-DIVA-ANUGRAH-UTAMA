@@ -10,7 +10,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { ProjectFormModal } from '@/pages/projects/ProjectFormModal'
-import { qk, useProjects } from '@/hooks/queries'
+import { qk, useProjectOptions, useProjects } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { pesanError } from '@/lib/api'
@@ -42,17 +42,12 @@ export function ProjectsPage() {
   const [proyekDiedit, setProyekDiedit] = useState<Project | null>(null)
   const [proyekDihapus, setProyekDihapus] = useState<Project | null>(null)
 
-  const filter = { page, per_page: 10, status: status || undefined }
-  const { data: daftar, isLoading, error, refetch } = useProjects(filter)
-  // Semua proyek yang boleh diakses, sebagai pilihan dropdown proyek.
-  const { data: semuaProyek } = useProjects({ per_page: 100 })
-  const opsiProyek = (semuaProyek?.data ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))
-
-  // Bila satu proyek dipilih, tampilkan proyek itu saja (tetap mengikuti filter status) tanpa paginasi.
-  const proyekDipilih = projectId ? semuaProyek?.data.filter((project) => String(project.id) === projectId && (!status || project.status === status)) : undefined
-  const data = proyekDipilih
-    ? { data: proyekDipilih, meta: { from: 1, current_page: 1, last_page: 1, total: proyekDipilih.length, to: proyekDipilih.length } }
-    : daftar
+  // Bila satu proyek dipilih, backend hanya mengembalikan proyek itu (tetap mengikuti filter status).
+  const filter = { page, per_page: 10, status: status || undefined, id: projectId ? Number(projectId) : undefined }
+  const { data, isLoading, error, refetch } = useProjects(filter)
+  // Semua proyek yang boleh diakses (tanpa batas 100), sebagai pilihan dropdown proyek.
+  const { data: semuaProyek } = useProjectOptions()
+  const opsiProyek = (semuaProyek ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))
 
   const hapus = useMutation({
     mutationFn: (id: number) => projectService.remove(id),

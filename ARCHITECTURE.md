@@ -222,7 +222,8 @@ diunduh ulang.
 | POST | `/api/units` | Admin |
 | GET/POST/PUT/DELETE | `/api/users`, `/api/users/{user}` | Admin |
 | PATCH | `/api/users/{user}/toggle-active` | Admin |
-| GET | `/api/projects`, `/api/projects/{project}` | terautentikasi (QS dibatasi penugasan) |
+| GET | `/api/projects`, `/api/projects/{project}` | terautentikasi (QS dibatasi penugasan); `per_page` maks. 100, filter `id` |
+| GET | `/api/projects/options` (seluruh proyek yang boleh diakses, tanpa paginasi, untuk dropdown) | terautentikasi |
 | POST/PUT/DELETE | `/api/projects`, `/api/projects/{project}` | Admin |
 | GET | `/api/projects/{project}/work-categories` | terautentikasi |
 | POST/PUT/DELETE | `/api/projects/{project}/work-categories[/{workCategory}]` | Admin |
@@ -236,11 +237,13 @@ diunduh ulang.
 | POST/PUT/DELETE | `/api/projects/{project}/milestones[/{milestone}]` | Admin |
 | GET | `/api/projects/{project}/curve-s` | terautentikasi |
 | GET | `/api/progress`, `/api/progress/{progress}` | terautentikasi |
-| POST | `/api/progress` | Admin, QS |
-| POST | `/api/progress/{progress}` | Admin, QS (pembaruan, mendukung unggah foto) |
-| PATCH | `/api/progress/{progress}/submit` | Admin, QS |
-| DELETE | `/api/progress/{progress}`, `/api/progress-photos/{photo}` | Admin, QS |
-| GET | `/api/reports/weekly`, `/monthly`, `/final`, `/documents` | Kontraktor |
+| GET | `/api/progress/upload-limits` (batas unggah foto efektif server) | QS |
+| POST | `/api/progress` (mendukung `client_request_id`) | QS |
+| POST | `/api/progress/{progress}` | QS pemilik draf yang masih ditugaskan (pembaruan, mendukung unggah foto) |
+| PATCH | `/api/progress/{progress}/submit` | QS pemilik draf yang masih ditugaskan |
+| DELETE | `/api/progress/{progress}`, `/api/progress-photos/{photo}` | QS pemilik draf yang masih ditugaskan |
+| GET | `/api/reports/weekly`, `/monthly`, `/final` | Kontraktor |
+| GET | `/api/reports/documents` (riwayat dokumen berpaginasi, `per_page` maks. 100; filter `project_id`, `tipe`) | Kontraktor |
 | POST | `/api/reports/export/excel` (mingguan/bulanan), `/api/reports/export/final` (laporan akhir) | Kontraktor |
 
 Seluruh respons memakai API Resource sehingga bentuk JSON konsisten: koleksi berpaginasi
@@ -264,7 +267,9 @@ mengembalikan `{ data, links, meta }`, sedangkan aksi tunggal mengembalikan `{ m
    mengarang nilai harga.
 6. **`projects.qs_user_id` dipertahankan bersama `project_assignments`.** PRD menyebut satu QS
    penanggung jawab per proyek, sedangkan tabel penugasan memberi ruang untuk QS tambahan. Keduanya
-   disinkronkan otomatis saat proyek disimpan.
+   disinkronkan otomatis saat proyek disimpan (`ProjectAssignmentService`): penugasan utama QS lama
+   dicabut saat QS diganti, sedangkan laporan yang sudah dibuatnya tetap tersimpan. QS penanggung
+   jawab wajib akun berperan QS yang aktif.
 7. **Kontraktor melihat seluruh proyek.** PRD tidak membatasi kontraktor pada proyek tertentu karena
    perannya adalah pemantauan perusahaan; pembatasan per proyek dapat ditambahkan melalui
    `project_assignments` bila kemudian dibutuhkan.

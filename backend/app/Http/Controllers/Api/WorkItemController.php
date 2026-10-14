@@ -9,6 +9,8 @@ use App\Http\Requests\UpdateWorkItemRequest;
 use App\Http\Resources\WorkItemResource;
 use App\Models\Project;
 use App\Models\WorkItem;
+use App\Services\CurveSService;
+use App\Services\ProgressService;
 use App\Services\WeightCalculatorService;
 use App\Services\WorkItemService;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +23,8 @@ class WorkItemController extends Controller
     public function __construct(
         private readonly WeightCalculatorService $weights,
         private readonly WorkItemService $workItems,
+        private readonly CurveSService $curve,
+        private readonly ProgressService $progress,
     ) {}
 
     public function index(Request $request, Project $project): JsonResponse
@@ -29,12 +33,16 @@ class WorkItemController extends Controller
 
         $items = $project->workItems()->with(self::RELASI)->orderBy('urutan')->get();
 
-        $items->each(function (WorkItem $item) {
-            $realisasi = $item->volumeRealisasi();
-            $item->volume_realisasi = $realisasi;
-            $item->persentase_realisasi = (float) $item->volume > 0
-                ? round($realisasi / (float) $item->volume * 100, 2)
-                : 0.0;
+        // Realisasi = laporan terkirim; sisa volume = volume - (terkirim + draf QS aktif), sama dengan validasi backend.
+        $realisasi = $this->curve->actualVolumeByWorkItem($project);
+        $terpakai = $this->progress->volumeTerpakai($items->pluck('id'));
+
+        $items->each(function (WorkItem $item) use ($realisasi, $terpakai) {
+            $volume = (float) $item->volume;
+            $volRealisasi = round((float) ($realisasi[$item->id]->volume ?? 0), 3);
+            $item->volume_realisasi = $volRealisasi;
+            $item->persentase_realisasi = $volume > 0 ? round($volRealisasi / $volume * 100, 2) : 0.0;
+            $item->sisa_volume = max(round($volume - (float) ($terpakai[$item->id] ?? 0), 3), 0.0);
         });
 
         return response()->json([

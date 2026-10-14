@@ -114,7 +114,7 @@ class DashboardTest extends TestCase
         $this->assertEqualsWithDelta(100.0, $daftar[0]['volume_rencana'], 0.001);
 
         // Setelah realisasi memenuhi rencana, pekerjaan tidak lagi perlu diperbarui.
-        $this->actingAs($konteks['qs'])->postJson('/api/progress', [
+        $this->kirimProgres($konteks['qs'], [
             'project_id' => $project->id,
             'tanggal_laporan' => $project->tanggal_mulai->toDateString(),
             'status' => 'DIKIRIM',

@@ -13,9 +13,12 @@ use App\Models\Project;
 use App\Models\ReportDocument;
 use App\Services\ReportDocumentService;
 use App\Services\ReportService;
+use App\Services\ZonaWaktu;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
@@ -49,18 +52,24 @@ class ReportController extends Controller
     }
 
     /** Daftar dokumen laporan yang pernah digenerate. */
-    public function documents(Request $request): JsonResponse
+    public function documents(Request $request): AnonymousResourceCollection
     {
         $user = $request->user();
+        $request->validate(['tipe' => ['sometimes', Rule::enum(ReportType::class)]], [
+            'tipe.*' => 'Jenis laporan hanya Mingguan, Bulanan, atau Akhir.',
+        ]);
 
+        // Berpaginasi (bukan dipotong 50 data) agar dokumen lama tetap dapat ditelusuri per halaman.
         $documents = ReportDocument::with(['project', 'user'])
             ->whereHas('project', fn ($q) => $q->visibleTo($user))
             ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->integer('project_id')))
+            ->when($request->filled('tipe'), fn ($q) => $q->where('tipe_laporan', $request->string('tipe')))
             ->orderByDesc('digenerate_pada')
-            ->limit(50)
-            ->get();
+            ->orderByDesc('id')
+            ->paginate($this->perPage($request, 20))
+            ->withQueryString();
 
-        return response()->json(['data' => ReportDocumentResource::collection($documents)]);
+        return ReportDocumentResource::collection($documents);
     }
 
     /** Export laporan ke Excel (.xlsx) memakai Laravel Excel. */
@@ -94,6 +103,11 @@ class ReportController extends Controller
             422,
             'Laporan Akhir belum dapat dibuat karena belum ada laporan progres yang dikirim.',
         );
+
+        // Setiap foto diperkecil sebelum disisipkan; proyek dengan ratusan foto bisa melewati batas 30 detik bawaan PHP.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(300);
+        }
 
         $tipe = ReportType::AKHIR->value;
         $namaFile = $this->namaFile($project, $tipe, 's-d-'.$data['laporan_terakhir']['nama_periode'], 'xlsx');
@@ -156,7 +170,7 @@ class ReportController extends Controller
     /** Contoh: laporan-mingguan-pembangunan-drainase-rt-11-minggu-2-20261009143000.xlsx */
     private function namaFile(Project $project, string $tipe, string $label, string $ekstensi): string
     {
-        return Str::slug('laporan '.strtolower($tipe).' '.$project->nama_proyek.' '.$label).'-'.now()->format('YmdHis').'.'.$ekstensi;
+        return Str::slug('laporan '.strtolower($tipe).' '.$project->nama_proyek.' '.$label).'-'.ZonaWaktu::sekarang()->format('YmdHis').'.'.$ekstensi;
     }
 
     private function responseDokumen(

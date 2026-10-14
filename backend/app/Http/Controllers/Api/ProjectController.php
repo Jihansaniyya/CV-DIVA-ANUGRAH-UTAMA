@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\Services\CurveSService;
+use App\Services\ProjectAssignmentService;
 use App\Services\ProjectScheduleService;
 use App\Services\ProjectStatusService;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,7 @@ class ProjectController extends Controller
         private readonly ProjectScheduleService $schedule,
         private readonly CurveSService $curve,
         private readonly ProjectStatusService $status,
+        private readonly ProjectAssignmentService $assignments,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -37,11 +39,12 @@ class ProjectController extends Controller
                     ->orWhere('nomor_spk', 'like', $q)
                     ->orWhere('lokasi', 'like', $q));
             })
+            ->when($request->filled('id'), fn ($query) => $query->whereKey($request->integer('id')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('lokasi'), fn ($query) => $query->where('lokasi', 'like', '%'.$request->string('lokasi').'%'))
             ->when($request->filled('tahun_anggaran'), fn ($query) => $query->where('tahun_anggaran', $request->integer('tahun_anggaran')))
-            ->orderByDesc('created_at')
-            ->paginate($request->integer('per_page', 10))
+            ->terbaru()
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         // Progres aktual & rencana dihitung dari data laporan dan rencana pekerjaan.
@@ -58,6 +61,22 @@ class ProjectController extends Controller
         return ProjectResource::collection($projects);
     }
 
+    /**
+     * Seluruh proyek yang boleh diakses, tanpa paginasi, untuk pilihan dropdown. Hanya kolom ringan
+     * (tanpa perhitungan progres per proyek) sehingga tetap cepat walau jumlah proyek lebih dari 100.
+     */
+    public function options(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Project::class);
+
+        $projects = Project::visibleTo($request->user())
+            ->withSum('workPlans as total_bobot_rencana', 'target_bobot')
+            ->terbaru()
+            ->get();
+
+        return response()->json(['data' => ProjectResource::collection($projects)]);
+    }
+
     public function store(StoreProjectRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -69,7 +88,7 @@ class ProjectController extends Controller
         $this->schedule->generateWeeklyPeriods($project);
         $this->status->sinkronkan($project);
 
-        $this->sinkronkanPenugasanQs($project);
+        $this->assignments->sinkronkanQs($project);
 
         return response()->json([
             'message' => 'Proyek berhasil ditambahkan.',
@@ -105,7 +124,7 @@ class ProjectController extends Controller
 
         $this->status->sinkronkan($project);
 
-        $this->sinkronkanPenugasanQs($project);
+        $this->assignments->sinkronkanQs($project);
 
         return response()->json([
             'message' => 'Proyek berhasil diperbarui.',
@@ -120,18 +139,5 @@ class ProjectController extends Controller
         $project->delete();
 
         return response()->json(['message' => 'Proyek berhasil dihapus.']);
-    }
-
-    /** QS penanggung jawab utama juga dicatat pada tabel penugasan. */
-    private function sinkronkanPenugasanQs(Project $project): void
-    {
-        if (! $project->qs_user_id) {
-            return;
-        }
-
-        $project->assignments()->updateOrCreate(
-            ['user_id' => $project->qs_user_id],
-            ['peran' => 'QS', 'is_primary' => true]
-        );
     }
 }

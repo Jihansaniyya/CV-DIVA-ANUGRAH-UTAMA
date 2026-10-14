@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
-import { useProgressList } from '@/hooks/queries'
+import { useAllProgress } from '@/hooks/queries'
 import { pesanError } from '@/lib/api'
 import type { ProgressReport, Project } from '@/types'
 import { cn } from '@/utils/cn'
@@ -38,13 +38,13 @@ function daftarBulan(dari: string, sampai: string): Date[] {
 
 /** Kalender foto: setiap tanggal yang memiliki progres menampilkan foto bukti sebagai sampul. */
 export function DocumentationTab({ project }: { project: Project }) {
-  const { data, isLoading, error, refetch } = useProgressList({ project_id: project.id, per_page: 200 })
+  const { data, isLoading, error, refetch } = useAllProgress(project.id)
   const [tanggalDipilih, setTanggalDipilih] = useState<string | null>(null)
 
   const perTanggal = useMemo(() => {
     const peta = new Map<string, ProgressReport[]>()
 
-    for (const laporan of data?.data ?? []) {
+    for (const laporan of data ?? []) {
       const kunci = laporan.tanggal_laporan.slice(0, 10)
       peta.set(kunci, [...(peta.get(kunci) ?? []), laporan])
     }
@@ -60,7 +60,7 @@ export function DocumentationTab({ project }: { project: Project }) {
   const tanggalProgres = [...perTanggal.keys()].sort()
   const awal = [mulai, ...tanggalProgres].sort()[0]
   const akhir = [selesai, ...tanggalProgres].sort().at(-1) ?? selesai
-  const totalFoto = (data?.data ?? []).reduce((jumlah, laporan) => jumlah + (laporan.foto?.length ?? 0), 0)
+  const totalFoto = (data ?? []).reduce((jumlah, laporan) => jumlah + (laporan.foto?.length ?? 0), 0)
   const hari = hariIni()
 
   return (
@@ -269,7 +269,7 @@ function DetailHari({ kunci, laporan, onClose }: { kunci: string; laporan: Progr
                 <ul className="flex flex-col gap-2">
                   {item.kendala.map((kendala) => (
                     <li key={kendala.id} className="rounded-lg border border-warning/30 bg-warning-soft/60 px-3 py-2 text-xs text-ink">
-                      <Badge tone="warning">{LABEL_KENDALA[kendala.jenis_kendala] ?? kendala.jenis_kendala}</Badge>
+                      <Badge tone="warning">{kendala.jenis_kendala ? (LABEL_KENDALA[kendala.jenis_kendala] ?? kendala.jenis_kendala) : 'Jenis belum dipilih'}</Badge>
                       <p className="mt-1.5">{kendala.deskripsi}</p>
                       {kendala.tindak_lanjut && <p className="mt-0.5 text-muted">Tindak lanjut: {kendala.tindak_lanjut}</p>}
                     </li>

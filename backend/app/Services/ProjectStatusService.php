@@ -27,7 +27,7 @@ class ProjectStatusService
 
     public function tentukan(Project $project, float $realisasi, float $totalBobot, ?CarbonImmutable $hariIni = null): ProjectStatus
     {
-        $hariIni ??= CarbonImmutable::today();
+        $hariIni ??= ZonaWaktu::hariIni();
 
         if ($totalBobot > 0 && $realisasi >= $totalBobot - self::TOLERANSI) {
             return ProjectStatus::SELESAI;
@@ -85,7 +85,7 @@ class ProjectStatusService
      */
     public function sinkronkanHarian(): void
     {
-        if (Cache::add('status-proyek:'.CarbonImmutable::today()->toDateString(), true, now()->endOfDay())) {
+        if (Cache::add('status-proyek:'.ZonaWaktu::hariIni()->toDateString(), true, ZonaWaktu::sekarang()->endOfDay())) {
             $this->sinkronkanSemua();
         }
     }

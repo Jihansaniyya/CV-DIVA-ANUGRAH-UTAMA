@@ -4,6 +4,7 @@ use App\Models\ProgressPhoto;
 use App\Services\ProgressService;
 use App\Services\ProjectStatusService;
 use App\Services\ReportDocumentService;
+use App\Services\ZonaWaktu;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -44,5 +45,6 @@ Artisan::command('foto:kompres', function (ProgressService $progress) {
     $this->info("{$diperkecil} foto progres diperkecil.");
 })->purpose('Perkecil foto progres lama (sisi terpanjang 1600 px, JPEG)');
 
-// Status berubah karena tanggal mulai/selesai terlewati; dijalankan setiap awal hari.
-Schedule::command('proyek:sinkron-status')->dailyAt('00:05');
+// Status berubah karena tanggal mulai/selesai terlewati; dijalankan setiap awal hari waktu lokal proyek
+// (tanpa ->timezone() jadwal mengikuti UTC, yaitu pukul 08.05 WITA).
+Schedule::command('proyek:sinkron-status')->dailyAt('00:05')->timezone(ZonaWaktu::zona());

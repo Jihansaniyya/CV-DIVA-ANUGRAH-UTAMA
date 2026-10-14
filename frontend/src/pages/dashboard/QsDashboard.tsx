@@ -7,6 +7,8 @@ import type { DashboardData, ReportStatus } from '@/types'
 import { angka, hariIni, tanggal } from '@/utils/format'
 import { CalendarDays, ClipboardList, Eye, FilePen, HardHat, Plus, SendHorizontal } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { MuatUlangDashboard } from '@/pages/dashboard/MuatUlangDashboard'
+
 
 const tautanUtama =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-dark'
@@ -16,7 +18,7 @@ const tautanKecil = 'inline-flex items-center gap-1 text-xs font-medium text-pri
 const tombolKecil =
   'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-primary hover:text-primary'
 
-/** Beranda hanya menampilkan beberapa proyek terakhir diperbarui; daftar lengkap ada di halaman Proyek. */
+/** Beranda hanya menampilkan beberapa proyek terbaru (urutan sama dengan halaman Proyek); daftar lengkap ada di halaman Proyek. */
 const JUMLAH_PROYEK_BERANDA = 5
 
 /** Kartu di layar lebar: mengisi sel grid, isinya digulir di dalam kartu. */
@@ -30,7 +32,7 @@ const ISI_GULIR = 'xl:min-h-0 xl:flex-1 xl:overflow-y-auto'
 const KARTU_SAMPING = 'lg:flex lg:min-h-0 lg:flex-col lg:[contain:size] xl:row-span-2'
 
 export function QsDashboard({ data }: { data: DashboardData }) {
-  // Backend sudah mengurutkan dari yang terakhir diperbarui.
+  // Backend sudah mengurutkan sama seperti halaman Data Proyek (terbaru dibuat lebih dulu).
   const proyek = (data.proyek_ditugaskan ?? []).slice(0, JUMLAH_PROYEK_BERANDA)
   const pekerjaan = data.pekerjaan_perlu_laporan ?? []
   const progresTerbaru = data.laporan_terbaru ?? []
@@ -48,10 +50,13 @@ export function QsDashboard({ data }: { data: DashboardData }) {
             Ringkasan pekerjaan per {tanggal(hariIni(), 'EEEE, dd MMMM yyyy')}
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <MuatUlangDashboard />
         <Link to="/progres/baru" className={tautanUtama}>
           <Plus className="size-4" aria-hidden />
           Tambah Progres
         </Link>
+        </div>
       </div>
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:shrink-0 xl:grid-cols-4">
@@ -61,10 +66,11 @@ export function QsDashboard({ data }: { data: DashboardData }) {
         <KpiCard compact accent label="Progres Terkirim" value={data.kpi.laporan_dikirim ?? 0} icon={SendHorizontal} tone="success" hint="Tercatat sebagai realisasi" />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3 xl:min-h-0 xl:flex-1 xl:grid-rows-[minmax(0,3fr)_minmax(0,2fr)] xl:gap-3">
+      {/* grid-cols-1 (minmax(0,1fr)): tanpa ini kolom ponsel melebar mengikuti nama proyek panjang yang dipotong (truncate). */}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:min-h-0 xl:flex-1 xl:grid-rows-[minmax(0,3fr)_minmax(0,2fr)] xl:gap-3">
         <Card
           title="List Proyek"
-          description={`${JUMLAH_PROYEK_BERANDA} proyek terakhir diperbarui yang Anda tangani.`}
+          description={`${JUMLAH_PROYEK_BERANDA} proyek terbaru yang Anda tangani.`}
           action={
             <Link to="/proyek" className={tautanKecil}>
               Lihat semua

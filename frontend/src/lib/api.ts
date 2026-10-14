@@ -24,10 +24,23 @@ export const tokenStorage = {
   },
 }
 
+/** Batas waktu permintaan biasa dan permintaan yang mengunggah foto. */
+export const API_TIMEOUT_MS = 30_000
+export const UNGGAH_TIMEOUT_MS = 120_000
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000/api',
   headers: { Accept: 'application/json' },
+  timeout: API_TIMEOUT_MS,
 })
+
+/**
+ * Permintaan terputus sebelum respons diterima (timeout atau koneksi hilang). Untuk operasi simpan,
+ * server mungkin sudah memprosesnya, sehingga statusnya belum dapat dipastikan.
+ */
+export function statusTidakPasti(error: unknown): boolean {
+  return error instanceof AxiosError && !error.response && error.code !== AxiosError.ERR_CANCELED
+}
 
 api.interceptors.request.use((config) => {
   const token = tokenStorage.get()
@@ -46,7 +59,9 @@ export function pesanError(error: unknown): string {
   }
 
   if (!error.response) {
-    return 'Tidak dapat terhubung ke server. Periksa koneksi kamu.'
+    return error.code === AxiosError.ECONNABORTED || error.code === AxiosError.ETIMEDOUT
+      ? 'Server tidak merespons dalam batas waktu. Periksa koneksi kamu lalu coba lagi.'
+      : 'Tidak dapat terhubung ke server. Periksa koneksi kamu.'
   }
 
   const dariServer = (error.response.data as { message?: string } | undefined)?.message
@@ -60,6 +75,8 @@ export function pesanError(error: unknown): string {
       return dariServer ?? 'Data yang kamu cari tidak ditemukan.'
     case 422:
       return dariServer ?? 'Periksa kembali data yang kamu masukkan.'
+    case 413:
+      return dariServer ?? 'Ukuran total unggahan melebihi batas server. Kurangi jumlah atau ukuran foto.'
     case 429:
       return 'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.'
     case 503:

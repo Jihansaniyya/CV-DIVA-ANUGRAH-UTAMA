@@ -4,10 +4,10 @@ import { Card } from '@/components/ui/Card'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
-import { qk, useProgress } from '@/hooks/queries'
+import { invalidasiSetelahProgres, useProgress } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { pesanError } from '@/lib/api'
+import { errorValidasi, pesanError } from '@/lib/api'
 import { progressService } from '@/services/progressService'
 import { cn } from '@/utils/cn'
 import { angka, persen, tanggal, waktu } from '@/utils/format'
@@ -23,6 +23,7 @@ import {
   Expand,
   ImageOff,
   MapPin,
+  Pencil,
   Send,
   Trash2,
   UserRound,
@@ -47,21 +48,17 @@ export function ProgressDetailPage() {
     mutationFn: () => progressService.submit(laporanId),
     onSuccess: async () => {
       toast.sukses('Progres berhasil dikirim.')
-      await queryClient.invalidateQueries({ queryKey: ['progress'] })
-      await queryClient.invalidateQueries({ queryKey: qk.dashboard })
-
-      if (laporan) {
-        await queryClient.invalidateQueries({ queryKey: qk.curve(laporan.project_id) })
-      }
+      await invalidasiSetelahProgres(queryClient, laporan?.project_id)
     },
-    onError: (err) => toast.gagal(pesanError(err)),
+    // Bukti yang belum lengkap (lokasi, keterangan, foto) ditolak backend; lengkapi lewat Ubah Draf.
+    onError: (err) => toast.gagal(Object.values(errorValidasi(err)).join(' ') || pesanError(err)),
   })
 
   const hapus = useMutation({
     mutationFn: () => progressService.remove(laporanId),
     onSuccess: async () => {
       toast.sukses('Progres berhasil dihapus.')
-      await queryClient.invalidateQueries({ queryKey: ['progress'] })
+      await invalidasiSetelahProgres(queryClient, laporan?.project_id)
       navigate('/progres')
     },
     onError: (err) => {
@@ -109,7 +106,15 @@ export function ProgressDetailPage() {
         </div>
 
         {bolehUbah && (
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link
+              to={`/progres/${laporan.id}/ubah`}
+              state={{ dariDetail: true }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-primary hover:text-primary"
+            >
+              <Pencil className="size-4" aria-hidden />
+              Ubah Draf
+            </Link>
             {laporan.status === 'DRAFT' && (
               <Button icon={<Send className="size-4" />} loading={kirim.isPending} onClick={() => kirim.mutate()}>
                 Kirim Progres
@@ -259,7 +264,7 @@ export function ProgressDetailPage() {
             {kendala.map((item) => (
               <li key={item.id} className="rounded-lg border border-line p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone="warning">{item.jenis_kendala.replace('_', ' ')}</Badge>
+                  <Badge tone="warning">{item.jenis_kendala?.replace('_', ' ') ?? 'Jenis belum dipilih'}</Badge>
                   {item.pekerjaan && <span className="text-xs text-muted">{item.pekerjaan}</span>}
                 </div>
                 <p className="mt-2 text-sm text-ink">{item.deskripsi}</p>

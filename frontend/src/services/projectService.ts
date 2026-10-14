@@ -11,6 +11,8 @@ import type {
 } from '@/types'
 
 export interface ProjectFilter {
+  /** Tampilkan satu proyek tertentu (tetap mengikuti filter lain). */
+  id?: number
   q?: string
   status?: string
   lokasi?: string
@@ -68,6 +70,13 @@ export const projectService = {
     const { data } = await api.get<Paginated<Project>>('/projects', { params: filter })
 
     return data
+  },
+
+  /** Seluruh proyek yang boleh diakses (tanpa paginasi, tanpa progres) untuk pilihan dropdown. */
+  async options(): Promise<Project[]> {
+    const { data } = await api.get<{ data: Project[] }>('/projects/options')
+
+    return data.data
   },
 
   async detail(id: number): Promise<Project> {

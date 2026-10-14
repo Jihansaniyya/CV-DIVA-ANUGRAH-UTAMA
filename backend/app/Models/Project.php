@@ -102,6 +102,12 @@ class Project extends Model
         return $this->hasMany(ReportDocument::class);
     }
 
+    /** Urutan baku daftar proyek (halaman Proyek, pilihan proyek, dan Beranda): terbaru dibuat lebih dulu. */
+    public function scopeTerbaru(Builder $query): Builder
+    {
+        return $query->orderByDesc('created_at')->orderByDesc('id');
+    }
+
     /** Batasi query ke proyek yang boleh diakses user (QS hanya proyek yang ditugaskan). */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {

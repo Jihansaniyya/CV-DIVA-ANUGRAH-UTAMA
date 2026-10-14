@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { Dropdown } from '@/components/ui/Dropdown'
 import { Select } from '@/components/ui/Field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
-import { useFinalReport, useMonthlyReport, usePeriods, useProjects, useWeeklyReport } from '@/hooks/queries'
+import { useFinalReport, useMonthlyReport, usePeriods, useProjectOptions, useWeeklyReport } from '@/hooks/queries'
 import { useToast } from '@/hooks/useToast'
 import { pesanError } from '@/lib/api'
 import { reportService, type ExportParams } from '@/services/reportService'
@@ -37,12 +37,12 @@ export function ReportsPage() {
   const [periodId, setPeriodId] = useState<number | undefined>(undefined)
   const [bulanKe, setBulanKe] = useState(1)
 
-  const { data: projects, isLoading: memuatProyek } = useProjects({ per_page: 100 })
+  const { data: projects, isLoading: memuatProyek } = useProjectOptions()
   const { data: periods } = usePeriods(projectId)
 
   useEffect(() => {
-    if (!projectId && projects && projects.data.length > 0) {
-      setProjectId(projects.data[0].id)
+    if (!projectId && projects && projects.length > 0) {
+      setProjectId(projects[0].id)
     }
   }, [projects, projectId])
 
@@ -109,7 +109,7 @@ export function ReportsPage() {
   const bisaEkspor = siap
 
   if (memuatProyek) return <LoadingState pesan="Memuat daftar proyek..." />
-  if (!projects || projects.data.length === 0) {
+  if (!projects || projects.length === 0) {
     return <EmptyState judul="Belum ada proyek" pesan="Laporan tersedia setelah proyek dan progres tersedia." />
   }
 
@@ -124,7 +124,7 @@ export function ReportsPage() {
           <Dropdown
             label="Proyek"
             value={projectId ? String(projectId) : ''}
-            options={projects.data.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            options={projects.map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
             onChange={(nilai) => {
               setProjectId(Number(nilai))
               params.set('project_id', nilai)
