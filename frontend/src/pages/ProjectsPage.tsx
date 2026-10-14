@@ -120,9 +120,9 @@ export function ProjectsPage() {
               setProjectId(nilai)
               setPage(1)
             }}
+            label="Proyek"
             placeholder="Semua proyek"
             allowEmpty
-            aria-label="Pilih proyek"
             wrapClassName="min-w-0 flex-1"
           />
 
@@ -142,7 +142,7 @@ export function ProjectsPage() {
                 setStatus(event.target.value)
                 setPage(1)
               }}
-              aria-label="Filter status"
+              label="Status"
               wrapClassName="w-full"
             >
               <option value="">Semua Status</option>
@@ -187,8 +187,13 @@ export function ProjectsPage() {
                       {data.data.map((project, index) => (
                         <tr key={project.id} className="hover:bg-surface/60">
                           <Td>{(data.meta.from ?? 1) + index}</Td>
-                          <Td className="break-words">
-                            <Link to={`/proyek/${project.id}`} className="font-medium text-ink hover:text-primary">
+                          <Td>
+                            {/* Nama proyek bisa sampai 255 karakter: dibungkus maksimal 3 baris, teks lengkap lewat title. */}
+                            <Link
+                              to={`/proyek/${project.id}`}
+                              title={project.nama_proyek}
+                              className="line-clamp-3 leading-snug font-medium wrap-anywhere text-ink hover:text-primary"
+                            >
                               {project.nama_proyek}
                             </Link>
                           </Td>
@@ -222,7 +227,11 @@ export function ProjectsPage() {
                   {data.data.map((project) => (
                     <li key={project.id} className="app-card p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <Link to={`/proyek/${project.id}`} className="min-w-0 flex-1 text-sm font-semibold text-ink">
+                        <Link
+                          to={`/proyek/${project.id}`}
+                          title={project.nama_proyek}
+                          className="line-clamp-3 min-w-0 flex-1 text-sm leading-snug font-semibold wrap-anywhere text-ink"
+                        >
                           {project.nama_proyek}
                         </Link>
                         <StatusBadge status={project.status} bertumpuk />

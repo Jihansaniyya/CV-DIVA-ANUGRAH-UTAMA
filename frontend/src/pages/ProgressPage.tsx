@@ -64,38 +64,34 @@ export function ProgressPage() {
         </p>
       </div>
       <Card>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div
-            className={cn(
-              'grid flex-1 grid-cols-2 gap-3',
-              // Kolom proyek lebih lebar; nama proyek yang panjang dibungkus ke baris berikutnya di dalam dropdown.
-              kontraktor ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]',
-            )}
-          >
-            <Dropdown
-              label="Proyek"
-              value={projectId}
-              options={(projects?.data ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
-              onChange={ubah(setProjectId)}
-              placeholder="Semua proyek"
-              allowEmpty
-              wrapClassName="col-span-2 lg:col-span-1"
-            />
-            {!kontraktor && (
-              <Select label="Status" value={status} onChange={(event) => ubah(setStatus)(event.target.value)} wrapClassName="col-span-2 sm:col-span-1">
-                <option value="">Semua status</option>
-                <option value="DRAFT">Draf</option>
-                <option value="DIKIRIM">Dikirim</option>
-              </Select>
-            )}
-            <DatePicker label="Dari tanggal" value={dari} max={sampai || undefined} onChange={(event) => ubah(setDari)(event.target.value)} />
-            <DatePicker label="Sampai tanggal" value={sampai} min={dari || undefined} onChange={(event) => ubah(setSampai)(event.target.value)} />
-          </div>
-          {/* Di layar lebar ruang tombol selalu disediakan agar lebar kolom filter tidak berubah saat filter aktif. */}
-          <div className={cn('self-start lg:self-end', !adaFilter && 'hidden lg:invisible lg:block')} aria-hidden={!adaFilter}>
-            <Button variant="ghost" icon={<RotateCcw className="size-4" />} onClick={resetFilter} tabIndex={adaFilter ? undefined : -1}>
-              Reset filter
-            </Button>
+        <div className="flex flex-col gap-3">
+          {/* Proyek mendapat baris sendiri selebar kartu, sama seperti filter di Data Proyek, agar nama panjang tetap terbaca. */}
+          <Dropdown
+            label="Proyek"
+            value={projectId}
+            options={(projects?.data ?? []).map((project) => ({ value: String(project.id), label: project.nama_proyek }))}
+            onChange={ubah(setProjectId)}
+            placeholder="Semua proyek"
+            allowEmpty
+          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className={cn('grid flex-1 grid-cols-2 gap-3', !kontraktor && 'sm:grid-cols-3')}>
+              {!kontraktor && (
+                <Select label="Status" value={status} onChange={(event) => ubah(setStatus)(event.target.value)} wrapClassName="col-span-2 sm:col-span-1">
+                  <option value="">Semua status</option>
+                  <option value="DRAFT">Draf</option>
+                  <option value="DIKIRIM">Dikirim</option>
+                </Select>
+              )}
+              <DatePicker label="Dari tanggal" value={dari} max={sampai || undefined} onChange={(event) => ubah(setDari)(event.target.value)} />
+              <DatePicker label="Sampai tanggal" value={sampai} min={dari || undefined} onChange={(event) => ubah(setSampai)(event.target.value)} />
+            </div>
+            {/* Di layar lebar ruang tombol selalu disediakan agar lebar kolom filter tidak berubah saat filter aktif. */}
+            <div className={cn('self-start sm:self-end', !adaFilter && 'hidden sm:invisible sm:block')} aria-hidden={!adaFilter}>
+              <Button variant="ghost" icon={<RotateCcw className="size-4" />} onClick={resetFilter} tabIndex={adaFilter ? undefined : -1}>
+                Reset filter
+              </Button>
+            </div>
           </div>
         </div>
       </Card>

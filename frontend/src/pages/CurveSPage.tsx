@@ -35,7 +35,8 @@ export function CurveSPage() {
         <p className="text-xs text-muted">Perbandingan progres rencana dan realisasi.</p>
       </div>
       <Card>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
+        {/* Dropdown selebar kartu agar nama proyek sampai 255 karakter tampil utuh; info proyek di bawahnya. */}
+        <div className="flex flex-col gap-3">
           <Dropdown
             label="Proyek"
             value={projectId ? String(projectId) : ''}
@@ -46,11 +47,11 @@ export function CurveSPage() {
               setParams(params, { replace: true })
             }}
             placeholder="Pilih proyek"
-            wrapClassName="w-full lg:max-w-xl"
+            wrapClassName="w-full"
           />
 
           {proyek && (
-            <dl className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted lg:justify-end lg:pb-2">
+            <dl className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted">
               <div className="flex items-center gap-1.5">
                 <dt>
                   <MapPin className="size-3.5" aria-label="Lokasi" />

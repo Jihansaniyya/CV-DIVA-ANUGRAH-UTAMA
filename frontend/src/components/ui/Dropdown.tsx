@@ -158,7 +158,7 @@ export function Dropdown({
         aria-invalid={Boolean(error)}
         aria-label={ariaLabel ?? label}
       >
-        <span className={cn('min-w-0 flex-1 leading-snug break-words', terpilih ? 'text-ink' : 'text-muted/70')}>
+        <span className={cn('min-w-0 flex-1 leading-snug wrap-anywhere', terpilih ? 'text-ink' : 'text-muted/70')}>
           {terpilih?.label ?? placeholder}
         </span>
         <ChevronDown className={cn('size-4 shrink-0 text-muted transition-transform', terbuka && 'rotate-180')} aria-hidden />
@@ -193,7 +193,7 @@ export function Dropdown({
                     onMouseEnter={() => setAktif(index)}
                     onClick={() => pilih(option)}
                     className={cn(
-                      'flex cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-sm leading-snug break-words',
+                      'flex cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-sm leading-snug wrap-anywhere',
                       index === aktif && 'bg-surface',
                       dipilih ? 'font-medium text-navy' : 'text-ink',
                     )}

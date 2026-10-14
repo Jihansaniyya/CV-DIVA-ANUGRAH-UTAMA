@@ -185,7 +185,7 @@ export function ReportsPage() {
               onClick={() => ekspor.mutate()}
               className="w-full sm:w-auto"
             >
-              {jenis === 'akhir' ? 'Unduh Excel' : 'Unduh Excel'}
+              {jenis === 'akhir' ? 'Unduh Excel' : 'Unduh Laporan XLS'}
             </Button>
           </div>
         </div>
