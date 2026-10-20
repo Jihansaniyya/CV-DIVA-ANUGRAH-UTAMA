@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { DatePicker, FieldWrap, Input, Select, Textarea } from '@/components/ui/Field'
 import { FileUpload, type FotoTerpilih } from '@/components/ui/FileUpload'
-import { ConfirmDialog } from '@/components/ui/Modal'
+import { AlertDialog, ConfirmDialog } from '@/components/ui/Modal'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Dropdown } from '@/components/ui/Dropdown'
 import { invalidasiSetelahProgres, useProgress, useProjectOptions, useUploadLimits, useWorkItems } from '@/hooks/queries'
@@ -123,13 +123,15 @@ export function ProgressFormPage() {
   const [foto, setFoto] = useState<FotoTerpilih[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tujuanKeluar, setTujuanKeluar] = useState<string | null>(null)
+  /** Isian yang sudah lolos validasi dan menunggu konfirmasi "Kirim Progres". */
+  const [payloadKirim, setPayloadKirim] = useState<ProgressPayload | null>(null)
   const [idPermintaan] = useState(buatIdPermintaan)
   const sudahDiisi = useRef(false)
   const [isianAwal, setIsianAwal] = useState<string | null>(null)
   const [tersimpan, setTersimpan] = useState(false)
   /** Pengguna sudah memilih keluar (atau sudah tersimpan); penjaga tombol Kembali tidak lagi menahan. */
   const keluar = useRef(false)
-  const adaPerubahanRef = useRef(false)
+  const perluKonfirmasiRef = useRef(false)
   /** Form dibuka dari tombol "Ubah Draf" di halaman detail; setelah simpan cukup kembali ke halaman itu. */
   const { state: stateLokasi } = useLocation() as { state: { dariDetail?: boolean } | null }
 
@@ -187,6 +189,8 @@ export function ProgressFormPage() {
   const jadwalSelesai = proyekDipilih?.tanggal_selesai?.slice(0, 10)
   const tanggalSelesai = jadwalSelesai && jadwalSelesai < hari ? jadwalSelesai : hari
   const proyekBelumDimulai = Boolean(tanggalMulai && tanggalMulai > hari)
+  // Hanya ada satu tanggal yang sah (mis. proyek baru dimulai hari ini): tampilkan sebagai teks, bukan kalender.
+  const tanggalTerkunci = Boolean(tanggalMulai && tanggalMulai >= tanggalSelesai)
   // Bawaan "hari ini" bisa di luar jadwal (proyek belum mulai / sudah lewat); geser ke batas jadwal terdekat.
   const tanggal =
     tanggalDipilih && tanggalMulai && tanggalDipilih < tanggalMulai
@@ -240,6 +244,12 @@ export function ProgressFormPage() {
           keterangan.trim() !== '' ||
           issues.some((baris) => baris.deskripsi.trim() !== '')))
 
+  /**
+   * Keluar dari form perlu dikonfirmasi bila ada isian yang belum disimpan, dan selalu saat mengubah draf
+   * agar QS tidak tanpa sengaja meninggalkan draf yang sedang dibuka.
+   */
+  const perluKonfirmasiKeluar = adaPerubahan || (Boolean(editId) && !tersimpan)
+
   /** Peringatkan pengguna saat menutup tab atau memuat ulang halaman selagi ada isian yang belum dikirim. */
   useEffect(() => {
     if (!adaPerubahan) return
@@ -256,15 +266,15 @@ export function ProgressFormPage() {
 
   // Dibaca oleh pendengar popstate yang dipasang sekali; selalu memuat nilai render terakhir.
   useEffect(() => {
-    adaPerubahanRef.current = adaPerubahan
-  }, [adaPerubahan])
+    perluKonfirmasiRef.current = perluKonfirmasiKeluar
+  }, [perluKonfirmasiKeluar])
 
   /**
    * Tombol Kembali browser. BrowserRouter tidak menyediakan pemblokir navigasi, jadi saat form dibuka
    * disisipkan satu entri riwayat penjaga dengan URL yang sama (sekali saja; setelah muat ulang entri
    * penjaga yang sama dipakai lagi). Menekan Kembali melepas entri itu:
-   *   - tanpa perubahan -> diteruskan satu langkah lagi, jadi cukup sekali tekan untuk keluar;
-   *   - ada perubahan   -> penjaga dipasang lagi dan dialog konfirmasi ditampilkan.
+   *   - tanpa perlu konfirmasi -> diteruskan satu langkah lagi, jadi cukup sekali tekan untuk keluar;
+   *   - perlu konfirmasi       -> penjaga dipasang lagi dan dialog konfirmasi ditampilkan.
    */
   useEffect(() => {
     if (!adaPenjagaRiwayat()) pasangPenjagaRiwayat()
@@ -272,7 +282,7 @@ export function ProgressFormPage() {
     const tombolKembali = () => {
       if (keluar.current) return
 
-      if (adaPerubahanRef.current) {
+      if (perluKonfirmasiRef.current) {
         pasangPenjagaRiwayat()
         setTujuanKeluar(KEMBALI)
 
@@ -288,9 +298,9 @@ export function ProgressFormPage() {
     return () => window.removeEventListener('popstate', tombolKembali)
   }, [])
 
-  /** Cegat navigasi dalam aplikasi (menu, sidebar, tautan Kembali) selagi ada isian yang belum dikirim. */
+  /** Cegat navigasi dalam aplikasi (menu, sidebar, tautan Kembali) selagi keluar perlu dikonfirmasi. */
   useEffect(() => {
-    if (!adaPerubahan) return
+    if (!perluKonfirmasiKeluar) return
 
     const cegatNavigasi = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -310,7 +320,7 @@ export function ProgressFormPage() {
     document.addEventListener('click', cegatNavigasi, true)
 
     return () => document.removeEventListener('click', cegatNavigasi, true)
-  }, [adaPerubahan])
+  }, [perluKonfirmasiKeluar])
 
   const simpan = useMutation({
     mutationFn: (payload: ProgressPayload) => (editId ? progressService.update(editId, payload) : progressService.create(payload)),
@@ -419,7 +429,7 @@ export function ProgressFormPage() {
       return
     }
 
-    simpan.mutate({
+    const payload: ProgressPayload = {
       client_request_id: editId ? undefined : idPermintaan,
       project_id: Number(projectId),
       tanggal_laporan: tanggal,
@@ -447,7 +457,11 @@ export function ProgressFormPage() {
       }),
       photos: foto.map((item) => item.file),
       photo_captions: foto.map((item) => item.caption),
-    })
+    }
+
+    // Laporan terkirim tidak dapat diubah lagi, jadi pengiriman dikonfirmasi terlebih dahulu.
+    if (status === 'DIKIRIM') setPayloadKirim(payload)
+    else simpan.mutate(payload)
   }
 
   if (memuatProyek || (editId && memuatLaporan)) return <LoadingState />
@@ -513,16 +527,28 @@ export function ProgressFormPage() {
             error={errors.project_id}
             wrapClassName="sm:col-span-2 lg:col-span-3"
           />
-          <DatePicker
-            label="Tanggal"
-            required
-            value={tanggal}
-            min={tanggalMulai}
-            max={tanggalSelesai}
-            onChange={(event) => setTanggal(event.target.value)}
-            error={errors.tanggal_laporan}
-            hint={tanggalMulai && jadwalSelesai ? `Jadwal proyek: ${rentangTanggal(tanggalMulai, jadwalSelesai)}; tidak boleh melewati hari ini.` : undefined}
-          />
+          {tanggalTerkunci ? (
+            <Input
+              label="Tanggal"
+              required
+              readOnly
+              value={tanggal ? formatTanggal(tanggal) : ''}
+              className="bg-surface text-muted"
+              error={errors.tanggal_laporan}
+              hint={jadwalSelesai && tanggalMulai ? `Jadwal proyek: ${rentangTanggal(tanggalMulai, jadwalSelesai)}.` : undefined}
+            />
+          ) : (
+            <DatePicker
+              label="Tanggal"
+              required
+              value={tanggal}
+              min={tanggalMulai}
+              max={tanggalSelesai}
+              onChange={(event) => setTanggal(event.target.value)}
+              error={errors.tanggal_laporan}
+              hint={tanggalMulai && jadwalSelesai ? `Jadwal proyek: ${rentangTanggal(tanggalMulai, jadwalSelesai)}; tidak boleh melewati hari ini.` : undefined}
+            />
+          )}
           <Input
             label="Lokasi"
             required
@@ -839,8 +865,14 @@ export function ProgressFormPage() {
 
     <ConfirmDialog
       open={tujuanKeluar !== null}
-      title="Keluar dari form progres?"
-      pesan="Isian yang sudah Anda masukkan belum dikirim dan akan hilang jika keluar sekarang."
+      title={editId ? 'Keluar dari ubah draf?' : 'Keluar dari form progres?'}
+      pesan={
+        adaPerubahan
+          ? editId
+            ? 'Perubahan pada draf ini belum disimpan dan akan hilang jika keluar sekarang.'
+            : 'Isian yang sudah Anda masukkan belum dikirim dan akan hilang jika keluar sekarang.'
+          : 'Apakah Anda yakin ingin keluar? Draf tetap tersimpan dan dapat diubah atau dikirim nanti.'
+      }
       labelKonfirmasi="Ya, Keluar"
       onConfirm={() => {
         const tujuan = tujuanKeluar
@@ -856,6 +888,20 @@ export function ProgressFormPage() {
       }}
       onClose={() => setTujuanKeluar(null)}
     />
+
+    <AlertDialog
+      open={payloadKirim !== null}
+      icon={<Send className="size-5" aria-hidden />}
+      title="Kirim progres ini?"
+      labelKonfirmasi="Ya, Kirim"
+      loading={simpan.isPending}
+      onConfirm={() => {
+        if (payloadKirim) simpan.mutate(payloadKirim, { onSettled: () => setPayloadKirim(null) })
+      }}
+      onClose={() => setPayloadKirim(null)}
+    >
+      Pastikan data sudah benar. Progres yang sudah dikirim tidak dapat diubah lagi.
+    </AlertDialog>
     </>
   )
 }
