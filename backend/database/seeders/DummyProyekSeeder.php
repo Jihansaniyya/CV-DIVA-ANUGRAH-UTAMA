@@ -12,7 +12,6 @@ use App\Services\ProjectScheduleService;
 use App\Services\ProjectStatusService;
 use App\Services\WeightCalculatorService;
 use App\Services\WorkPlanService;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 
 /**
@@ -62,7 +61,7 @@ class DummyProyekSeeder extends Seeder
     ];
 
     /** Item pekerjaan per jenis proyek: kategori => [[uraian, satuan, volume, harga satuan], ...] */
-    private const PEKERJAAN = [
+    public const PEKERJAAN = [
         'jalan' => [
             'PEKERJAAN PERSIAPAN' => [
                 ['Papan Nama Kegiatan', 'bh', 1.00, 500000.00],
@@ -169,7 +168,8 @@ class DummyProyekSeeder extends Seeder
         $admin = User::where('email', 'admin@divaanugrahutama.co.id')->firstOrFail();
         $qs = User::whereIn('email', ['nisa@divaanugrahutama.co.id', 'jihan@divaanugrahutama.co.id'])->get()->values();
         $units = Unit::pluck('id', 'code');
-        $hariIni = CarbonImmutable::now()->startOfDay();
+        // "Hari ini" mengikuti zona waktu operasional (WITA), sama dengan aturan tanggal progres.
+        $hariIni = ProgressService::hariIni()->startOfDay();
 
         // Jadwal dihitung relatif terhadap hari ini, jadi data lama dibangun ulang agar tetap sesuai tanggal.
         // forceDelete karena Project memakai soft delete; relasi ikut terhapus via cascade.
@@ -294,6 +294,8 @@ class DummyProyekSeeder extends Seeder
                 if ($faktor < 1 && $p % 2 === 1) {
                     [$jenisKendala, $deskripsi, $tindakLanjut] = self::KENDALA[($index + $p) % count(self::KENDALA)];
                     $data['issues'] = [[
+                        // Kendala wajib terkait salah satu pekerjaan yang dilaporkan.
+                        'work_item_id' => $rencana[$p][0]['work_item_id'],
                         'jenis_kendala' => $jenisKendala,
                         'deskripsi' => $deskripsi,
                         'tindak_lanjut' => $tindakLanjut,
@@ -301,7 +303,9 @@ class DummyProyekSeeder extends Seeder
                     ]];
                 }
 
-                $this->progress->create($project, $petugas, $data);
+                // Laporan terkirim wajib memiliki minimal satu foto bukti.
+                $data['photo_captions'] = ['Dokumentasi '.$period->nama_periode];
+                $this->progress->create($project, $petugas, $data, [DummyProyekSelesaiSeeder::fotoBukti($period->nama_periode)]);
             }
         }
     }
