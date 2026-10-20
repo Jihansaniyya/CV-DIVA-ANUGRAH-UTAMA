@@ -31,13 +31,16 @@ class ProjectManagementTest extends TestCase
             'lokasi' => 'RT. 09 Kel. Bontang Baru',
             'sumber_dana' => 'PAD Kota Bontang',
             'tahun_anggaran' => 2025,
+            'tanggal_spk' => '2025-02-20',
             'tanggal_mulai' => '2025-02-20',
             'tanggal_selesai' => '2025-04-02',
             'jangka_waktu_hari' => 45,
             'kontraktor_pelaksana' => 'CV. DIVA ANUGRAH UTAMA',
             'konsultan_pengawas' => 'CV. AKMAL BERKAH ABADI',
             'nama_site_engineer' => 'Abdul Muiz, ST',
+            'nama_pelaksana_lapangan' => "A'id Maghfur",
             'qs_user_id' => $qs->id,
+            'keterangan' => 'Pekerjaan penutup parit sesuai SPK.',
         ]);
 
         $response->assertCreated()->assertJsonPath('data.nama_proyek', 'Pembuatan Penutup Parit RT 09');

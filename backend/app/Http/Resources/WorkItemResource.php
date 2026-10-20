@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -15,7 +16,7 @@ class WorkItemResource extends JsonResource
             'work_category_id' => $this->work_category_id,
             'kategori' => new WorkCategoryResource($this->whenLoaded('category')),
             'unit_id' => $this->unit_id,
-            'satuan' => $this->unit?->code,
+            'satuan' => Unit::tampilan($this->unit?->code),
             'uraian_pekerjaan' => $this->uraian_pekerjaan,
             'volume' => (float) $this->volume,
             'harga_satuan' => $this->harga_satuan !== null ? (float) $this->harga_satuan : null,

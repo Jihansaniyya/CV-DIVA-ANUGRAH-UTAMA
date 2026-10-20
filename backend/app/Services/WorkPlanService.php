@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Period;
 use App\Models\Project;
+use App\Models\Unit;
 use App\Models\WorkItem;
 use App\Models\WorkPlan;
 use Illuminate\Support\Facades\DB;
@@ -128,6 +129,29 @@ class WorkPlanService
     }
 
     /**
+     * Bagi rata otomatis untuk pekerjaan yang rencananya masih kosong (total target 0).
+     * Pekerjaan yang sudah memiliki rencana tidak diubah agar susunan Admin tetap terjaga.
+     *
+     * @return int jumlah pekerjaan yang diisi
+     */
+    public function distributeEmpty(Project $project): int
+    {
+        return DB::transaction(function () use ($project) {
+            $kosong = $project->workItems()
+                ->with(['periodMulai', 'periodSelesai'])
+                ->withSum('workPlans as total_target', 'target_volume')
+                ->get()
+                ->filter(fn (WorkItem $item) => (float) $item->total_target <= self::TOLERANSI && (float) $item->volume > 0);
+
+            foreach ($kosong as $item) {
+                $this->distributeEvenly($item);
+            }
+
+            return $kosong->count();
+        });
+    }
+
+    /**
      * Nilai awal rencana: volume pekerjaan dibagi rata ke seluruh periode aktif.
      * Contoh 23,87 m³ pada M-II s/d M-V = 5,9675 m³ per minggu. Sisa pembulatan
      * dimasukkan ke periode terakhir agar total tetap sama dengan volume.
@@ -213,7 +237,7 @@ class WorkPlanService
                 'work_item_id' => $item->id,
                 'uraian_pekerjaan' => $item->uraian_pekerjaan,
                 'kategori' => $item->category?->nama,
-                'satuan' => $item->unit?->code,
+                'satuan' => Unit::tampilan($item->unit?->code),
                 'volume' => (float) $item->volume,
                 'bobot' => (float) $item->bobot,
                 'period_mulai_id' => $item->period_mulai_id,

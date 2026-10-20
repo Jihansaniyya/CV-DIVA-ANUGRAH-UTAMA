@@ -13,6 +13,8 @@ class UnitResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'name' => $this->name,
+            // Satuan yang masih dipakai pekerjaan tidak dapat dihapus.
+            'jumlah_pekerjaan' => $this->whenCounted('workItems'),
         ];
     }
 }

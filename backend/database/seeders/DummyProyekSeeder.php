@@ -115,7 +115,7 @@ class DummyProyekSeeder extends Seeder
                 ['Perataan dan Pemadatan Tanah Dasar', 'm2', 420.00, 18500.00],
                 ['Hamparan Pasir Urug Tebal 5 cm', 'm3', 21.00, 285000.00],
                 ['Pemasangan Paving Block K-300 Tebal 6 cm', 'm2', 420.00, 168000.00],
-                ['Pemasangan Kanstin Beton', 'm1', 168.00, 112500.00],
+                ['Pemasangan Kanstin Beton', 'm', 168.00, 112500.00],
             ],
         ],
         'jembatan' => [
@@ -124,14 +124,14 @@ class DummyProyekSeeder extends Seeder
                 ['Mobilisasi dan Demobilisasi Peralatan', 'ls', 1.00, 6750000.00],
             ],
             'PEKERJAAN BANGUNAN BAWAH' => [
-                ['Pemancangan Tiang Ulin 10/10', 'm1', 240.00, 165000.00],
+                ['Pemancangan Tiang Ulin 10/10', 'm', 240.00, 165000.00],
                 ['Pek. Beton Abutment K-250', 'm3', 18.60, 2909892.81],
                 ['Pek. Pembesian Ulir', 'kg', 2240.00, 25096.50],
             ],
             'PEKERJAAN BANGUNAN ATAS' => [
                 ['Pek. Beton Lantai Jembatan K-250', 'm3', 14.40, 2909892.81],
                 ['Pek. Bekisting Lantai Jembatan', 'm2', 64.00, 301680.49],
-                ['Pemasangan Railing Pipa Galvanis', 'm1', 48.00, 425000.00],
+                ['Pemasangan Railing Pipa Galvanis', 'm', 48.00, 425000.00],
             ],
         ],
         'turap' => [
@@ -141,10 +141,10 @@ class DummyProyekSeeder extends Seeder
             ],
             'PEKERJAAN TURAP' => [
                 ['Galian Tanah Pondasi Turap', 'm3', 186.00, 102500.00],
-                ['Pemancangan Cerucuk Galam', 'm1', 1450.00, 18500.00],
+                ['Pemancangan Cerucuk Galam', 'm', 1450.00, 18500.00],
                 ['Pasangan Batu Camp. 1:4', 'm3', 212.00, 1285000.00],
                 ['Plesteran Camp. 1:3', 'm2', 248.00, 96500.00],
-                ['Pemasangan Pipa Suling-suling PVC 2"', 'm1', 64.00, 48500.00],
+                ['Pemasangan Pipa Suling-suling PVC 2"', 'm', 64.00, 48500.00],
             ],
         ],
     ];

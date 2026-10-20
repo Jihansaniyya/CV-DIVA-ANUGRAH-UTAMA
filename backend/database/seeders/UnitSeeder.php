@@ -10,15 +10,15 @@ class UnitSeeder extends Seeder
     public function run(): void
     {
         $units = [
-            ['m3', 'Meter Kubik'],
-            ['m2', 'Meter Persegi'],
-            ['m1', 'Meter Lari'],
-            ['kg', 'Kilogram'],
-            ['ton', 'Ton'],
-            ['ls', 'Lump Sum'],
-            ['bh', 'Buah'],
-            ['unit', 'Unit'],
-            ['ttk', 'Titik'],
+            ['m3', 'meter kubik'],
+            ['m2', 'meter persegi'],
+            ['m', 'meter'],
+            ['kg', 'kilogram'],
+            ['ton', 'ton'],
+            ['ls', 'lump sum'],
+            ['bh', 'buah'],
+            ['unit', 'unit'],
+            ['ttk', 'titik'],
         ];
 
         foreach ($units as [$code, $name]) {

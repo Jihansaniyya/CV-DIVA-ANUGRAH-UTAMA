@@ -111,13 +111,21 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
     event.preventDefault()
     const validasiLokal: Record<string, string> = {}
 
+    // Seluruh data proyek wajib diisi kecuali keterangan (backend ikut memvalidasi).
     if (!form.nama_proyek.trim()) validasiLokal.nama_proyek = 'Nama proyek wajib diisi.'
+    if (!form.nomor_spk?.trim()) validasiLokal.nomor_spk = 'Nomor SPK wajib diisi.'
     if (!form.lokasi.trim()) validasiLokal.lokasi = 'Lokasi proyek wajib diisi.'
+    if (!form.sumber_dana?.trim()) validasiLokal.sumber_dana = 'Sumber dana wajib diisi.'
+    if (!form.tahun_anggaran) validasiLokal.tahun_anggaran = 'Tahun anggaran wajib diisi.'
+    if (!form.tanggal_spk) validasiLokal.tanggal_spk = 'Tanggal SPK wajib diisi.'
+    if (!form.tanggal_mulai) validasiLokal.tanggal_mulai = 'Tanggal mulai wajib diisi.'
+    if (!form.tanggal_selesai) validasiLokal.tanggal_selesai = 'Tanggal selesai wajib diisi.'
+    if (!form.jangka_waktu_hari) validasiLokal.jangka_waktu_hari = 'Jangka waktu wajib diisi.'
+    if (!form.qs_user_id) validasiLokal.qs_user_id = 'QS penanggung jawab wajib dipilih.'
     if (!form.kontraktor_pelaksana?.trim()) validasiLokal.kontraktor_pelaksana = 'Kontraktor pelaksana wajib diisi.'
     if (!form.konsultan_pengawas?.trim()) validasiLokal.konsultan_pengawas = 'Konsultan pengawas wajib diisi.'
     if (!form.nama_site_engineer?.trim()) validasiLokal.nama_site_engineer = 'Nama site engineer wajib diisi.'
-    if (!form.tanggal_mulai) validasiLokal.tanggal_mulai = 'Tanggal mulai wajib diisi.'
-    if (!form.tanggal_selesai) validasiLokal.tanggal_selesai = 'Tanggal selesai wajib diisi.'
+    if (!form.nama_pelaksana_lapangan?.trim()) validasiLokal.nama_pelaksana_lapangan = 'Nama pelaksana lapangan wajib diisi.'
     if (form.tanggal_mulai && form.tanggal_selesai && form.tanggal_selesai < form.tanggal_mulai) {
       validasiLokal.tanggal_selesai = 'Tanggal selesai harus setelah tanggal mulai.'
     }
@@ -164,6 +172,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
         />
         <Input
           label="Nomor SPK"
+          required
           value={form.nomor_spk ?? ''}
           onChange={(event) => ubah('nomor_spk', event.target.value)}
           error={errors.nomor_spk}
@@ -177,9 +186,10 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
           error={errors.lokasi}
           placeholder="Contoh: RT. 09 Kel. Bontang Baru, Bontang Utara"
         />
-        <Input label="Sumber Dana" value={form.sumber_dana ?? ''} onChange={(event) => ubah('sumber_dana', event.target.value)} error={errors.sumber_dana} placeholder="Contoh: PAD Kota Bontang" />
+        <Input label="Sumber Dana" required value={form.sumber_dana ?? ''} onChange={(event) => ubah('sumber_dana', event.target.value)} error={errors.sumber_dana} placeholder="Contoh: PAD Kota Bontang" />
         <Input
           label="Tahun Anggaran"
+          required
           type="number"
           min={2000}
           max={2100}
@@ -187,25 +197,27 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
           onChange={(event) => ubah('tahun_anggaran', event.target.value ? Number(event.target.value) : null)}
           error={errors.tahun_anggaran}
         />
-        <DatePicker label="Tanggal SPK" value={form.tanggal_spk ?? ''} onChange={(event) => ubah('tanggal_spk', event.target.value)} error={errors.tanggal_spk} />
+        <DatePicker label="Tanggal SPK" required value={form.tanggal_spk ?? ''} onChange={(event) => ubah('tanggal_spk', event.target.value)} error={errors.tanggal_spk} />
         <DatePicker label="Tanggal Mulai" required value={form.tanggal_mulai} onChange={(event) => ubah('tanggal_mulai', event.target.value)} error={errors.tanggal_mulai} />
         <DatePicker label="Tanggal Selesai" required value={form.tanggal_selesai} onChange={(event) => ubah('tanggal_selesai', event.target.value)} error={errors.tanggal_selesai} />
         <Input
           label="Jangka Waktu (hari kalender)"
+          required
           type="number"
           min={1}
-          hint="Sesuai SPK. Kosongkan untuk dihitung dari tanggal pelaksanaan."
+          hint="Sesuai SPK."
           value={form.jangka_waktu_hari ?? ''}
           onChange={(event) => ubah('jangka_waktu_hari', event.target.value ? Number(event.target.value) : null)}
           error={errors.jangka_waktu_hari}
         />
         <Select
           label="QS Penanggung Jawab"
+          required
           value={form.qs_user_id ?? ''}
           onChange={(event) => ubah('qs_user_id', event.target.value ? Number(event.target.value) : null)}
           error={errors.qs_user_id}
         >
-          <option value="">Belum ditentukan</option>
+          <option value="">Pilih QS penanggung jawab</option>
           {daftarQs?.data.map((qs) => (
             <option key={qs.id} value={qs.id}>
               {qs.name}
@@ -243,8 +255,8 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
           hint="Dipakai pada tanda tangan laporan."
           placeholder="Contoh: Abdul Muiz, ST"
         />
-        <Input label="Nama Pelaksana Lapangan" value={form.nama_pelaksana_lapangan ?? ''} onChange={(event) => ubah('nama_pelaksana_lapangan', event.target.value)} error={errors.nama_pelaksana_lapangan} />
-        <Textarea label="Keterangan" wrapClassName="sm:col-span-2" value={form.keterangan ?? ''} onChange={(event) => ubah('keterangan', event.target.value)} error={errors.keterangan} />
+        <Input label="Nama Pelaksana Lapangan" required value={form.nama_pelaksana_lapangan ?? ''} onChange={(event) => ubah('nama_pelaksana_lapangan', event.target.value)} error={errors.nama_pelaksana_lapangan} />
+        <Textarea label="Keterangan (opsional)" wrapClassName="sm:col-span-2" value={form.keterangan ?? ''} onChange={(event) => ubah('keterangan', event.target.value)} error={errors.keterangan} />
       </form>
     </Modal>
   )

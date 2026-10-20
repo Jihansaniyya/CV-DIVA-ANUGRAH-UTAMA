@@ -359,4 +359,34 @@ class WorkPlanCalculationTest extends TestCase
 
         $this->assertSame(7, $project->periods()->count());
     }
+
+    public function test_bagi_rata_otomatis_hanya_mengisi_pekerjaan_yang_rencananya_kosong(): void
+    {
+        $konteks = $this->proyekContoh();
+        $project = $konteks['project'];
+        [$galian, $besi] = $konteks['items'];
+        $admin = $this->userDenganPeran(RoleCode::ADMIN);
+        $periods = $project->periods()->orderBy('urutan')->get();
+
+        // Galian sudah disusun Admin seluruhnya di periode 1; Pembesian belum direncanakan.
+        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans", [
+            'rows' => [['work_item_id' => $galian->id, 'period_id' => $periods[0]->id, 'target_volume' => 100]],
+        ])->assertOk();
+
+        $this->actingAs($konteks['qs'])->postJson("/api/projects/{$project->id}/work-plans/distribute")->assertForbidden();
+
+        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans/distribute")
+            ->assertOk()
+            ->assertJsonPath('message', 'Rencana 1 pekerjaan berhasil dibagi rata ke periode aktif.');
+
+        $this->assertEquals([100.0], $galian->workPlans()->pluck('target_volume')->map(fn ($v) => (float) $v)->all());
+        $this->assertSame($periods->count(), $besi->workPlans()->count());
+        $this->assertEqualsWithDelta(200.0, (float) $besi->workPlans()->sum('target_volume'), 0.0001);
+        $this->assertEqualsWithDelta(100.0, (float) $project->workPlans()->sum('target_bobot'), 0.001);
+
+        // Dijalankan ulang: tidak ada pekerjaan kosong, tidak ada yang diubah.
+        $this->actingAs($admin)->postJson("/api/projects/{$project->id}/work-plans/distribute")
+            ->assertOk()
+            ->assertJsonPath('message', 'Semua pekerjaan sudah memiliki rencana; tidak ada yang diubah.');
+    }
 }

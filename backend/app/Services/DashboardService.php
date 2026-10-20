@@ -7,6 +7,7 @@ use App\Enums\ReportStatus;
 use App\Models\ProgressDetail;
 use App\Models\ProgressReport;
 use App\Models\Project;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkPlan;
@@ -243,7 +244,7 @@ class DashboardService
                     'project_id' => $item->project_id,
                     'nama_proyek' => $item->project?->nama_proyek,
                     'uraian_pekerjaan' => $item->uraian_pekerjaan,
-                    'satuan' => $item->unit?->code,
+                    'satuan' => Unit::tampilan($item->unit?->code),
                     'volume' => $volume,
                     'volume_realisasi' => $volRealisasi,
                     'volume_rencana' => $volRencana,

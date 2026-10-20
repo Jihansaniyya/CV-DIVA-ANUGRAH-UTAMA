@@ -1,3 +1,4 @@
+import { DaftarPekerjaan } from '@/components/progress/DaftarPekerjaan'
 import { ReportStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -71,7 +72,9 @@ export function ProgressTab({ projectId, project }: { projectId: number; project
                   <Td className="whitespace-nowrap">{tanggalSingkat(laporan.tanggal_laporan)}</Td>
                   <Td className="text-muted">{laporan.periode ?? '-'}</Td>
                   <Td className="text-muted">{laporan.pelapor ?? '-'}</Td>
-                  <Td className="text-muted">{laporan.detail?.length ?? 0} pekerjaan</Td>
+                  <Td className="max-w-56 min-w-40 text-xs text-ink">
+                    <DaftarPekerjaan detail={laporan.detail} />
+                  </Td>
                   <Td align="right">{persen(laporan.total_bobot_realisasi)}</Td>
                   <Td align="center">
                     <ReportStatusBadge status={laporan.status} />

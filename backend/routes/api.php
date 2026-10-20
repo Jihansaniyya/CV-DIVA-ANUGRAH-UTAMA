@@ -26,6 +26,8 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
     Route::get('roles', [MasterDataController::class, 'roles']);
     Route::get('units', [MasterDataController::class, 'units']);
     Route::post('units', [MasterDataController::class, 'storeUnit'])->middleware('role:ADMIN');
+    Route::put('units/{unit}', [MasterDataController::class, 'updateUnit'])->middleware('role:ADMIN');
+    Route::delete('units/{unit}', [MasterDataController::class, 'destroyUnit'])->middleware('role:ADMIN');
 
     // Pengguna (Admin)
     Route::middleware('role:ADMIN')->group(function () {
@@ -67,6 +69,7 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
     // Rencana pekerjaan
     Route::get('projects/{project}/work-plans', [WorkPlanController::class, 'index']);
     Route::post('projects/{project}/work-plans', [WorkPlanController::class, 'sync'])->middleware('role:ADMIN');
+    Route::post('projects/{project}/work-plans/distribute', [WorkPlanController::class, 'distribute'])->middleware('role:ADMIN');
 
     // Milestone
     Route::get('projects/{project}/milestones', [MilestoneController::class, 'index']);

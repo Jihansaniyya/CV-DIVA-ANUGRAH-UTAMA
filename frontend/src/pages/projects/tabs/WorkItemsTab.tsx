@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { projectService, type WorkItemPayload } from '@/services/projectService'
 import type { WorkItem } from '@/types'
-import { angka, rupiah } from '@/utils/format'
+import { angka, kodeSatuan, rupiah } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -288,7 +288,7 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             <option value="">Pilih satuan pekerjaan</option>
             {units?.map((unit) => (
               <option key={unit.id} value={unit.id}>
-                {unit.code} - {unit.name}
+                {kodeSatuan(unit.code)} - {unit.name}
               </option>
             ))}
           </Select>

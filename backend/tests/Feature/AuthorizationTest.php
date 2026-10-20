@@ -62,8 +62,13 @@ class AuthorizationTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.code', 'klg');
 
-        $this->actingAs($admin)->postJson('/api/units', ['code' => ' klg ', 'name' => 'Kaleng'])
+        $this->actingAs($admin)->postJson('/api/units', ['code' => ' KLG ', 'name' => 'Kaleng'])
             ->assertStatus(422)->assertJsonValidationErrors(['code']);
+
+        $this->actingAs($admin)->postJson('/api/units', ['code' => 'Btg', 'name' => 'Batang'])
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'btg')
+            ->assertJsonPath('data.name', 'batang');
     }
 
     public function test_qs_dan_kontraktor_tidak_dapat_membuat_proyek(): void

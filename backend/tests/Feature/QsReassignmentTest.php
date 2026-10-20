@@ -103,10 +103,11 @@ class QsReassignmentTest extends TestCase
         $this->actingAs($qsC)->getJson("/api/projects/{$project->id}")->assertOk();
         $this->assertSame([$qsC->id], ProjectAssignment::where('project_id', $project->id)->pluck('user_id')->all());
 
-        // Mengosongkan QS mencabut seluruh penugasan utama.
-        $this->gantiQs($project, null);
-        $this->actingAs($qsC)->getJson("/api/projects/{$project->id}")->assertForbidden();
-        $this->assertSame(0, ProjectAssignment::where('project_id', $project->id)->count());
+        // QS penanggung jawab wajib diisi: mengosongkannya ditolak dan penugasan QS C tetap.
+        $this->actingAs($this->admin)->putJson("/api/projects/{$project->id}", ['qs_user_id' => null])
+            ->assertStatus(422)->assertJsonValidationErrors(['qs_user_id']);
+        $this->actingAs($qsC)->getJson("/api/projects/{$project->id}")->assertOk();
+        $this->assertSame([$qsC->id], ProjectAssignment::where('project_id', $project->id)->pluck('user_id')->all());
     }
 
     public function test_draf_qs_lama_tidak_lagi_mengurangi_sisa_volume(): void

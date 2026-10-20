@@ -165,6 +165,13 @@ export const projectService = {
     return data.data
   },
 
+  /** Bagi rata otomatis volume pekerjaan yang rencananya masih kosong ke periode aktifnya. */
+  async distributeWorkPlans(id: number): Promise<{ message: string; data: WorkPlanMatrix }> {
+    const { data } = await api.post<{ message: string; data: WorkPlanMatrix }>(`/projects/${id}/work-plans/distribute`)
+
+    return data
+  },
+
   async curveS(id: number): Promise<CurveData> {
     const { data } = await api.get<{ data: CurveData }>(`/projects/${id}/curve-s`)
 

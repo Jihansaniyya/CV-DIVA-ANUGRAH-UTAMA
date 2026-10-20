@@ -92,3 +92,13 @@ export function ukuranFile(byte: number | null | undefined): string {
 
   return `${angka(nilai, index === 0 ? 0 : 1)} ${satuan[index]}`
 }
+
+/**
+ * Kode satuan untuk ditampilkan: angka pangkat 2/3 di akhir kode ditulis superskrip (m2 → m², m3 → m³).
+ * Sama dengan Unit::tampilan() di backend; kode tersimpan tetap apa adanya.
+ */
+export function kodeSatuan(kode: string | null | undefined): string {
+  if (!kode) return '-'
+
+  return kode.replace(/^([a-zA-Z]+)([23])$/, (_, dasar: string, pangkat: string) => dasar + (pangkat === '2' ? '²' : '³'))
+}

@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Field'
-import { Modal } from '@/components/ui/Modal'
+import { ConfirmDialog, Modal } from '@/components/ui/Modal'
 import { EmptyState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
 import { qk, useRoles, useUnits } from '@/hooks/queries'
@@ -9,8 +9,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { masterService } from '@/services/masterService'
+import type { Unit } from '@/types'
+import { kodeSatuan } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 const SATUAN_KOSONG = { code: '', name: '' }
@@ -26,19 +28,30 @@ export function SettingsPage() {
 
   const [formSatuan, setFormSatuan] = useState(false)
   const [satuan, setSatuan] = useState(SATUAN_KOSONG)
+  const [satuanDiedit, setSatuanDiedit] = useState<Unit | null>(null)
+  const [satuanDihapus, setSatuanDihapus] = useState<Unit | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const bukaFormSatuan = () => {
-    setSatuan(SATUAN_KOSONG)
+  const bukaFormSatuan = (unit: Unit | null = null) => {
+    setSatuanDiedit(unit)
+    setSatuan(unit ? { code: unit.code, name: unit.name } : SATUAN_KOSONG)
     setErrors({})
     setFormSatuan(true)
   }
 
+  // Satuan tampil di Pekerjaan, Rencana, Progres, dan laporan; semuanya disegarkan setelah satuan berubah.
+  const segarkanSatuan = async () => {
+    await queryClient.invalidateQueries({ queryKey: qk.units })
+    await queryClient.invalidateQueries({ queryKey: ['project'] })
+    await queryClient.invalidateQueries({ queryKey: ['progress'] })
+  }
+
   const simpanSatuan = useMutation({
-    mutationFn: masterService.createUnit,
+    mutationFn: (payload: { code: string; name: string }) =>
+      satuanDiedit ? masterService.updateUnit(satuanDiedit.id, payload) : masterService.createUnit(payload),
     onSuccess: async () => {
-      toast.sukses('Satuan pekerjaan berhasil ditambahkan.')
-      await queryClient.invalidateQueries({ queryKey: qk.units })
+      toast.sukses(satuanDiedit ? 'Satuan pekerjaan berhasil diperbarui.' : 'Satuan pekerjaan berhasil ditambahkan.')
+      await segarkanSatuan()
       setFormSatuan(false)
     },
     onError: (err) => {
@@ -47,6 +60,32 @@ export function SettingsPage() {
       toast.gagal(Object.keys(validasi).length > 0 ? 'Periksa kembali data yang kamu masukkan.' : pesanError(err))
     },
   })
+
+  const hapusSatuan = useMutation({
+    mutationFn: (id: number) => masterService.removeUnit(id),
+    onSuccess: async () => {
+      toast.sukses('Satuan pekerjaan berhasil dihapus.')
+      setSatuanDihapus(null)
+      await segarkanSatuan()
+    },
+    onError: (err) => {
+      toast.gagal(pesanError(err))
+      setSatuanDihapus(null)
+    },
+  })
+
+  /** Satuan yang masih dipakai pekerjaan tidak dapat dihapus (backend ikut menolak). */
+  const mintaHapusSatuan = (unit: Unit) => {
+    const dipakai = unit.jumlah_pekerjaan ?? 0
+
+    if (dipakai > 0) {
+      toast.gagal(`Satuan "${kodeSatuan(unit.code)}" masih dipakai ${dipakai} pekerjaan sehingga tidak dapat dihapus.`)
+
+      return
+    }
+
+    setSatuanDihapus(unit)
+  }
 
   const kirimSatuan = (event: FormEvent) => {
     event.preventDefault()
@@ -119,7 +158,7 @@ export function SettingsPage() {
         description="Master data satuan yang dipakai pada data pekerjaan."
         action={
           adminMode && (
-            <Button size="sm" icon={<Plus className="size-4" />} onClick={bukaFormSatuan}>
+            <Button size="sm" icon={<Plus className="size-4" />} onClick={() => bukaFormSatuan()}>
               Tambah Satuan
             </Button>
           )
@@ -135,15 +174,46 @@ export function SettingsPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Kode</Th>
+                  <Th className="w-2/5">Kode</Th>
                   <Th>Nama Satuan</Th>
+                  {adminMode && (
+                    <Th align="center" className="w-px">
+                      Aksi
+                    </Th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {units.map((unit) => (
                   <tr key={unit.id}>
-                    <Td className="font-medium">{unit.code}</Td>
+                    <Td className="font-medium">{kodeSatuan(unit.code)}</Td>
                     <Td className="text-muted">{unit.name}</Td>
+                    {adminMode && (
+                      <Td align="center">
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="bg-info-soft! text-info! hover:bg-info! hover:text-white!"
+                            icon={<Pencil className="size-3.5" aria-hidden />}
+                            onClick={() => bukaFormSatuan(unit)}
+                            aria-label={`Ubah satuan ${unit.code}`}
+                          >
+                            Ubah
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="bg-danger-soft! text-danger! hover:bg-danger! hover:text-white!"
+                            icon={<Trash2 className="size-3.5" aria-hidden />}
+                            onClick={() => mintaHapusSatuan(unit)}
+                            aria-label={`Hapus satuan ${unit.code}`}
+                          >
+                            Hapus
+                          </Button>
+                        </div>
+                      </Td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -155,8 +225,12 @@ export function SettingsPage() {
       <Modal
         open={formSatuan}
         onClose={() => setFormSatuan(false)}
-        title="Tambah Satuan Pekerjaan"
-        description="Satuan baru langsung bisa dipilih saat menambah data pekerjaan."
+        title={satuanDiedit ? 'Ubah Satuan Pekerjaan' : 'Tambah Satuan Pekerjaan'}
+        description={
+          satuanDiedit
+            ? 'Perubahan langsung berlaku pada semua pekerjaan yang memakai satuan ini.'
+            : 'Satuan baru langsung bisa dipilih saat menambah data pekerjaan.'
+        }
         size="sm"
         footer={
           <>
@@ -182,7 +256,7 @@ export function SettingsPage() {
           <Input
             label="Nama Satuan"
             required
-            placeholder="Contoh: Meter Kubik"
+            placeholder="Contoh: meter kubik"
             maxLength={80}
             value={satuan.name}
             onChange={(event) => setSatuan({ ...satuan, name: event.target.value })}
@@ -190,6 +264,15 @@ export function SettingsPage() {
           />
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(satuanDihapus)}
+        title="Hapus Satuan"
+        pesan={`Satuan "${satuanDihapus ? kodeSatuan(satuanDihapus.code) : ''} - ${satuanDihapus?.name ?? ''}" akan dihapus. Lanjutkan?`}
+        loading={hapusSatuan.isPending}
+        onConfirm={() => satuanDihapus && hapusSatuan.mutate(satuanDihapus.id)}
+        onClose={() => setSatuanDihapus(null)}
+      />
     </div>
   )
 }

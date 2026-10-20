@@ -28,4 +28,19 @@ class WorkPlanController extends Controller
             'data' => $this->plans->matrix($project),
         ]);
     }
+
+    /** Isi rencana pekerjaan yang masih kosong dengan membagi volumenya rata ke periode aktif. */
+    public function distribute(Project $project): JsonResponse
+    {
+        $this->authorize('update', $project);
+
+        $jumlah = $this->plans->distributeEmpty($project);
+
+        return response()->json([
+            'message' => $jumlah > 0
+                ? "Rencana {$jumlah} pekerjaan berhasil dibagi rata ke periode aktif."
+                : 'Semua pekerjaan sudah memiliki rencana; tidak ada yang diubah.',
+            'data' => $this->plans->matrix($project),
+        ]);
+    }
 }

@@ -35,6 +35,7 @@ export function ProjectsPage() {
   const adminMode = punyaPeran('ADMIN')
 
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [projectId, setProjectId] = useState('')
   const [status, setStatus] = useState('')
   const [filterTerbuka, setFilterTerbuka] = useState(false)
@@ -43,7 +44,7 @@ export function ProjectsPage() {
   const [proyekDihapus, setProyekDihapus] = useState<Project | null>(null)
 
   // Bila satu proyek dipilih, backend hanya mengembalikan proyek itu (tetap mengikuti filter status).
-  const filter = { page, per_page: 10, status: status || undefined, id: projectId ? Number(projectId) : undefined }
+  const filter = { page, per_page: perPage, status: status || undefined, id: projectId ? Number(projectId) : undefined }
   const { data, isLoading, error, refetch } = useProjects(filter)
   // Semua proyek yang boleh diakses (tanpa batas 100), sebagai pilihan dropdown proyek.
   const { data: semuaProyek } = useProjectOptions()
@@ -277,6 +278,11 @@ export function ProjectsPage() {
                   from={data.meta.from}
                   to={data.meta.to}
                   onChange={setPage}
+                  perPage={perPage}
+                  onPerPageChange={(jumlah) => {
+                    setPerPage(jumlah)
+                    setPage(1)
+                  }}
                 />
               </>
             )

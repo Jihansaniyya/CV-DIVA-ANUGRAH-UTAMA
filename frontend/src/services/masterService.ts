@@ -19,4 +19,14 @@ export const masterService = {
 
     return data.data
   },
+
+  async updateUnit(id: number, payload: { code: string; name: string }): Promise<Unit> {
+    const { data } = await api.put<{ message: string; data: Unit }>(`/units/${id}`, payload)
+
+    return data.data
+  },
+
+  async removeUnit(id: number): Promise<void> {
+    await api.delete(`/units/${id}`)
+  },
 }

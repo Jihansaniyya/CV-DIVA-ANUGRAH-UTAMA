@@ -1,3 +1,4 @@
+import { DaftarPekerjaan } from '@/components/progress/DaftarPekerjaan'
 import { ReportStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -145,10 +146,8 @@ export function ProgressPage() {
                         {tanggalSingkat(laporan.tanggal_laporan)} · {laporan.periode ?? 'Di luar periode'}
                       </p>
                       <p className="mt-0.5 line-clamp-2 text-sm leading-snug font-medium text-ink">{laporan.nama_proyek}</p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {tampilPelapor && <>{laporan.pelapor ?? '-'} · </>}
-                        {laporan.detail?.length ?? 0} pekerjaan
-                      </p>
+                      {tampilPelapor && <p className="mt-0.5 text-xs text-muted">{laporan.pelapor ?? '-'}</p>}
+                      <DaftarPekerjaan detail={laporan.detail} className="mt-1 text-xs text-ink" />
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
                       <span className="text-sm font-semibold text-ink tabular-nums">{bobot(laporan)}</span>
@@ -168,7 +167,7 @@ export function ProgressPage() {
                     <Th className="min-w-64">Proyek</Th>
                     <Th>Periode</Th>
                     {tampilPelapor && <Th>Pelapor</Th>}
-                    <Th align="center">Pekerjaan</Th>
+                    <Th>Pekerjaan</Th>
                     <Th align="right">Bobot Realisasi</Th>
                     <Th align="center">Status</Th>
                     <Th align="right">
@@ -197,8 +196,8 @@ export function ProgressPage() {
                       </Td>
                       <Td className="whitespace-nowrap text-muted">{laporan.periode ?? 'Di luar periode'}</Td>
                       {tampilPelapor && <Td className="whitespace-nowrap text-muted">{laporan.pelapor ?? '-'}</Td>}
-                      <Td align="center" className="text-muted">
-                        {laporan.detail?.length ?? 0}
+                      <Td className="max-w-56 min-w-40 text-xs text-ink">
+                        <DaftarPekerjaan detail={laporan.detail} />
                       </Td>
                       <Td align="right" className="font-semibold whitespace-nowrap">
                         {bobot(laporan)}

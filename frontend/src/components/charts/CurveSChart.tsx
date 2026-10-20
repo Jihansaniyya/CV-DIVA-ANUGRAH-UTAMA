@@ -31,6 +31,8 @@ interface Titik {
   nama: string
   rencana: number | null
   aktual: number | null
+  /** Nilai yang digambar pada garis realisasi; null setelah periode terakhir yang memiliki laporan. */
+  aktualGaris: number | null
   deviasi: number | null
   periodId: number
 }
@@ -64,14 +66,18 @@ function TooltipKurva({ active, payload }: TooltipContentProps) {
 /**
  * Kurva S: rencana kumulatif (garis biru) vs realisasi kumulatif (putus-putus merah) per periode.
  * Kedua garis hanya digambar sampai periode yang sudah berjalan (aktual_kumulatif tidak null),
- * sehingga ujung garis rencana sama dengan Progres Rencana s/d hari ini.
+ * sehingga ujung garis rencana sama dengan Progres Rencana s/d hari ini. Garis realisasi berhenti
+ * pada periode terakhir yang memiliki laporan progres, bukan memanjang datar sampai periode berjalan.
  * Milestone ditandai sebagai titik pada target persentasenya.
  */
 export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: CurveSChartProps) {
-  const titik: Titik[] = data.titik.map((item) => ({
+  const indeksLaporanTerakhir = data.titik.reduce((terakhir, item, index) => ((item.aktual ?? 0) > 0 ? index : terakhir), -1)
+
+  const titik: Titik[] = data.titik.map((item, index) => ({
     nama: item.nama_periode,
     rencana: item.aktual_kumulatif === null ? null : item.rencana_kumulatif,
     aktual: item.aktual_kumulatif,
+    aktualGaris: index <= indeksLaporanTerakhir ? item.aktual_kumulatif : null,
     deviasi: item.deviasi,
     periodId: item.period_id,
   }))
@@ -127,7 +133,7 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
             />
             <Line
               type="linear"
-              dataKey="aktual"
+              dataKey="aktualGaris"
               name="Realisasi"
               stroke={MERAH}
               strokeWidth={3}

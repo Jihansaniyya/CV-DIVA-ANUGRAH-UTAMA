@@ -30,6 +30,8 @@ export interface Unit {
   id: number
   code: string
   name: string
+  /** Jumlah pekerjaan yang memakai satuan ini; satuan yang masih dipakai tidak dapat dihapus. */
+  jumlah_pekerjaan?: number
 }
 
 export interface Project {

@@ -11,12 +11,15 @@ class StoreUnitRequest extends FormRequest
         return $this->user()?->isAdmin() ?? false;
     }
 
-    /** Kode dirapikan dulu agar "m2 " dan "m2" dianggap sama saat pengecekan unik. */
+    /**
+     * Kode dan nama dirapikan dulu agar "M2 " dan "m2" dianggap sama saat pengecekan unik.
+     * Satuan selalu ditulis huruf kecil (m², kg, meter kubik), mengikuti penulisan satuan baku.
+     */
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'code' => is_string($this->code) ? trim($this->code) : $this->code,
-            'name' => is_string($this->name) ? trim($this->name) : $this->name,
+            'code' => is_string($this->code) ? mb_strtolower(trim($this->code)) : $this->code,
+            'name' => is_string($this->name) ? mb_strtolower(trim($this->name)) : $this->name,
         ]);
     }
 

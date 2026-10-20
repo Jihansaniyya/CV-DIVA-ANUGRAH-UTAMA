@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/useToast'
 import { errorValidasi, pesanError } from '@/lib/api'
 import { projectService, type WorkItemBatchPayload } from '@/services/projectService'
 import type { Period, Unit, WorkCategory } from '@/types'
-import { angka, rupiah } from '@/utils/format'
+import { angka, kodeSatuan, rupiah } from '@/utils/format'
 import { useMutation } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -232,7 +232,7 @@ export function WorkItemBatchModal({ open, projectId, units, categories, periods
                     <option value="">Pilih satuan</option>
                     {units.map((unit) => (
                       <option key={unit.id} value={unit.id}>
-                        {unit.code} - {unit.name}
+                        {kodeSatuan(unit.code)} - {unit.name}
                       </option>
                     ))}
                   </Select>

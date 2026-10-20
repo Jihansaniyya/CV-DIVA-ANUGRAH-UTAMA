@@ -6,6 +6,7 @@ use App\Enums\ProjectStatus;
 use App\Models\Period;
 use App\Models\ProgressReport;
 use App\Models\Project;
+use App\Models\Unit;
 use App\Models\WorkItem;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -448,7 +449,7 @@ class ReportService
             ->groupBy('work_item_id')
             ->map(fn (Collection $baris) => [
                 'uraian' => $baris->first()->workItem->uraian_pekerjaan,
-                'satuan' => $baris->first()->workItem->unit?->code,
+                'satuan' => Unit::tampilan($baris->first()->workItem->unit?->code),
                 'volume' => round((float) $baris->sum('volume_realisasi'), 3),
                 'bobot' => round((float) $baris->sum('bobot_realisasi'), 4),
             ])
@@ -552,7 +553,7 @@ class ReportService
                     'no_global' => $nomor,
                     'work_item_id' => $item->id,
                     'uraian' => $item->uraian_pekerjaan,
-                    'satuan' => $item->unit?->code,
+                    'satuan' => Unit::tampilan($item->unit?->code),
                     'volume' => (float) $item->volume,
                     'harga_satuan' => $item->harga_satuan !== null ? (float) $item->harga_satuan : null,
                     'harga_pekerjaan' => $item->harga_pekerjaan !== null ? (float) $item->harga_pekerjaan : null,

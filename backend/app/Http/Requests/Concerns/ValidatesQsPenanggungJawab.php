@@ -15,7 +15,7 @@ trait ValidatesQsPenanggungJawab
     protected function qsRule(?int $qsSaatIni = null): array
     {
         return [
-            'nullable',
+            'required',
             'integer',
             function (string $attribute, mixed $value, Closure $fail) use ($qsSaatIni) {
                 if ($qsSaatIni !== null && (int) $value === $qsSaatIni) {

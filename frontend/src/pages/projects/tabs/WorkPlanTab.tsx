@@ -8,7 +8,7 @@ import { pesanError } from '@/lib/api'
 import { projectService, type WorkPlanRowPayload } from '@/services/projectService'
 import { angka } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save } from 'lucide-react'
+import { Save, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 type Draft = Record<string, number>
@@ -47,17 +47,34 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
     setDraft(awal)
   }, [data])
 
+  const segarkanRencana = async () => {
+    await queryClient.invalidateQueries({ queryKey: qk.workPlans(projectId) })
+    await queryClient.invalidateQueries({ queryKey: qk.curve(projectId) })
+    await queryClient.invalidateQueries({ queryKey: qk.project(projectId) })
+    await queryClient.invalidateQueries({ queryKey: ['projects'] })
+  }
+
   const simpan = useMutation({
     mutationFn: (rows: WorkPlanRowPayload[]) => projectService.syncWorkPlans(projectId, rows),
     onSuccess: async () => {
       toast.sukses('Rencana pekerjaan berhasil disimpan.')
-      await queryClient.invalidateQueries({ queryKey: qk.workPlans(projectId) })
-      await queryClient.invalidateQueries({ queryKey: qk.curve(projectId) })
-      await queryClient.invalidateQueries({ queryKey: qk.project(projectId) })
-      await queryClient.invalidateQueries({ queryKey: ['projects'] })
+      await segarkanRencana()
     },
     onError: (err) => toast.gagal(pesanError(err)),
   })
+
+  const bagiRata = useMutation({
+    mutationFn: () => projectService.distributeWorkPlans(projectId),
+    onSuccess: async (hasil) => {
+      toast.sukses(hasil.message)
+      await segarkanRencana()
+    },
+    onError: (err) => toast.gagal(pesanError(err)),
+  })
+
+  // Tombol bagi rata hanya muncul bila ada pekerjaan yang rencana tersimpannya masih kosong.
+  const adaRencanaKosong =
+    data?.baris.some((baris) => baris.volume > 0 && baris.periode.every((sel) => (sel.target_volume ?? 0) <= 0)) ?? false
 
   /** Ringkasan bobot rencana per periode dihitung ulang saat nilai diubah. */
   const ringkasan = useMemo(() => {
@@ -134,21 +151,36 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
       description={`Periode proyek M-I s/d ${data.periode.at(-1)?.nama_periode ?? '-'} (${data.periode.length} minggu). Admin mengisi target volume pada minggu aktif; bobot rencana, rencana kumulatif, dan Kurva S dihitung otomatis.`}
       action={
         adminMode ? (
-          <Button
-            size="sm"
-            icon={<Save className="size-4" />}
-            loading={simpan.isPending}
-            disabled={barisMelebihi.length > 0}
-            onClick={kirim}
-          >
-            Simpan Rencana
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {adaRencanaKosong && (
+              <Button
+                size="sm"
+                variant="outline"
+                icon={<Wand2 className="size-4" />}
+                loading={bagiRata.isPending}
+                disabled={simpan.isPending}
+                onClick={() => bagiRata.mutate()}
+                title="Isi pekerjaan yang rencananya masih kosong dengan membagi volumenya rata ke periode aktif"
+              >
+                Bagi Rata Otomatis
+              </Button>
+            )}
+            <Button
+              size="sm"
+              icon={<Save className="size-4" />}
+              loading={simpan.isPending}
+              disabled={barisMelebihi.length > 0 || bagiRata.isPending}
+              onClick={kirim}
+            >
+              Simpan Rencana
+            </Button>
+          </div>
         ) : undefined
       }
       bodyClassName="pt-0"
     >
       <div className="app-scroll-x -mx-4 sm:mx-0">
-        <table className="report-table min-w-max">
+        <table className="report-table w-auto! min-w-max">
           <thead>
             <tr>
               <th rowSpan={2} className="min-w-56 text-left">
@@ -159,13 +191,15 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
               <th rowSpan={2}>Bobot (%)</th>
               <th colSpan={data.periode.length}>Target Volume per Periode</th>
               <th rowSpan={2}>Sisa</th>
-              <th rowSpan={2} className="min-w-24">
-                Bobot Rencana (%)
+              <th rowSpan={2}>
+                Bobot
+                <br />
+                Rencana (%)
               </th>
             </tr>
             <tr>
               {data.periode.map((period) => (
-                <th key={period.id} className="min-w-24">
+                <th key={period.id} className="w-14 min-w-14 px-1!">
                   {period.nama_periode}
                 </th>
               ))}
@@ -212,7 +246,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
                           step="0.0001"
                           min="0"
                           disabled={!adminMode}
-                          className="w-full border-0 bg-transparent px-2 py-1.5 text-right text-xs tabular-nums focus:bg-primary-light disabled:text-muted"
+                          className="w-14 [appearance:textfield] border-0 bg-transparent px-1.5 py-1.5 text-right text-xs tabular-nums focus:bg-primary-light disabled:text-muted [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           value={target || ''}
                           onChange={(event) =>
                             setDraft((current) => ({
@@ -223,7 +257,7 @@ export function WorkPlanTab({ projectId }: { projectId: number }) {
                           aria-label={`Target ${baris.uraian_pekerjaan} ${period.nama_periode}`}
                         />
                         {target > 0 && (
-                          <span className="block px-2 pb-1 text-right text-[10px] tabular-nums text-muted" title="Bobot rencana (%)">
+                          <span className="block px-1.5 pb-1 text-right text-[10px] tabular-nums text-muted" title="Bobot rencana (%)">
                             {angka(bobotRencana(target, baris.volume, baris.bobot), 2)}%
                           </span>
                         )}
