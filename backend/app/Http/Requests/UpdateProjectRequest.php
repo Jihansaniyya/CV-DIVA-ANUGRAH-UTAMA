@@ -31,7 +31,6 @@ class UpdateProjectRequest extends FormRequest
             'nama_site_engineer' => ['sometimes', 'required', 'string', 'max:120'],
             'nama_pelaksana_lapangan' => ['sometimes', 'required', 'string', 'max:120'],
             'qs_user_id' => ['sometimes', ...$this->qsRule($this->route('project')?->qs_user_id)],
-            'keterangan' => ['nullable', 'string'],
         ];
     }
 
@@ -44,7 +43,7 @@ class UpdateProjectRequest extends FormRequest
             'konsultan_pengawas' => 'konsultan pengawas', 'nama_site_engineer' => 'nama site engineer',
             'nomor_spk' => 'nomor SPK', 'sumber_dana' => 'sumber dana', 'tahun_anggaran' => 'tahun anggaran',
             'tanggal_spk' => 'tanggal SPK', 'jangka_waktu_hari' => 'jangka waktu',
-            'nama_pelaksana_lapangan' => 'nama pelaksana lapangan', 'keterangan' => 'keterangan',
+            'nama_pelaksana_lapangan' => 'nama pelaksana lapangan',
         ];
     }
 }

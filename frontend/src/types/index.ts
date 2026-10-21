@@ -53,7 +53,6 @@ export interface Project {
   qs?: User
   status: ProjectStatus
   status_label: string
-  keterangan: string | null
   jumlah_pekerjaan?: number
   jumlah_periode?: number
   progres_aktual?: number
@@ -464,7 +463,6 @@ export interface FinalReportProgressRow {
 export interface FinalReport {
   header: ReportHeaderData
   status_proyek: { kode: ProjectStatus; label: string }
-  keterangan_proyek: string | null
   kurva_s: { titik: CurvePoint[]; total_bobot_rencana: number }
   /** `null` bila belum ada laporan progres yang dikirim. */
   laporan_terakhir: {

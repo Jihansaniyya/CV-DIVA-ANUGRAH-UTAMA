@@ -262,7 +262,6 @@ class ReportService
         $dasar = [
             'header' => $this->header($project),
             'status_proyek' => ['kode' => $project->status->value, 'label' => $project->status->label()],
-            'keterangan_proyek' => $project->keterangan,
             'kurva_s' => [
                 'titik' => $kurva['titik'],
                 'total_bobot_rencana' => $kurva['ringkasan']['total_bobot_rencana'],

@@ -69,7 +69,6 @@ class InformasiProyekSheet extends FinalReportSheet
                 ['Progres Akhir Realisasi', $r['realisasi_kumulatif'], self::FORMAT_PERSEN],
                 ['Sisa Progres', $r['sisa_progres'], self::FORMAT_PERSEN],
                 ['Status Proyek', $this->data['status_proyek']['label']],
-                ['Keterangan Proyek', $this->data['keterangan_proyek']],
             ]],
         ];
 

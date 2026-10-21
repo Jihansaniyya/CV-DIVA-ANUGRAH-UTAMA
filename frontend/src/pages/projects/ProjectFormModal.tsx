@@ -1,6 +1,6 @@
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { DatePicker, FieldWrap, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker, FieldWrap, Input, Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { qk } from '@/hooks/queries'
 import { useToast } from '@/hooks/useToast'
@@ -32,7 +32,6 @@ const KOSONG: ProjectPayload = {
   nama_site_engineer: '',
   nama_pelaksana_lapangan: '',
   qs_user_id: null,
-  keterangan: '',
 }
 
 export function ProjectFormModal({ open, project, onClose }: ProjectFormModalProps) {
@@ -68,7 +67,6 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
             nama_site_engineer: project.nama_site_engineer ?? '',
             nama_pelaksana_lapangan: project.nama_pelaksana_lapangan ?? '',
             qs_user_id: project.qs_user_id,
-            keterangan: project.keterangan ?? '',
           }
         : KOSONG,
     )
@@ -111,7 +109,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
     event.preventDefault()
     const validasiLokal: Record<string, string> = {}
 
-    // Seluruh data proyek wajib diisi kecuali keterangan (backend ikut memvalidasi).
+    // Seluruh data proyek wajib diisi (backend ikut memvalidasi).
     if (!form.nama_proyek.trim()) validasiLokal.nama_proyek = 'Nama proyek wajib diisi.'
     if (!form.nomor_spk?.trim()) validasiLokal.nomor_spk = 'Nomor SPK wajib diisi.'
     if (!form.lokasi.trim()) validasiLokal.lokasi = 'Lokasi proyek wajib diisi.'
@@ -256,7 +254,6 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
           placeholder="Contoh: Abdul Muiz, ST"
         />
         <Input label="Nama Pelaksana Lapangan" required value={form.nama_pelaksana_lapangan ?? ''} onChange={(event) => ubah('nama_pelaksana_lapangan', event.target.value)} error={errors.nama_pelaksana_lapangan} />
-        <Textarea label="Keterangan (opsional)" wrapClassName="sm:col-span-2" value={form.keterangan ?? ''} onChange={(event) => ubah('keterangan', event.target.value)} error={errors.keterangan} />
       </form>
     </Modal>
   )

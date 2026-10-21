@@ -32,7 +32,6 @@ class Project extends Model
         'qs_user_id',
         'created_by',
         'status',
-        'keterangan',
     ];
 
     protected function casts(): array

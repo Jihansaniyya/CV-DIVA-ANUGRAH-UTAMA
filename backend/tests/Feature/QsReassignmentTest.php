@@ -164,7 +164,6 @@ class QsReassignmentTest extends TestCase
 
         $this->actingAs($this->admin)->putJson("/api/projects/{$project->id}", [
             'qs_user_id' => $qs->id,
-            'keterangan' => 'Catatan baru',
         ])->assertOk();
     }
 

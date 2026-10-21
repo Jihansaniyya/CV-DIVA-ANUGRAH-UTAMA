@@ -23,7 +23,8 @@ export function InfoTab({ project }: { project: Project }) {
   const hari = hariIni()
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    // items-start: tiap kartu setinggi isinya, tidak ditarik setinggi kolom sebelahnya.
+    <div className="grid items-start gap-4 lg:grid-cols-3">
       <Card title="Informasi Proyek" className="lg:col-span-2">
         <dl>
           <Baris label="Nama Proyek" nilai={project.nama_proyek} />
@@ -35,7 +36,6 @@ export function InfoTab({ project }: { project: Project }) {
           <Baris label="Waktu Pelaksanaan" nilai={rentangTanggal(project.tanggal_mulai, project.tanggal_selesai)} />
           <Baris label="Jangka Waktu" nilai={project.jangka_waktu_hari ? `${project.jangka_waktu_hari} hari kalender` : null} />
           <Baris label="QS Penanggung Jawab" nilai={project.qs?.name} />
-          <Baris label="Keterangan" nilai={project.keterangan} />
         </dl>
       </Card>
 

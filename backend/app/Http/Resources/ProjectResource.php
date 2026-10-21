@@ -29,7 +29,6 @@ class ProjectResource extends JsonResource
             'qs' => new UserResource($this->whenLoaded('qs')),
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
-            'keterangan' => $this->keterangan,
             'jumlah_pekerjaan' => $this->whenCounted('workItems'),
             'jumlah_periode' => $this->whenCounted('periods'),
             'progres_aktual' => $this->when(isset($this->progres_aktual), fn () => (float) $this->progres_aktual),

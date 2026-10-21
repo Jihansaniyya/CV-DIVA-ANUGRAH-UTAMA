@@ -52,23 +52,25 @@ laporan yang pernah digenerate.
 `id`, `code` (unique: m3, m2, m1, kg, ton, ls, bh, unit, ttk), `name`.
 
 ### `projects`
+Seluruh kolom isian proyek wajib diisi pada form tambah/ubah proyek (divalidasi juga oleh backend).
+Kolom yang tertulis nullable hanya agar data lama tetap terbaca.
+
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | `id` | PK | |
-| `nama_proyek` | varchar | |
+| `nama_proyek` | varchar(255) | |
 | `nomor_spk` | varchar nullable | |
 | `lokasi` | varchar | |
 | `sumber_dana` | varchar nullable | |
 | `tahun_anggaran` | year nullable | |
 | `tanggal_spk` | date nullable | |
 | `tanggal_mulai`, `tanggal_selesai` | date | dasar pembentukan periode |
-| `jangka_waktu_hari` | smallint nullable | sesuai SPK; bila kosong dihitung dari tanggal pelaksanaan |
-| `kontraktor_pelaksana`, `konsultan_pengawas` | varchar (wajib diisi pada form) | header laporan |
-| `nama_site_engineer` (wajib diisi pada form), `nama_pelaksana_lapangan` | varchar | blok tanda tangan laporan |
+| `jangka_waktu_hari` | smallint nullable | sesuai SPK |
+| `kontraktor_pelaksana`, `konsultan_pengawas` | varchar | header laporan |
+| `nama_site_engineer`, `nama_pelaksana_lapangan` | varchar | blok tanda tangan laporan |
 | `qs_user_id` | FK → `users.id` nullable | QS penanggung jawab utama |
 | `created_by` | FK → `users.id` nullable | |
 | `status` | enum | `BELUM_DIMULAI`, `BERJALAN`, `SELESAI`, `TERLAMBAT` |
-| `keterangan` | text nullable | |
 | `deleted_at` | soft delete | |
 
 ### `project_assignments`
