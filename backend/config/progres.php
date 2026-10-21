@@ -13,4 +13,18 @@ return [
 
     'foto_maks_jumlah' => (int) env('PROGRES_FOTO_MAKS_JUMLAH', 10),
 
+    /*
+    | Jumlah baris pekerjaan maksimal dalam satu laporan progres. Setiap baris wajib memiliki minimal
+    | satu foto bukti saat dikirim, jadi nilai ini sebaiknya tidak melebihi `foto_maks_jumlah`.
+    */
+
+    'pekerjaan_maks' => (int) env('PROGRES_PEKERJAAN_MAKS', 10),
+
+    /*
+    | Jumlah kendala maksimal dalam satu laporan progres. Satu kendala boleh mencakup beberapa pekerjaan;
+    | yang dihitung adalah kendala dengan isian (jenis, uraian, tindak lanjut) yang berbeda.
+    */
+
+    'kendala_maks' => (int) env('PROGRES_KENDALA_MAKS', 5),
+
 ];

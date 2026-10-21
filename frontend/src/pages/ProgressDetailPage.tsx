@@ -185,31 +185,43 @@ export function ProgressDetailPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th className="min-w-56">Uraian Pekerjaan</Th>
-                  <Th>Satuan</Th>
-                  <Th align="right">Volume Rencana</Th>
-                  <Th align="right">Volume Realisasi</Th>
-                  <Th align="right">Realisasi (%)</Th>
-                  <Th align="right">Bobot Realisasi (%)</Th>
-                  <Th className="min-w-40">Keterangan</Th>
+                  <Th align="center" className="min-w-56">
+                    Uraian Pekerjaan
+                  </Th>
+                  <Th align="center">Satuan</Th>
+                  <Th align="center">Volume Rencana</Th>
+                  <Th align="center">Volume Realisasi</Th>
+                  <Th align="center">Realisasi (%)</Th>
+                  <Th align="center">Bobot Realisasi (%)</Th>
+                  <Th align="center" className="min-w-40">
+                    Keterangan
+                  </Th>
                 </tr>
               </thead>
               <tbody>
                 {laporan.detail.map((detail) => (
                   <tr key={detail.id} className="hover:bg-surface/60">
-                    <Td className="font-medium">{detail.uraian_pekerjaan}</Td>
-                    <Td className="text-muted">{detail.satuan}</Td>
-                    <Td align="right" className="text-muted">
+                    <Td align="center" className="font-medium">
+                      {detail.uraian_pekerjaan}
+                    </Td>
+                    <Td align="center" className="text-muted">
+                      {detail.satuan}
+                    </Td>
+                    <Td align="center" className="text-muted tabular-nums">
                       {angka(detail.volume_rencana, 2)}
                     </Td>
-                    <Td align="right" className="font-medium">
+                    <Td align="center" className="font-medium tabular-nums">
                       {angka(detail.volume_realisasi, 2)}
                     </Td>
-                    <Td align="right">{angka(detail.persentase_realisasi, 2)}</Td>
-                    <Td align="right" className="font-semibold">
+                    <Td align="center" className="tabular-nums">
+                      {angka(detail.persentase_realisasi, 2)}
+                    </Td>
+                    <Td align="center" className="font-semibold tabular-nums">
                       {angka(detail.bobot_realisasi, 2)}
                     </Td>
-                    <Td className="text-muted">{detail.keterangan ?? '-'}</Td>
+                    <Td align="center" className="text-muted">
+                      {detail.keterangan ?? '-'}
+                    </Td>
                   </tr>
                 ))}
               </tbody>
@@ -246,6 +258,7 @@ export function ProgressDetailPage() {
                     </span>
                   </span>
                   <span className="block px-2.5 py-2">
+                    {item.uraian_pekerjaan && <span className="block truncate text-[11px] font-medium text-primary">{item.uraian_pekerjaan}</span>}
                     <span className="block truncate text-xs text-ink">{item.caption || 'Tanpa keterangan'}</span>
                     {item.diunggah_pada && <span className="block text-[11px] text-muted">{waktu(item.diunggah_pada)}</span>}
                   </span>

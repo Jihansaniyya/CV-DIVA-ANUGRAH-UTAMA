@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->enum('tipe_laporan', ['HARIAN', 'MINGGUAN', 'BULANAN', 'MILESTONE']);
+            $table->enum('tipe_laporan', ['MINGGUAN', 'BULANAN', 'AKHIR']);
             $table->enum('format', ['EXCEL', 'WORD']);
             $table->date('periode_mulai')->nullable();
             $table->date('periode_selesai')->nullable();

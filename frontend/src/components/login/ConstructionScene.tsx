@@ -148,7 +148,7 @@ export function ConstructionScene({ className, style }: { className?: string; st
       </g>
       <rect x="400" y="137" width="11" height="8" fill="var(--color-warning)" opacity="0.7" />
 
-      {/* Tanah dan tumpukan material */}
+      {/* Tanah dan tumpukan bahan bangunan */}
       <rect x="0" y="600" width="1000" height="40" fill="url(#login-ground)" />
       <g fill="var(--color-navy-dark)" opacity="0.75">
         <rect x="610" y="584" width="120" height="8" />

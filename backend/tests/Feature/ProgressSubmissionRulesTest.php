@@ -511,6 +511,123 @@ class ProgressSubmissionRulesTest extends TestCase
         $this->assertSame(5, ProgressPhoto::count());
     }
 
+    // ---- Foto per pekerjaan & batas baris ------------------------------------------------------
+
+    /** @return array<int,array{work_item_id:int,volume_realisasi:float}> */
+    private function duaPekerjaan(): array
+    {
+        return [...$this->detail(0, 5), ...$this->detail(1, 5)];
+    }
+
+    public function test_foto_tersimpan_pada_pekerjaan_pemiliknya(): void
+    {
+        [$galian, $besi] = $this->konteks['items'];
+
+        $this->simpan([
+            'status' => 'DIKIRIM',
+            'lokasi' => 'Bontang',
+            'keterangan' => 'Galian dan pembesian.',
+            'details' => $this->duaPekerjaan(),
+            'photos' => [UploadedFile::fake()->image('a.jpg'), UploadedFile::fake()->image('b.jpg'), UploadedFile::fake()->image('c.jpg')],
+            'photo_work_item_ids' => [$galian->id, $besi->id, $besi->id],
+        ])->assertCreated()
+            ->assertJsonPath('data.foto.0.work_item_id', $galian->id)
+            ->assertJsonPath('data.foto.0.uraian_pekerjaan', $galian->uraian_pekerjaan)
+            ->assertJsonPath('data.foto.2.work_item_id', $besi->id);
+    }
+
+    public function test_setiap_pekerjaan_wajib_memiliki_foto_saat_dikirim(): void
+    {
+        [$galian, $besi] = $this->konteks['items'];
+        $data = [
+            'lokasi' => 'Bontang',
+            'keterangan' => 'Galian dan pembesian.',
+            'details' => $this->duaPekerjaan(),
+            'photos' => [UploadedFile::fake()->image('a.jpg')],
+            'photo_work_item_ids' => [$galian->id],
+        ];
+
+        $this->simpan($data + ['status' => 'DIKIRIM'])->assertStatus(422)->assertJsonValidationErrors('photos');
+        $this->assertSame(0, ProgressReport::count());
+        $this->assertSame([], Storage::disk('public')->allFiles());
+
+        // Draf boleh belum lengkap; foto pekerjaan kedua ditambahkan lewat ubah draf lalu dikirim.
+        $id = $this->simpan($data + ['status' => 'DRAFT'])->assertCreated()->json('data.id');
+        $this->actingAs($this->konteks['qs'])->patchJson("/api/progress/{$id}/submit")->assertStatus(422)->assertJsonValidationErrors('photos');
+        $this->actingAs($this->konteks['qs'])->postJson("/api/progress/{$id}", [
+            'status' => 'DIKIRIM',
+            'details' => $this->duaPekerjaan(),
+            'photos' => [UploadedFile::fake()->image('b.jpg')],
+            'photo_work_item_ids' => [$besi->id],
+        ])->assertOk()->assertJsonPath('data.status', 'DIKIRIM');
+    }
+
+    public function test_foto_tetap_terkait_pekerjaannya_setelah_draf_diubah(): void
+    {
+        [$galian, $besi] = $this->konteks['items'];
+        $id = $this->simpan([
+            'status' => 'DRAFT',
+            'details' => $this->duaPekerjaan(),
+            'photos' => [UploadedFile::fake()->image('a.jpg'), UploadedFile::fake()->image('b.jpg')],
+            'photo_work_item_ids' => [$galian->id, $besi->id],
+        ])->assertCreated()->json('data.id');
+
+        // Detail dibuat ulang: foto galian tetap milik galian, foto pembesian lepas karena pekerjaannya dihapus.
+        $this->actingAs($this->konteks['qs'])->postJson("/api/progress/{$id}", ['details' => $this->detail(0, 8)])->assertOk();
+
+        $foto = ProgressPhoto::with('detail')->where('progress_report_id', $id)->orderBy('id')->get();
+        $this->assertSame($galian->id, $foto[0]->detail?->work_item_id);
+        $this->assertNull($foto[1]->progress_detail_id);
+    }
+
+    public function test_foto_untuk_pekerjaan_yang_tidak_dilaporkan_ditolak(): void
+    {
+        $this->simpan([
+            'status' => 'DRAFT',
+            'details' => $this->detail(0, 5),
+            'photos' => [UploadedFile::fake()->image('a.jpg')],
+            'photo_work_item_ids' => [$this->konteks['items'][1]->id],
+        ])->assertStatus(422)->assertJsonValidationErrors('photos');
+
+        $this->assertSame(0, ProgressReport::count());
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_jumlah_baris_pekerjaan_dibatasi(): void
+    {
+        config(['progres.pekerjaan_maks' => 1]);
+
+        $this->simpan(['status' => 'DRAFT', 'details' => $this->duaPekerjaan()])
+            ->assertStatus(422)->assertJsonValidationErrors('details');
+        $this->actingAs($this->konteks['qs'])->getJson('/api/progress/upload-limits')->assertOk()->assertJsonPath('data.pekerjaan_maks', 1);
+    }
+
+    public function test_jumlah_kendala_dibatasi_dan_satu_kendala_untuk_beberapa_pekerjaan_dihitung_sekali(): void
+    {
+        config(['progres.kendala_maks' => 1]);
+        [$galian, $besi] = $this->konteks['items'];
+        $kendala = fn (int $workItemId, string $deskripsi) => [
+            'work_item_id' => $workItemId,
+            'jenis_kendala' => 'CUACA',
+            'deskripsi' => $deskripsi,
+            'tindak_lanjut' => 'Lembur.',
+        ];
+
+        // Satu kendala yang mencakup dua pekerjaan tetap dihitung satu.
+        $this->simpan([
+            'status' => 'DRAFT',
+            'details' => $this->duaPekerjaan(),
+            'issues' => [$kendala($galian->id, 'Hujan deras.'), $kendala($besi->id, 'Hujan deras.')],
+        ])->assertCreated();
+
+        $this->simpan([
+            'status' => 'DRAFT',
+            'tanggal_laporan' => CarbonImmutable::parse($this->tanggalMulai())->addDay()->toDateString(),
+            'details' => $this->duaPekerjaan(),
+            'issues' => [$kendala($galian->id, 'Hujan deras.'), $kendala($besi->id, 'Material terlambat.')],
+        ])->assertStatus(422)->assertJsonValidationErrors('issues');
+    }
+
     // ---- Akses Kontraktor -----------------------------------------------------------------------
 
     public function test_kontraktor_memantau_semua_proyek_tanpa_dapat_menulis_progres(): void

@@ -184,7 +184,7 @@ php artisan test --filter=ReportTest   # satu berkas
 ```
 
 Cakupan pengujian: login/logout, otorisasi per peran, CRUD proyek, CRUD pekerjaan, perhitungan bobot,
-validasi rencana pekerjaan, input progres (termasuk unggah foto, material, kendala), perhitungan
+validasi rencana pekerjaan, input progres (termasuk unggah foto dan kendala), perhitungan
 progres & Kurva S, deviasi, laporan mingguan/bulanan/akhir, dan export Excel.
 
 Frontend:
@@ -202,9 +202,9 @@ npm run build
 |---|:--:|:--:|:--:|
 | Login / logout | ✔ | ✔ | ✔ |
 | Kelola pengguna & status akun | ✔ | — | — |
-| Kelola proyek, pekerjaan, periode, rencana, milestone | ✔ | — | — |
+| Kelola proyek, pekerjaan, periode, rencana | ✔ | — | — |
 | Melihat proyek | semua | hanya yang ditugaskan | semua |
-| Input progres aktual, foto, material, kendala | ✔ | ✔ | — |
+| Input progres aktual, foto, kendala | ✔ | ✔ | — |
 | Melihat Kurva S & deviasi | ✔ | melalui detail proyek | ✔ |
 | Melihat laporan & export Excel | ✔ | ✔ | ✔ |
 
@@ -217,7 +217,7 @@ frontend. Percobaan mengakses endpoint peran lain mengembalikan HTTP 403.
    kelompok pekerjaan, dan data pekerjaan (volume, satuan, harga satuan) → sistem menghitung bobot →
    Admin mengisi rencana target volume per periode → sistem menghitung target progres dan Kurva S.
 2. **QS** membuka proyek yang ditugaskan → memilih pekerjaan → mengisi volume realisasi, keterangan,
-   material, kendala, alasan keterlambatan, tindak lanjut, dan foto → mengirim laporan.
+    kendala, alasan keterlambatan, tindak lanjut, dan foto → mengirim laporan.
 3. **Sistem** menghitung progres aktual, mengakumulasikannya per periode, membandingkan dengan rencana,
    dan menghitung deviasi.
 4. **Kontraktor** memantau progres, Kurva S, deviasi, dokumentasi, dan laporan, serta mengekspornya ke
@@ -235,7 +235,6 @@ Tampilan diuji untuk desktop, tablet, dan smartphone:
 
 ## 11. Batasan (sesuai PRD)
 
-Aplikasi **tidak** mencakup pengelolaan keuangan proyek (pembayaran, penggajian, transaksi pembelian
-material), pengadaan material, maupun inventory menyeluruh. Data material hanya dicatat sebagai bagian
-dari pelaporan progres. Perhitungan progres dan Kurva S sepenuhnya bergantung pada data yang
+Aplikasi **tidak** mencakup pengelolaan keuangan proyek (pembayaran, penggajian, transaksi pembelian),
+pengadaan barang, maupun inventory. Perhitungan progres dan Kurva S sepenuhnya bergantung pada data yang
 dimasukkan pengguna dan tidak menggantikan pemeriksaan langsung di lapangan.

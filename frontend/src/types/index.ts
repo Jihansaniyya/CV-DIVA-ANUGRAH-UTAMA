@@ -103,6 +103,10 @@ export interface UploadLimits {
   foto_maks_jumlah: number
   /** 0 = tanpa batas total. */
   total_maks_kb: number
+  /** Jumlah baris pekerjaan maksimal per laporan progres. */
+  pekerjaan_maks: number
+  /** Jumlah kendala maksimal per laporan progres. */
+  kendala_maks: number
 }
 
 export interface Period {
@@ -115,18 +119,6 @@ export interface Period {
   minggu_ke_bulan: number
   tanggal_mulai: string
   tanggal_selesai: string
-}
-
-export interface Milestone {
-  id: number
-  project_id: number
-  period_id: number | null
-  periode: string | null
-  nama: string
-  deskripsi: string | null
-  tanggal_target: string
-  target_persentase: number
-  status: 'BELUM_TERCAPAI' | 'TERCAPAI' | 'TERLAMBAT'
 }
 
 export interface WorkPlanCell {
@@ -180,14 +172,6 @@ export interface CurvePoint {
 
 export interface CurveData {
   titik: CurvePoint[]
-  milestones: {
-    id: number
-    nama: string
-    period_id: number | null
-    tanggal_target: string
-    target_persentase: number
-    status: string
-  }[]
   ringkasan: {
     total_bobot_rencana: number
     rencana_lengkap: boolean
@@ -214,6 +198,10 @@ export interface ProgressDetail {
 export interface ProgressPhoto {
   id: number
   progress_report_id: number
+  progress_detail_id: number | null
+  /** Pekerjaan pemilik foto; null untuk foto lama yang belum dikaitkan ke pekerjaan. */
+  work_item_id?: number | null
+  uraian_pekerjaan?: string | null
   url: string
   caption: string | null
   original_name: string | null

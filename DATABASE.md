@@ -15,14 +15,13 @@ ERD yang diberikan diperlakukan sebagai draft. Berikut koreksi yang diterapkan b
 | 2 | `proyek` tidak memiliki `nama_proyek` | Header laporan mewajibkan kolom "PEKERJAAN" | Ditambahkan `nama_proyek` |
 | 3 | `pekerjaan.nama_satuan` bersama FK `id_satuan` | Duplikasi dari tabel `satuan` | Kolom nama dihapus, relasi ke `units` |
 | 4 | `pekerjaan.target_volume` & `target_progres_persen` | Target disimpan per pekerjaan, padahal rencana bersifat **pekerjaan × periode**. Kurva S dan grid mingguan pada laporan bulanan tidak dapat dibentuk | Dipindahkan ke tabel `periods` dan `work_plans` |
-| 5 | `laporan_progres` memuat `id_pekerjaan` langsung | Satu laporan harian dapat mencakup beberapa pekerjaan; foto/material/kendala berada pada level yang salah | Dipecah menjadi `progress_reports` (header) dan `progress_details` (per pekerjaan) |
-| 6 | Tidak ada tabel material | PRD mewajibkan pencatatan material pada pelaporan progres | Ditambahkan `progress_materials` |
-| 7 | `kendala_progres` berelasi satu-ke-satu | Satu laporan dapat memuat lebih dari satu kendala | Diubah menjadi satu-ke-banyak `progress_issues` + kolom `status` |
-| 8 | Tidak ada data harga | Laporan mingguan & bulanan memuat Harga Satuan dan Harga Pekerjaan; bobot dihitung dari harga | Ditambahkan `harga_satuan` dan `harga_pekerjaan` (nullable) |
-| 9 | Tidak ada pengelompokan pekerjaan | Laporan memakai kelompok A, B, ... beserta subtotal ("JUMLAH PEKERJAAN PENDAHULUAN") | Ditambahkan `work_categories` |
-| 10 | Tidak ada milestone dan tabel peran | Diminta PRD (milestone pada kurva progres) dan kebutuhan hak akses | Ditambahkan `milestones` dan `roles` |
-| 11 | `proyek` tidak menyimpan kontraktor/konsultan | Header dan blok tanda tangan laporan membutuhkannya | Ditambahkan `kontraktor_pelaksana`, `konsultan_pengawas`, `nama_site_engineer`, `nama_pelaksana_lapangan` |
-| 12 | `dokumen_laporan` | Konsep dipertahankan | Dinamai `report_documents` mengikuti konvensi Laravel |
+| 5 | `laporan_progres` memuat `id_pekerjaan` langsung | Satu laporan harian dapat mencakup beberapa pekerjaan; foto/kendala berada pada level yang salah | Dipecah menjadi `progress_reports` (header) dan `progress_details` (per pekerjaan) |
+| 6 | `kendala_progres` berelasi satu-ke-satu | Satu laporan dapat memuat lebih dari satu kendala | Diubah menjadi satu-ke-banyak `progress_issues` + kolom `status` |
+| 7 | Tidak ada data harga | Laporan mingguan & bulanan memuat Harga Satuan dan Harga Pekerjaan; bobot dihitung dari harga | Ditambahkan `harga_satuan` dan `harga_pekerjaan` (nullable) |
+| 8 | Tidak ada pengelompokan pekerjaan | Laporan memakai kelompok A, B, ... beserta subtotal ("JUMLAH PEKERJAAN PENDAHULUAN") | Ditambahkan `work_categories` |
+| 9 | Tidak ada tabel peran | Kebutuhan hak akses | Ditambahkan `roles` |
+| 10 | `proyek` tidak menyimpan kontraktor/konsultan | Header dan blok tanda tangan laporan membutuhkannya | Ditambahkan `kontraktor_pelaksana`, `konsultan_pengawas`, `nama_site_engineer`, `nama_pelaksana_lapangan` |
+| 11 | `dokumen_laporan` | Konsep dipertahankan | Dinamai `report_documents` mengikuti konvensi Laravel |
 
 Yang **dipertahankan** dari ERD draft: satu tabel `users` dengan peran (tidak ada tabel QS terpisah),
 `satuan` sebagai master data, penyimpanan path foto pada tabel tersendiri, dan pencatatan dokumen
@@ -108,10 +107,6 @@ tercatat pada `projects.qs_user_id` dan disinkronkan ke tabel ini.
 | `target_bobot` | decimal(9,4) | kontribusi ke progres proyek |
 | `catatan` | text nullable | |
 
-### `milestones`
-`id`, `project_id` FK, `period_id` FK nullable, `nama`, `deskripsi`, `tanggal_target`,
-`target_persentase`, `status` enum(`BELUM_TERCAPAI`,`TERCAPAI`,`TERLAMBAT`).
-
 ### `progress_reports` (header laporan progres harian)
 `id`, `project_id` FK, `user_id` FK (QS pelapor), `period_id` FK nullable (diisi otomatis dari
 `tanggal_laporan`), `tanggal_laporan`, `keterangan`, `lokasi`, `cuaca`,
@@ -126,10 +121,6 @@ Unique `(progress_report_id, work_item_id)`.
 ### `progress_photos`
 `id`, `progress_report_id` FK, `progress_detail_id` FK nullable, `file_path`, `original_name`,
 `file_size`, `caption`, `diunggah_pada`.
-
-### `progress_materials`
-`id`, `progress_report_id` FK, `nama_material`, `jumlah` decimal(15,3), `unit_id` FK nullable,
-`satuan` varchar nullable, `keterangan`.
 
 ### `progress_issues`
 `id`, `progress_report_id` FK, `work_item_id` FK nullable,
@@ -158,23 +149,19 @@ projects 1 ──< N work_categories
 projects 1 ──< N work_items
 projects 1 ──< N periods
 projects 1 ──< N work_plans
-projects 1 ──< N milestones
 projects 1 ──< N progress_reports
 projects 1 ──< N report_documents
 
 units    1 ──< N work_items
-units    1 ──< N progress_materials
 
 work_categories 1 ──< N work_items
 work_items      1 ──< N work_plans
 periods         1 ──< N work_plans          (unique work_item_id + period_id)
 periods         1 ──< N progress_reports
-periods         1 ──< N milestones
 
 work_items      1 ──< N progress_details
 progress_reports 1 ──< N progress_details
 progress_reports 1 ──< N progress_photos
-progress_reports 1 ──< N progress_materials
 progress_reports 1 ──< N progress_issues
 progress_details 1 ──< N progress_photos    (opsional, foto per pekerjaan)
 ```

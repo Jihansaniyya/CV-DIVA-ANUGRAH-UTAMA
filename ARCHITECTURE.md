@@ -43,7 +43,7 @@ Eloquent ORM ──► MySQL
 | `WeightCalculatorService` | Menghitung `harga_pekerjaan` dan `bobot`, serta menyelaraskan seluruh data turunan (rencana dan realisasi) saat pekerjaan berubah |
 | `ProjectScheduleService` | Membentuk periode mingguan dari tanggal pelaksanaan, memetakan tanggal laporan ke periode |
 | `WorkPlanService` | Menyimpan rencana per periode, memvalidasi total target volume, menyusun matriks rencana untuk frontend |
-| `ProgressService` | Menyimpan laporan progres beserta detail, foto, material, kendala; memvalidasi sisa volume; mengirim laporan |
+| `ProgressService` | Menyimpan laporan progres beserta detail, foto, kendala; memvalidasi sisa volume; mengirim laporan |
 | `CurveSService` | Menyusun titik Kurva S, progres rencana/aktual, deviasi, dan akumulasi realisasi per pekerjaan |
 | `ReportService` | Menyusun data laporan mingguan, bulanan, dan akhir sesuai format dokumen resmi |
 | `DashboardService` | Menyusun ringkasan dashboard per peran |
@@ -170,7 +170,7 @@ QS mengisi form progres (multipart/form-data)
               • persentase dan bobot realisasi dihitung per pekerjaan
               • sisa volume divalidasi
               • foto disimpan ke Laravel Storage, path dicatat di database
-              • material dan kendala disimpan sebagai relasi
+              • kendala disimpan sebagai relasi
         └─► Status DIKIRIM membuat laporan ikut dihitung pada progres aktual
 ```
 
@@ -178,10 +178,10 @@ QS mengisi form progres (multipart/form-data)
 
 ```
 GET /api/projects/{id}/curve-s
-   └─► CurveSService.build(): titik rencana/realisasi kumulatif, deviasi, milestone
-        └─► Recharts menggambar dua garis dan menandai milestone
+   └─► CurveSService.build(): titik rencana/realisasi kumulatif, deviasi
+        └─► Recharts menggambar dua garis rencana dan realisasi
 GET /api/progress?project_id=...
-   └─► Laporan QS, foto, material, kendala, alasan keterlambatan, tindak lanjut
+   └─► Laporan QS, foto, kendala, alasan keterlambatan, tindak lanjut
 ```
 
 Kontraktor tidak memiliki endpoint yang dapat mengubah data progres QS.
@@ -233,8 +233,6 @@ diunduh ulang.
 | GET | `/api/projects/{project}/periods` (hanya baca; dibentuk otomatis) | terautentikasi |
 | GET | `/api/projects/{project}/work-plans` | terautentikasi |
 | POST | `/api/projects/{project}/work-plans` | Admin |
-| GET | `/api/projects/{project}/milestones` | terautentikasi |
-| POST/PUT/DELETE | `/api/projects/{project}/milestones[/{milestone}]` | Admin |
 | GET | `/api/projects/{project}/curve-s` | terautentikasi |
 | GET | `/api/progress`, `/api/progress/{progress}` | terautentikasi |
 | GET | `/api/progress/upload-limits` (batas unggah foto efektif server) | QS |

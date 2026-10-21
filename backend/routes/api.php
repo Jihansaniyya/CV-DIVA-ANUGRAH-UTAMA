@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CurveSController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MasterDataController;
-use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\ProgressReportController;
 use App\Http\Controllers\Api\ProjectController;
@@ -70,14 +69,6 @@ Route::middleware(['auth:sanctum', 'role'])->group(function () {
     Route::get('projects/{project}/work-plans', [WorkPlanController::class, 'index']);
     Route::post('projects/{project}/work-plans', [WorkPlanController::class, 'sync'])->middleware('role:ADMIN');
     Route::post('projects/{project}/work-plans/distribute', [WorkPlanController::class, 'distribute'])->middleware('role:ADMIN');
-
-    // Milestone
-    Route::get('projects/{project}/milestones', [MilestoneController::class, 'index']);
-    Route::middleware('role:ADMIN')->group(function () {
-        Route::post('projects/{project}/milestones', [MilestoneController::class, 'store']);
-        Route::put('projects/{project}/milestones/{milestone}', [MilestoneController::class, 'update']);
-        Route::delete('projects/{project}/milestones/{milestone}', [MilestoneController::class, 'destroy']);
-    });
 
     // Kurva S
     Route::get('projects/{project}/curve-s', [CurveSController::class, 'show'])->middleware('role:ADMIN,KONTRAKTOR');

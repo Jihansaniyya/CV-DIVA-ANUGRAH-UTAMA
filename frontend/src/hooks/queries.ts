@@ -21,7 +21,6 @@ export const qk = {
   periods: (id: number) => ['project', id, 'periods'] as const,
   workPlans: (id: number) => ['project', id, 'work-plans'] as const,
   curve: (id: number) => ['project', id, 'curve-s'] as const,
-  milestones: (id: number) => ['project', id, 'milestones'] as const,
   progressList: (filter: ProgressFilter) => ['progress', filter] as const,
   progress: (id: number) => ['progress', id] as const,
   progressAll: (projectId: number) => ['progress', 'all', projectId] as const,
@@ -80,9 +79,6 @@ export const useWorkPlans = (id: number | null) =>
 
 export const useCurveS = (id: number | null) =>
   useQuery({ queryKey: qk.curve(id ?? 0), queryFn: () => projectService.curveS(id as number), enabled: Boolean(id) })
-
-export const useMilestones = (id: number | null) =>
-  useQuery({ queryKey: qk.milestones(id ?? 0), queryFn: () => projectService.milestones(id as number), enabled: Boolean(id) })
 
 export const useProgressList = (filter: ProgressFilter) =>
   useQuery({ queryKey: qk.progressList(filter), queryFn: () => progressService.list(filter) })

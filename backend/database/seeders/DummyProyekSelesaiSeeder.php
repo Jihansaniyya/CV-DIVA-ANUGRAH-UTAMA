@@ -117,7 +117,7 @@ class DummyProyekSelesaiSeeder extends Seeder
                     continue;
                 }
 
-                $this->progress->create($project, $petugas, [
+                $data = [
                     'tanggal_laporan' => $period->tanggal_selesai->toDateString(),
                     'keterangan' => 'Pekerjaan '.$period->nama_periode.' terlaksana sesuai rencana.',
                     'lokasi' => $project->lokasi,
@@ -127,8 +127,9 @@ class DummyProyekSelesaiSeeder extends Seeder
                         'work_item_id' => $row['work_item_id'],
                         'volume_realisasi' => $row['target_volume'],
                     ])->all(),
-                    'photo_captions' => ['Dokumentasi '.$period->nama_periode],
-                ], [self::fotoBukti($period->nama_periode)]);
+                ];
+
+                $this->progress->create($project, $petugas, ...self::denganFotoBukti($data, $period->nama_periode));
             }
 
             $this->status->sinkronkan($project);
@@ -193,6 +194,21 @@ class DummyProyekSelesaiSeeder extends Seeder
     }
 
     /** Foto contoh sederhana (JPEG) bertuliskan periode, sebagai pengganti foto lapangan. */
+    /**
+     * Lengkapi isian laporan dengan satu foto bukti per pekerjaan, seperti yang diwajibkan saat dikirim.
+     *
+     * @param  array<string,mixed>  $data
+     * @return array{0: array<string,mixed>, 1: array<int,UploadedFile>}
+     */
+    public static function denganFotoBukti(array $data, string $periode): array
+    {
+        $pekerjaan = array_column($data['details'], 'work_item_id');
+        $data['photo_work_item_ids'] = $pekerjaan;
+        $data['photo_captions'] = array_fill(0, count($pekerjaan), 'Dokumentasi '.$periode);
+
+        return [$data, array_map(fn () => self::fotoBukti($periode), $pekerjaan)];
+    }
+
     public static function fotoBukti(string $periode): UploadedFile
     {
         $gambar = imagecreatetruecolor(800, 600);

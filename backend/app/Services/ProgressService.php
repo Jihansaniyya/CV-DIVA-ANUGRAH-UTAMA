@@ -26,7 +26,7 @@ use Throwable;
  *   - sisa volume   = volume pekerjaan - volume laporan yang memakai volume (terkirim + draf QS aktif);
  *   - satu pekerjaan hanya boleh tercatat sekali per tanggal pada satu proyek;
  *   - tanggal progres berada dalam jadwal proyek dan tidak melewati hari ini;
- *   - laporan baru boleh berstatus DIKIRIM bila lokasi, keterangan, dan minimal satu foto terisi.
+ *   - laporan baru boleh berstatus DIKIRIM bila lokasi, keterangan, dan minimal satu foto per pekerjaan terisi.
  *
  * Setiap penyimpanan mengunci baris pekerjaan proyek lebih dulu sehingga dua permintaan bersamaan
  * tidak dapat memakai sisa volume yang sama.
@@ -96,7 +96,11 @@ class ProgressService
                     $this->assertKendalaLengkap($report);
                 }
 
-                $this->storePhotos($report, $photos, $data['photo_captions'] ?? [], $berkas);
+                $this->storePhotos($report, $photos, $data['photo_captions'] ?? [], $data['photo_work_item_ids'] ?? [], $berkas);
+
+                if ($status === ReportStatus::DIKIRIM->value) {
+                    $this->assertFotoPerPekerjaan($report);
+                }
 
                 return $report->fresh($this->relations());
             });
@@ -158,8 +162,13 @@ class ProgressService
                 $report->save();
 
                 if (array_key_exists('details', $data)) {
+                    // Detail dibuat ulang; catat pekerjaan pemilik setiap foto agar kaitannya dipulihkan setelahnya.
+                    $pemilikFoto = $report->photos()->with('detail:id,work_item_id')->get()
+                        ->mapWithKeys(fn (ProgressPhoto $foto) => [$foto->id => $foto->detail?->work_item_id]);
+
                     $report->details()->delete();
                     $this->syncDetails($report, $data['details']);
+                    $this->kaitkanUlangFoto($report, $pemilikFoto);
                 }
 
                 if (array_key_exists('issues', $data)) {
@@ -167,7 +176,7 @@ class ProgressService
                     $this->syncIssues($report, $data['issues'] ?? []);
                 }
 
-                $this->storePhotos($report, $photos, $data['photo_captions'] ?? [], $berkas);
+                $this->storePhotos($report, $photos, $data['photo_captions'] ?? [], $data['photo_work_item_ids'] ?? [], $berkas);
                 $this->assertRealisasiValid($report);
 
                 if (($data['status'] ?? null) === ReportStatus::DIKIRIM->value) {
@@ -290,6 +299,7 @@ class ProgressService
         $this->assertRencanaLengkap($report->project);
         $this->assertTanggalTidakDiMasaDepan($report->tanggal_laporan->toDateString());
         $this->assertBuktiLengkap($report->lokasi, $report->keterangan, $report->photos()->count());
+        $this->assertFotoPerPekerjaan($report);
         $this->assertKendalaLengkap($report);
 
         $report->forceFill([
@@ -326,6 +336,19 @@ class ProgressService
 
         if ($pesan !== []) {
             throw ValidationException::withMessages($pesan);
+        }
+    }
+
+    /** Setiap pekerjaan yang dilaporkan wajib memiliki minimal satu foto bukti agar foto dapat ditelusuri ke progresnya. */
+    private function assertFotoPerPekerjaan(ProgressReport $report): void
+    {
+        $tanpaFoto = $report->details()->whereDoesntHave('photos')->with('workItem')->get();
+
+        if ($tanpaFoto->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'photos' => 'Foto bukti pekerjaan "'.$tanpaFoto->pluck('workItem.uraian_pekerjaan')->implode('", "')
+                    .'" belum diunggah. Setiap pekerjaan wajib memiliki minimal satu foto sebelum progres dikirim.',
+            ]);
         }
     }
 
@@ -392,7 +415,7 @@ class ProgressService
     /** @return array<int,string> */
     private function relations(): array
     {
-        return ['details.workItem.unit', 'photos', 'issues.workItem', 'period', 'user', 'project'];
+        return ['details.workItem.unit', 'photos.detail.workItem', 'issues.workItem', 'period', 'user', 'project'];
     }
 
     /** @param array<int,array<string,mixed>> $details */
@@ -539,13 +562,44 @@ class ProgressService
     }
 
     /**
+     * Pasangkan kembali foto ke detail baru dengan pekerjaan yang sama. Foto yang pekerjaannya tidak lagi
+     * dilaporkan menjadi tidak terkait (progress_detail_id null).
+     *
+     * @param  Collection<int,int|null>  $pemilikFoto  photo id => work_item_id sebelum detail dibuat ulang
+     */
+    private function kaitkanUlangFoto(ProgressReport $report, Collection $pemilikFoto): void
+    {
+        $detailPerPekerjaan = $report->details()->pluck('id', 'work_item_id');
+
+        foreach ($pemilikFoto->filter() as $photoId => $workItemId) {
+            ProgressPhoto::whereKey($photoId)->update(['progress_detail_id' => $detailPerPekerjaan[$workItemId] ?? null]);
+        }
+    }
+
+    /**
      * @param  array<int,UploadedFile>  $photos
      * @param  array<int,string|null>  $captions
+     * @param  array<int,int|null>  $pekerjaanFoto  work_item_id pemilik setiap foto (indeks sama dengan $photos)
      * @param  array<int,string>  $berkas  path berkas yang sudah ditulis, untuk dibersihkan bila transaksi gagal
      */
-    private function storePhotos(ProgressReport $report, array $photos, array $captions, array &$berkas): void
+    private function storePhotos(ProgressReport $report, array $photos, array $captions, array $pekerjaanFoto, array &$berkas): void
     {
+        $detailPerPekerjaan = $report->details()->pluck('id', 'work_item_id');
+
         foreach ($photos as $index => $file) {
+            $workItemId = isset($pekerjaanFoto[$index]) ? (int) $pekerjaanFoto[$index] : null;
+
+            if ($workItemId !== null && ! $detailPerPekerjaan->has($workItemId)) {
+                throw ValidationException::withMessages([
+                    'photos' => 'Foto harus terkait dengan pekerjaan yang dilaporkan pada progres ini.',
+                ]);
+            }
+
+            // Permintaan tanpa pasangan pekerjaan: foto menjadi milik pekerjaan tunggal laporan, bila hanya ada satu.
+            $detailId = $workItemId !== null
+                ? $detailPerPekerjaan[$workItemId]
+                : ($detailPerPekerjaan->count() === 1 ? $detailPerPekerjaan->first() : null);
+
             $path = $file->store('progress/'.$report->project_id.'/'.$report->id, 'public');
             $berkas[] = $path;
             $path = $this->kompresFoto($path);
@@ -553,6 +607,7 @@ class ProgressService
 
             ProgressPhoto::create([
                 'progress_report_id' => $report->id,
+                'progress_detail_id' => $detailId,
                 'file_path' => $path,
                 'original_name' => $file->getClientOriginalName(),
                 'file_size' => Storage::disk('public')->size($path),

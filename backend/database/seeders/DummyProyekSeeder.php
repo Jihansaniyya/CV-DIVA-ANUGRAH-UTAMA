@@ -303,9 +303,8 @@ class DummyProyekSeeder extends Seeder
                     ]];
                 }
 
-                // Laporan terkirim wajib memiliki minimal satu foto bukti.
-                $data['photo_captions'] = ['Dokumentasi '.$period->nama_periode];
-                $this->progress->create($project, $petugas, $data, [DummyProyekSelesaiSeeder::fotoBukti($period->nama_periode)]);
+                // Laporan terkirim wajib memiliki minimal satu foto bukti per pekerjaan.
+                $this->progress->create($project, $petugas, ...DummyProyekSelesaiSeeder::denganFotoBukti($data, $period->nama_periode));
             }
         }
     }

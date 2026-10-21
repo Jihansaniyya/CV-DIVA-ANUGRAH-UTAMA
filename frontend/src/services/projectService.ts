@@ -1,7 +1,6 @@
 import { api } from '@/lib/api'
 import type {
   CurveData,
-  Milestone,
   Paginated,
   Period,
   Project,
@@ -176,21 +175,5 @@ export const projectService = {
     const { data } = await api.get<{ data: CurveData }>(`/projects/${id}/curve-s`)
 
     return data.data
-  },
-
-  async milestones(id: number): Promise<Milestone[]> {
-    const { data } = await api.get<{ data: Milestone[] }>(`/projects/${id}/milestones`)
-
-    return data.data
-  },
-
-  async createMilestone(id: number, payload: Partial<Milestone>): Promise<Milestone> {
-    const { data } = await api.post<{ data: Milestone }>(`/projects/${id}/milestones`, payload)
-
-    return data.data
-  },
-
-  async removeMilestone(id: number, milestoneId: number): Promise<void> {
-    await api.delete(`/projects/${id}/milestones/${milestoneId}`)
   },
 }

@@ -151,28 +151,6 @@ class ReportTest extends TestCase
         $this->assertEqualsWithDelta(-37.5, $rekap['deviasi'], 0.001);
     }
 
-    public function test_milestone_tanpa_periode_tetap_tampil_pada_kurva_s(): void
-    {
-        $project = $this->konteks['project'];
-        $mingguDua = $project->periods()->where('urutan', 2)->firstOrFail();
-
-        // Milestone tanpa period_id dipetakan ke periode berdasarkan tanggal target.
-        $project->milestones()->create([
-            'nama' => 'Pembesian selesai',
-            'tanggal_target' => $mingguDua->tanggal_mulai->toDateString(),
-            'target_persentase' => 100,
-            'status' => 'BELUM_TERCAPAI',
-        ]);
-
-        $milestone = $this->actingAs($this->kontraktor)
-            ->getJson("/api/projects/{$project->id}/curve-s")
-            ->assertOk()
-            ->json('data.milestones.0');
-
-        $this->assertSame('Pembesian selesai', $milestone['nama']);
-        $this->assertSame($mingguDua->id, $milestone['period_id']);
-    }
-
     public function test_export_mingguan_dan_bulanan_berhasil(): void
     {
         Storage::fake('public');
@@ -209,19 +187,15 @@ class ReportTest extends TestCase
         $this->actingAs($this->konteks['qs'])->getJson("/api/progress/{$draf}")->assertOk();
     }
 
-    public function test_laporan_harian_dan_milestone_tidak_tersedia(): void
+    public function test_laporan_harian_tidak_tersedia(): void
     {
         $project = $this->konteks['project'];
 
         $this->actingAs($this->kontraktor)->getJson("/api/reports/daily?project_id={$project->id}")->assertNotFound();
-        $this->actingAs($this->kontraktor)->getJson("/api/reports/milestone?project_id={$project->id}")->assertNotFound();
-
-        foreach (['HARIAN', 'MILESTONE'] as $tipe) {
-            $this->actingAs($this->kontraktor)
-                ->postJson('/api/reports/export/excel', ['tipe' => $tipe, 'project_id' => $project->id])
-                ->assertStatus(422)
-                ->assertJsonValidationErrors('tipe');
-        }
+        $this->actingAs($this->kontraktor)
+            ->postJson('/api/reports/export/excel', ['tipe' => 'HARIAN', 'project_id' => $project->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('tipe');
 
         $this->assertSame(0, ReportDocument::count());
     }

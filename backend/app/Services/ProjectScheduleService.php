@@ -156,7 +156,6 @@ class ProjectScheduleService
 
     /**
      * Laporan progres selalu mengikuti periode yang memuat tanggal laporannya.
-     * Milestone memakai periode pilihan Admin; bila periodenya terhapus menjadi null.
      */
     private function petakanUlangTanggal(Project $project): void
     {

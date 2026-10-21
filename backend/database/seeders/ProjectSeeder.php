@@ -136,28 +136,6 @@ class ProjectSeeder extends Seeder
                 'volume_realisasi' => (float) $plan->target_volume,
             ])->all(), 'Pekerjaan '.$period->nama_periode.' terlaksana sesuai rencana.');
         }
-
-        $project->milestones()->updateOrCreate(
-            ['nama' => 'Penyelesaian pekerjaan beton saluran'],
-            [
-                'period_id' => $periods->firstWhere('urutan', 5)?->id,
-                'deskripsi' => 'Seluruh pekerjaan beton, pembesian, dan bekisting selesai.',
-                'tanggal_target' => $periods->firstWhere('urutan', 5)?->tanggal_selesai,
-                'target_persentase' => 82.62,
-                'status' => 'TERCAPAI',
-            ]
-        );
-
-        $project->milestones()->updateOrCreate(
-            ['nama' => 'Serah terima pekerjaan'],
-            [
-                'period_id' => $periods->last()?->id,
-                'deskripsi' => 'Pemasangan mainhole selesai dan pekerjaan siap diserahterimakan.',
-                'tanggal_target' => $periods->last()?->tanggal_selesai,
-                'target_persentase' => 100,
-                'status' => 'TERCAPAI',
-            ]
-        );
     }
 
     /** Proyek berjalan dengan realisasi di bawah rencana (deviasi negatif). */
@@ -252,17 +230,6 @@ class ProjectSeeder extends Seeder
                 'volume_realisasi' => $row[1],
             ])->all(), 'Realisasi pekerjaan '.$period->nama_periode.'.', $urutan >= 2);
         }
-
-        $project->milestones()->updateOrCreate(
-            ['nama' => 'Penyelesaian lapis pondasi agregat'],
-            [
-                'period_id' => $periods->firstWhere('urutan', 4)?->id,
-                'deskripsi' => 'Lapis pondasi agregat kelas B siap untuk pekerjaan rabat beton.',
-                'tanggal_target' => $periods->firstWhere('urutan', 4)?->tanggal_selesai,
-                'target_persentase' => 45,
-                'status' => 'BELUM_TERCAPAI',
-            ]
-        );
     }
 
     /** Proyek yang rencananya sudah disusun tetapi belum dimulai. */
@@ -419,6 +386,8 @@ class ProjectSeeder extends Seeder
 
         if ($denganKendala) {
             $data['issues'] = [[
+                // Kendala wajib terkait salah satu pekerjaan yang dilaporkan.
+                'work_item_id' => $details[0]['work_item_id'],
                 'jenis_kendala' => 'CUACA',
                 'deskripsi' => 'Hujan pada sore hari sehingga pengecoran dihentikan lebih awal. Curah hujan tinggi selama 2 hari kerja.',
                 'tindak_lanjut' => 'Penambahan jam kerja pada minggu berikutnya.',
@@ -426,6 +395,7 @@ class ProjectSeeder extends Seeder
             ]];
         }
 
-        $this->progress->create($project, $qs, $data);
+        // Laporan terkirim wajib memiliki minimal satu foto bukti per pekerjaan.
+        $this->progress->create($project, $qs, ...DummyProyekSelesaiSeeder::denganFotoBukti($data, $tanggal));
     }
 }

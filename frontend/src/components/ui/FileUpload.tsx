@@ -17,15 +17,19 @@ interface FileUploadProps {
   /** Batas dari server; selama belum dimuat dipakai batas aman 2 MB per foto dan 7,5 MB per pengiriman. */
   limits?: UploadLimits
   error?: string
+  /** Foto baru di daftar lain pada pengiriman yang sama; ikut dihitung terhadap batas jumlah dan total ukuran. */
+  fotoLain?: FotoTerpilih[]
+  /** Tampilan ringkas untuk dipasang di dalam baris form. */
+  ringkas?: boolean
 }
 
 const TIPE_DIIZINKAN = ['image/jpeg', 'image/jpg', 'image/png']
-const BATAS_CADANGAN: UploadLimits = { foto_maks_kb: 2048, foto_maks_jumlah: 10, total_maks_kb: 7680 }
+const BATAS_CADANGAN: UploadLimits = { foto_maks_kb: 2048, foto_maks_jumlah: 10, total_maks_kb: 7680, pekerjaan_maks: 10, kendala_maks: 5 }
 
 const labelUkuran = (kb: number) => (kb >= 1024 ? `${Number((kb / 1024).toFixed(1)).toLocaleString('id-ID')} MB` : `${kb} KB`)
 
 /** Unggah foto bukti pekerjaan dengan pratinjau sebelum submit. Foto besar diperkecil otomatis sebelum diunggah. */
-export function FileUpload({ files, onChange, limits = BATAS_CADANGAN, error }: FileUploadProps) {
+export function FileUpload({ files, onChange, limits = BATAS_CADANGAN, error, fotoLain = [], ringkas = false }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [pesan, setPesan] = useState<string | null>(null)
   const [memproses, setMemproses] = useState(false)
@@ -34,7 +38,7 @@ export function FileUpload({ files, onChange, limits = BATAS_CADANGAN, error }: 
 
   const maksFoto = limits.foto_maks_jumlah
   const maksByte = limits.foto_maks_kb * 1024
-  const totalByte = files.reduce((jumlah, item) => jumlah + item.file.size, 0)
+  const totalByte = [...files, ...fotoLain].reduce((jumlah, item) => jumlah + item.file.size, 0)
 
   const tambah = async (daftar: FileList | null) => {
     if (!daftar || daftar.length === 0) return
@@ -53,7 +57,7 @@ export function FileUpload({ files, onChange, limits = BATAS_CADANGAN, error }: 
         continue
       }
 
-      if (files.length + diterima.length >= maksFoto) {
+      if (files.length + fotoLain.length + diterima.length >= maksFoto) {
         keluhan = `Maksimal ${maksFoto} foto per pengiriman.`
         break
       }
@@ -91,26 +95,45 @@ export function FileUpload({ files, onChange, limits = BATAS_CADANGAN, error }: 
     onChange(files.map((item, i) => (i === index ? { ...item, caption } : item)))
   }
 
+  const input = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/jpeg,image/png,image/jpg"
+      multiple
+      className="hidden"
+      onChange={(event) => void tambah(event.target.files)}
+    />
+  )
+  const ketentuan = `Format JPG, JPEG, atau PNG. Foto besar diperkecil otomatis; maksimal ${labelUkuran(limits.foto_maks_kb)} per foto dan ${maksFoto} foto per pengiriman.`
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-xl border border-dashed border-line bg-surface/60 p-4 text-center">
-        <ImagePlus className="mx-auto size-6 text-muted" aria-hidden />
-        <p className="mt-2 text-xs text-muted">
-          Format JPG, JPEG, atau PNG. Foto besar diperkecil otomatis; maksimal {labelUkuran(limits.foto_maks_kb)} per foto dan {maksFoto} foto per
-          pengiriman.
-        </p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/jpg"
-          multiple
-          className="hidden"
-          onChange={(event) => void tambah(event.target.files)}
-        />
-        <Button variant="outline" size="sm" className="mt-3" loading={memproses} onClick={() => inputRef.current?.click()}>
-          {memproses ? 'Memproses foto...' : 'Pilih Foto'}
-        </Button>
-      </div>
+      {ringkas ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {input}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit shrink-0"
+            icon={<ImagePlus className="size-4" />}
+            loading={memproses}
+            onClick={() => inputRef.current?.click()}
+          >
+            {memproses ? 'Memproses foto...' : 'Pilih Foto'}
+          </Button>
+          <p className="text-[11px] text-muted">{ketentuan}</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-line bg-surface/60 p-4 text-center">
+          <ImagePlus className="mx-auto size-6 text-muted" aria-hidden />
+          <p className="mt-2 text-xs text-muted">{ketentuan}</p>
+          {input}
+          <Button variant="outline" size="sm" className="mt-3" loading={memproses} onClick={() => inputRef.current?.click()}>
+            {memproses ? 'Memproses foto...' : 'Pilih Foto'}
+          </Button>
+        </div>
+      )}
 
       {(pesan || error) && <p className="text-[11px] font-medium text-danger">{pesan ?? error}</p>}
 

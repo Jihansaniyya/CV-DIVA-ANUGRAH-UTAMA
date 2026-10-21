@@ -9,15 +9,9 @@ import { useCurveS } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
 import { cn } from '@/utils/cn'
-import { angka, deviasi, persen, rentangTanggal, tanggalSingkat } from '@/utils/format'
-import { Flag, LineChart, Target, TrendingUp } from 'lucide-react'
+import { angka, deviasi, persen, rentangTanggal } from '@/utils/format'
+import { LineChart, Target, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
-
-const STATUS_MILESTONE: Record<string, { label: string; tone: 'success' | 'danger' | 'neutral' }> = {
-  TERCAPAI: { label: 'Tercapai', tone: 'success' },
-  TERLAMBAT: { label: 'Terlambat', tone: 'danger' },
-  BELUM_TERCAPAI: { label: 'Belum tercapai', tone: 'neutral' },
-}
 
 export function CurveTab({ projectId }: { projectId: number }) {
   const { data, isLoading, error, refetch } = useCurveS(projectId)
@@ -54,7 +48,6 @@ export function CurveTab({ projectId }: { projectId: number }) {
     )
   }
   const periodeBerjalan = [...data.titik].reverse().find((titik) => titik.aktual_kumulatif !== null)
-  const titikPerPeriode = new Map(data.titik.map((titik) => [titik.period_id, titik]))
 
   return (
     // `print-area` membuat tab ini ikut tercetak; grafik Kurva S menempati halaman sendiri, komponen di bawahnya mulai di halaman berikutnya.
@@ -72,35 +65,6 @@ export function CurveTab({ projectId }: { projectId: number }) {
         }
       >
         <CurveSChart data={data} tinggi={340} />
-
-        {data.milestones.length > 0 && (
-          <div className="mt-5 border-t border-line pt-4">
-            <h3 className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
-              <Flag className="size-3.5" aria-hidden />
-              Milestone
-            </h3>
-            <ul className="grid gap-2 md:grid-cols-2">
-              {data.milestones.map((item) => {
-                const titik = item.period_id ? titikPerPeriode.get(item.period_id) : undefined
-                const status = STATUS_MILESTONE[item.status] ?? STATUS_MILESTONE.BELUM_TERCAPAI
-
-                return (
-                  <li key={item.id} className="flex items-start gap-3 rounded-lg border border-line px-3 py-2.5">
-                    <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-warning" aria-hidden />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm leading-snug font-medium text-ink">{item.nama}</p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        Target {persen(item.target_persentase)} · {titik?.nama_periode ?? 'Tanpa periode'} · {tanggalSingkat(item.tanggal_target)}
-                        {titik?.aktual_kumulatif != null && <> · Realisasi {persen(titik.aktual_kumulatif)}</>}
-                      </p>
-                    </div>
-                    <Badge tone={status.tone}>{status.label}</Badge>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )}
       </Card>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">

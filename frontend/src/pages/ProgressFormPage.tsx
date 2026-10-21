@@ -14,14 +14,31 @@ import { cn } from '@/utils/cn'
 import { angka, hariIni, persen, rentangTanggal, tanggal as formatTanggal } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Save, Send, Trash2 } from 'lucide-react'
-import type { ProgressReport } from '@/types'
+import type { ProgressPhoto, ProgressReport } from '@/types'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 interface BarisDetail {
+  /** Kunci render yang stabil saat baris dihapus, agar pratinjau foto tetap menempel pada barisnya. */
+  kunci: number
   work_item_id: number | ''
   volume_realisasi: number | ''
+  /** Foto bukti baru untuk pekerjaan pada baris ini. */
+  foto: FotoTerpilih[]
 }
+
+let nomorBaris = 0
+
+const barisBaru = (workItemId: number | '' = '', volume: number | '' = ''): BarisDetail => ({
+  kunci: ++nomorBaris,
+  work_item_id: workItemId,
+  volume_realisasi: volume,
+  foto: [],
+})
+
+/** Batas baris dan kendala bila batas dari server belum dimuat. */
+const BARIS_MAKS_CADANGAN = 10
+const KENDALA_MAKS_CADANGAN = 5
 
 interface BarisKendala {
   /** Pekerjaan yang belum selesai, dipilih dari baris Progres Pekerjaan. */
@@ -64,7 +81,9 @@ interface IsianForm {
   issues: BarisKendala[]
 }
 
-const ringkasIsian = (isian: IsianForm) => JSON.stringify(isian)
+/** Foto baru selalu dihitung sebagai perubahan tersendiri, jadi tidak ikut dibandingkan di sini. */
+const ringkasIsian = (isian: IsianForm) =>
+  JSON.stringify({ ...isian, details: isian.details.map(({ work_item_id, volume_realisasi }) => ({ work_item_id, volume_realisasi })) })
 
 /** Tujuan khusus dialog keluar: tombol Kembali browser. */
 const KEMBALI = '__kembali__'
@@ -87,19 +106,34 @@ function buatIdPermintaan(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
 
-/** Kendala tersimpan per pekerjaan; jenis "Lainnya" menyimpan sebutannya di awal deskripsi ("Perizinan: ..."). */
+/**
+ * Kendala tersimpan per pekerjaan; baris dengan isian sama digabung kembali menjadi satu blok kendala
+ * seperti saat diisi. Jenis "Lainnya" menyimpan sebutannya di awal deskripsi ("Perizinan: ...").
+ */
 function kendalaDariLaporan(laporan: ProgressReport): BarisKendala[] {
-  return (laporan.kendala ?? []).map((item) => {
+  const blok = new Map<string, BarisKendala>()
+
+  for (const item of laporan.kendala ?? []) {
+    const kunci = JSON.stringify([item.jenis_kendala, item.deskripsi, item.tindak_lanjut])
+    const ada = blok.get(kunci)
+
+    if (ada) {
+      if (item.work_item_id && !ada.work_item_ids.includes(item.work_item_id)) ada.work_item_ids.push(item.work_item_id)
+      continue
+    }
+
     const lainnya = item.jenis_kendala === 'LAINNYA' ? /^([^:]{1,60}):\s([\s\S]+)$/.exec(item.deskripsi) : null
 
-    return {
+    blok.set(kunci, {
       work_item_ids: item.work_item_id ? [item.work_item_id] : [],
       jenis_kendala: item.jenis_kendala ?? '',
       jenis_lainnya: lainnya ? lainnya[1] : '',
       deskripsi: lainnya ? lainnya[2] : item.deskripsi,
       tindak_lanjut: item.tindak_lanjut ?? '',
-    }
-  })
+    })
+  }
+
+  return [...blok.values()]
 }
 
 /** Form input progres harian oleh QS, juga dipakai untuk membuka dan mengubah draf (/progres/:id/ubah). */
@@ -117,12 +151,15 @@ export function ProgressFormPage() {
   const [tanggalDipilih, setTanggal] = useState(hariIni())
   const [lokasi, setLokasi] = useState('')
   const [keterangan, setKeterangan] = useState('')
-  const [details, setDetails] = useState<BarisDetail[]>([{ work_item_id: workItemAwal, volume_realisasi: '' }])
+  const [details, setDetails] = useState<BarisDetail[]>(() => [barisBaru(workItemAwal)])
   const [selesai, setSelesai] = useState<boolean | null>(null)
   const [issues, setIssues] = useState<BarisKendala[]>([])
-  const [foto, setFoto] = useState<FotoTerpilih[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tujuanKeluar, setTujuanKeluar] = useState<string | null>(null)
+  /** Kunci baris Progres Pekerjaan yang menunggu konfirmasi hapus. */
+  const [barisDihapus, setBarisDihapus] = useState<number | null>(null)
+  /** Indeks blok kendala yang menunggu konfirmasi hapus. */
+  const [kendalaDihapus, setKendalaDihapus] = useState<number | null>(null)
   /** Isian yang sudah lolos validasi dan menunggu konfirmasi "Kirim Progres". */
   const [payloadKirim, setPayloadKirim] = useState<ProgressPayload | null>(null)
   const [idPermintaan] = useState(buatIdPermintaan)
@@ -144,6 +181,24 @@ export function ProgressFormPage() {
   const { data: pekerjaan, isLoading: memuatPekerjaan } = useWorkItems(projectId ? Number(projectId) : null)
   const proyekDipilih = projects.find((item) => item.id === Number(projectId))
   const fotoTersimpan = laporanEdit?.foto ?? []
+  // Pekerjaan tidak boleh berulang, jadi baris juga tidak lebih banyak dari jumlah pekerjaan proyek.
+  const maksBaris = Math.min(limits?.pekerjaan_maks ?? BARIS_MAKS_CADANGAN, pekerjaan?.data.length || Infinity)
+  const maksKendala = limits?.kendala_maks ?? KENDALA_MAKS_CADANGAN
+
+  /** Foto tersimpan milik pekerjaan pada baris ini; bila pekerjaan dipilih di dua baris, foto tampil di baris pertama. */
+  const fotoTersimpanBaris = (index: number): ProgressPhoto[] => {
+    const workItemId = details[index]?.work_item_id
+
+    if (workItemId === undefined || workItemId === '' || details.findIndex((baris) => baris.work_item_id === workItemId) !== index) return []
+
+    return fotoTersimpan.filter((item) => item.work_item_id === workItemId)
+  }
+
+  /** Foto tersimpan yang pekerjaannya tidak ada di baris mana pun (foto lama, atau pekerjaan barisnya sudah diganti). */
+  const fotoTanpaBaris = fotoTersimpan.filter((item) => item.work_item_id == null || !details.some((baris) => baris.work_item_id === item.work_item_id))
+
+  // Error foto dari server (mis. ukuran berkas atau pekerjaan yang belum berfoto) tidak menempel pada baris tertentu.
+  const pesanErrorFoto = errors.photos ?? Object.entries(errors).find(([key]) => key.startsWith('photos.'))?.[1]
   const bolehDiubah = !editId || (laporanEdit?.status === 'DRAFT' && laporanEdit.user_id === user?.id)
 
   /** Isi form dari draf yang dibuka, sekali saja agar isian yang sedang diubah tidak tertimpa saat data dimuat ulang. */
@@ -158,8 +213,8 @@ export function ProgressFormPage() {
       keterangan: laporanEdit.keterangan ?? '',
       details:
         (laporanEdit.detail ?? []).length > 0
-          ? (laporanEdit.detail ?? []).map((detail) => ({ work_item_id: detail.work_item_id, volume_realisasi: detail.volume_realisasi }))
-          : [{ work_item_id: '', volume_realisasi: '' }],
+          ? (laporanEdit.detail ?? []).map((detail) => barisBaru(detail.work_item_id, detail.volume_realisasi))
+          : [barisBaru()],
       // Pilihan "Selesai" tidak disimpan; draf berkendala berarti "Belum Selesai", selebihnya dipilih ulang saat dikirim.
       selesai: kendala.length > 0 ? false : null,
       issues: kendala,
@@ -224,6 +279,39 @@ export function ProgressFormPage() {
     setIssues((current) => current.map((baris) => ({ ...baris, work_item_ids: baris.work_item_ids.filter((id) => tersedia.has(id)) })))
   }
 
+  const ubahBaris = (index: number, perubahan: Partial<BarisDetail>) =>
+    setDetails((current) => current.map((row, i) => (i === index ? { ...row, ...perubahan } : row)))
+
+  /** Progres pekerjaan minimal satu baris; baris yang sudah berisi dihapus setelah dikonfirmasi. */
+  const mintaHapusBaris = (index: number) => {
+    const baris = details[index]
+
+    if (!baris || details.length <= 1) return
+
+    const berisi = baris.work_item_id !== '' || baris.volume_realisasi !== '' || baris.foto.length > 0
+
+    if (berisi) setBarisDihapus(baris.kunci)
+    else aturDetails(details.filter((_, i) => i !== index))
+  }
+
+  const hapusKendala = (index: number) => {
+    setIssues((current) => current.filter((_, i) => i !== index))
+    setErrors(tanpaErrorKendala)
+  }
+
+  /** Blok kendala yang sudah berisi dihapus setelah dikonfirmasi. */
+  const mintaHapusKendala = (index: number) => {
+    const baris = issues[index]
+
+    if (!baris) return
+
+    const berisi =
+      baris.jenis_kendala !== '' || baris.jenis_lainnya.trim() !== '' || baris.deskripsi.trim() !== '' || baris.tindak_lanjut.trim() !== ''
+
+    if (berisi) setKendalaDihapus(index)
+    else hapusKendala(index)
+  }
+
   const ubahKendala = (index: number, perubahan: Partial<BarisKendala>) =>
     setIssues((current) => current.map((row, i) => (i === index ? { ...row, ...perubahan } : row)))
 
@@ -234,9 +322,10 @@ export function ProgressFormPage() {
    * - Tambah progres: ada isian berarti (lokasi & tanggal bawaan yang terisi otomatis tidak dihitung).
    * Setelah berhasil disimpan, form tidak lagi dianggap berubah.
    */
+  const fotoBaru = details.flatMap((baris) => baris.foto)
   const adaPerubahan =
     !tersimpan &&
-    (foto.length > 0 ||
+    (fotoBaru.length > 0 ||
       (editId
         ? isianAwal !== null && ringkasIsian({ tanggal: tanggalDipilih, lokasi, keterangan, details, selesai, issues }) !== isianAwal
         : details.some((baris) => baris.volume_realisasi !== '') ||
@@ -391,10 +480,21 @@ export function ProgressFormPage() {
       validasi.details = 'Volume realisasi wajib diisi untuk setiap pekerjaan yang dipilih.'
     }
 
+    if (details.length > maksBaris) validasi.details = `Maksimal ${maksBaris} pekerjaan per progres.`
+    if (selesai === false && issues.length > maksKendala) validasi.selesai = `Maksimal ${maksKendala} kendala per progres.`
+
+    details.forEach((baris, index) => {
+      // Foto pada baris tanpa pekerjaan tidak akan terkirim, jadi pekerjaannya wajib dipilih.
+      if (baris.work_item_id === '' && baris.foto.length > 0) {
+        validasi[`details.${index}.work_item_id`] = 'Pilih pekerjaan untuk foto pada baris ini.'
+      } else if (status === 'DIKIRIM' && baris.work_item_id !== '' && baris.foto.length + fotoTersimpanBaris(index).length === 0) {
+        validasi[`details.${index}.foto`] = 'Unggah minimal satu foto bukti untuk pekerjaan ini.'
+      }
+    })
+
     if (status === 'DIKIRIM') {
       if (!lokasi.trim()) validasi.lokasi = 'Lokasi wajib diisi.'
       if (!keterangan.trim()) validasi.keterangan = 'Keterangan kegiatan hari ini wajib diisi.'
-      if (foto.length + fotoTersimpan.length === 0) validasi.photos = 'Minimal satu foto bukti pekerjaan wajib diunggah.'
     }
 
     // Kendala hanya relevan saat "Belum Selesai"; saat "Selesai" tidak divalidasi maupun dikirim.
@@ -455,8 +555,9 @@ export function ProgressFormPage() {
           tindak_lanjut: baris.tindak_lanjut.trim() || null,
         }))
       }),
-      photos: foto.map((item) => item.file),
-      photo_captions: foto.map((item) => item.caption),
+      photos: detailValid.flatMap((baris) => baris.foto.map((item) => item.file)),
+      photo_captions: detailValid.flatMap((baris) => baris.foto.map((item) => item.caption)),
+      photo_work_item_ids: detailValid.flatMap((baris) => baris.foto.map(() => Number(baris.work_item_id))),
     }
 
     // Laporan terkirim tidak dapat diubah lagi, jadi pengiriman dikonfirmasi terlebih dahulu.
@@ -489,6 +590,8 @@ export function ProgressFormPage() {
   }
 
   const daftarPekerjaan = pekerjaan?.data ?? []
+  // Batas baris baru diketahui setelah daftar pekerjaan proyek dimuat (bisa kurang dari batas server).
+  const barisSiap = Boolean(projectId) && !pesanRencanaBelumLengkap && !memuatPekerjaan && daftarPekerjaan.length > 0
   const idDipilih = idPekerjaanDipilih()
   const pekerjaanDipilih = daftarPekerjaan.filter((item) => idDipilih.includes(item.id))
 
@@ -521,7 +624,7 @@ export function ProgressFormPage() {
             }))}
             onChange={(nilai) => {
               setProjectId(nilai ? Number(nilai) : '')
-              aturDetails([{ work_item_id: '', volume_realisasi: '' }])
+              aturDetails([barisBaru()])
             }}
             placeholder="Pilih proyek"
             error={errors.project_id}
@@ -573,16 +676,20 @@ export function ProgressFormPage() {
 
       <Card
         title="Progres Pekerjaan"
-        description="Data volume terukur: pilih item pekerjaan dan isi volume yang terealisasi pada tanggal ini sesuai satuannya."
+        description={`Pilih item pekerjaan, isi volume yang terealisasi pada tanggal ini sesuai satuannya, lalu unggah foto bukti untuk pekerjaan tersebut.${barisSiap ? ` Maksimal ${maksBaris} pekerjaan per progres.` : ''}`}
         action={
-          <Button
-            variant="outline"
-            size="sm"
-            icon={<Plus className="size-4" />}
-            onClick={() => setDetails((current) => [...current, { work_item_id: '', volume_realisasi: '' }])}
-          >
-            Tambah Baris
-          </Button>
+          barisSiap && (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Plus className="size-4" />}
+              disabled={details.length >= maksBaris}
+              title={details.length >= maksBaris ? `Maksimal ${maksBaris} pekerjaan per progres.` : undefined}
+              onClick={() => setDetails((current) => (current.length >= maksBaris ? current : [...current, barisBaru()]))}
+            >
+              Tambah Baris ({details.length}/{maksBaris})
+            </Button>
+          )
         }
       >
         {!projectId ? (
@@ -599,14 +706,16 @@ export function ProgressFormPage() {
               const item = daftarPekerjaan.find((pekerjaanItem) => pekerjaanItem.id === Number(baris.work_item_id))
               // Sisa dari backend: volume - (terkirim + draf lain), sama dengan batas yang divalidasi saat menyimpan.
               const sisa = item ? (item.sisa_volume ?? item.volume - (item.volume_realisasi ?? 0)) + volumeDrafIni(item.id) : null
+              const tersimpanBaris = fotoTersimpanBaris(index)
 
               return (
-                <li key={index} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-12">
+                <li key={baris.kunci} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-12">
                   <Select
                     label="Pekerjaan"
                     required
                     wrapClassName="sm:col-span-7"
                     value={baris.work_item_id}
+                    error={errors[`details.${index}.work_item_id`]}
                     onChange={(event) =>
                       aturDetails(details.map((row, i) => (i === index ? { ...row, work_item_id: event.target.value ? Number(event.target.value) : '' } : row)))
                     }
@@ -621,71 +730,74 @@ export function ProgressFormPage() {
                   <Input
                     label="Volume Realisasi"
                     required
-                    wrapClassName="sm:col-span-4"
+                    wrapClassName={details.length > 1 ? 'sm:col-span-4' : 'sm:col-span-5'}
                     type="number"
                     step="0.001"
                     min="0"
                     placeholder="0"
                     value={baris.volume_realisasi}
-                    onChange={(event) =>
-                      setDetails((current) =>
-                        current.map((row, i) => (i === index ? { ...row, volume_realisasi: event.target.value ? Number(event.target.value) : '' } : row)),
-                      )
-                    }
+                    onChange={(event) => ubahBaris(index, { volume_realisasi: event.target.value ? Number(event.target.value) : '' })}
                     hint={item ? `Satuan ${item.satuan} - sisa ${angka(sisa ?? 0, 2)}` : undefined}
                   />
-                  <div className="flex items-end sm:col-span-1">
-                    <Button
-                      variant="ghost"
-                      className="text-danger"
-                      aria-label="Hapus baris"
-                      onClick={() => aturDetails(details.filter((_, i) => i !== index))}
-                      icon={<Trash2 className="size-4" />}
-                    />
-                  </div>
+                  {/* Progres harian minimal memuat satu pekerjaan, jadi baris tunggal tidak dapat dihapus. */}
+                  {details.length > 1 && (
+                    <div className="flex items-end sm:col-span-1">
+                      <Button
+                        variant="ghost"
+                        className="text-danger"
+                        aria-label="Hapus baris"
+                        title="Hapus baris"
+                        onClick={() => mintaHapusBaris(index)}
+                        icon={<Trash2 className="size-4" />}
+                      />
+                    </div>
+                  )}
+                  <FieldWrap
+                    label="Foto Bukti Pekerjaan"
+                    required
+                    className="border-t border-line pt-3 sm:col-span-12"
+                    hint={item ? `Foto bukti untuk pekerjaan "${item.uraian_pekerjaan}".` : 'Pilih pekerjaan terlebih dahulu, lalu unggah fotonya.'}
+                  >
+                    <div className="flex flex-col gap-3">
+                      {tersimpanBaris.length > 0 && (
+                        <DaftarFotoTersimpan
+                          foto={tersimpanBaris}
+                          judul="Foto tersimpan pada draf ini"
+                          menghapus={hapusFoto.isPending ? hapusFoto.variables : undefined}
+                          onHapus={(photoId) => hapusFoto.mutate(photoId)}
+                        />
+                      )}
+                      <FileUpload
+                        ringkas
+                        files={baris.foto}
+                        onChange={(foto) => ubahBaris(index, { foto })}
+                        fotoLain={details.flatMap((row, i) => (i === index ? [] : row.foto))}
+                        limits={limits}
+                        error={errors[`details.${index}.foto`]}
+                      />
+                    </div>
+                  </FieldWrap>
                 </li>
               )
             })}
           </ul>
         )}
         {errors.details && <p className="mt-2 text-[11px] font-medium text-danger">{errors.details}</p>}
+        {pesanErrorFoto && <p className="mt-2 text-[11px] font-medium text-danger">{pesanErrorFoto}</p>}
       </Card>
 
-      <Card
-        title={
-          <>
-            Foto Bukti Pekerjaan<span className="ml-0.5 text-primary">*</span>
-          </>
-        }
-        description="Unggah minimal satu foto. Foto ditampilkan sebagai pratinjau sebelum progres dikirim."
-      >
-        {fotoTersimpan.length > 0 && (
-          <div className="mb-4">
-            <p className="mb-2 text-xs font-medium text-muted">Foto tersimpan pada draf ini</p>
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {fotoTersimpan.map((item) => (
-                <li key={item.id} className="app-card overflow-hidden">
-                  <img src={item.url} alt={item.caption || 'Foto bukti pekerjaan'} className="h-28 w-full object-cover" loading="lazy" />
-                  <div className="space-y-2 p-2">
-                    <p className="truncate text-[11px] text-muted">{item.caption || item.original_name || 'Tanpa keterangan'}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-danger"
-                      icon={<Trash2 className="size-3.5" />}
-                      loading={hapusFoto.isPending && hapusFoto.variables === item.id}
-                      onClick={() => hapusFoto.mutate(item.id)}
-                    >
-                      Hapus
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <FileUpload files={foto} onChange={setFoto} limits={limits} error={errors.photos ?? errors['photos.0']} />
-      </Card>
+      {fotoTanpaBaris.length > 0 && (
+        <Card
+          title="Foto Belum Terkait Pekerjaan"
+          description="Foto berikut tersimpan pada draf ini tetapi pekerjaannya tidak ada pada baris Progres Pekerjaan. Hapus bila tidak diperlukan; foto baru diunggah pada baris pekerjaannya."
+        >
+          <DaftarFotoTersimpan
+            foto={fotoTanpaBaris}
+            menghapus={hapusFoto.isPending ? hapusFoto.variables : undefined}
+            onHapus={(photoId) => hapusFoto.mutate(photoId)}
+          />
+        </Card>
+      )}
 
       <Card
         title="Apakah pekerjaan sudah selesai?"
@@ -826,10 +938,7 @@ export function ProgressFormPage() {
                           variant="ghost"
                           size="sm"
                           className="text-danger"
-                          onClick={() => {
-                            setIssues((current) => current.filter((_, i) => i !== index))
-                            setErrors(tanpaErrorKendala)
-                          }}
+                          onClick={() => mintaHapusKendala(index)}
                           icon={<Trash2 className="size-4" />}
                         >
                           Hapus kendala
@@ -841,13 +950,17 @@ export function ProgressFormPage() {
               })}
             </ul>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className="w-fit"
               icon={<Plus className="size-4" />}
-              onClick={() => setIssues((current) => [...current, kendalaKosong(idDipilih.length === 1 ? idDipilih : [])])}
+              disabled={issues.length >= maksKendala}
+              title={issues.length >= maksKendala ? `Maksimal ${maksKendala} kendala per progres.` : undefined}
+              onClick={() =>
+                setIssues((current) => (current.length >= maksKendala ? current : [...current, kendalaKosong(idDipilih.length === 1 ? idDipilih : [])]))
+              }
             >
-              Tambah Kendala
+              Tambah Kendala ({issues.length}/{maksKendala})
             </Button>
           </div>
         )}
@@ -862,6 +975,36 @@ export function ProgressFormPage() {
         </Button>
       </div>
     </form>
+
+    <ConfirmDialog
+      open={barisDihapus !== null}
+      title="Hapus progres pekerjaan ini?"
+      pesan={(() => {
+        const baris = details.find((row) => row.kunci === barisDihapus)
+        const uraian = daftarPekerjaan.find((item) => item.id === baris?.work_item_id)?.uraian_pekerjaan
+        const foto = baris && baris.foto.length > 0 ? ` beserta ${baris.foto.length} foto yang belum disimpan` : ''
+
+        return `Isian ${uraian ? `pekerjaan "${uraian}"` : 'baris ini'}${foto} akan dihapus dari form. Apakah Anda yakin?`
+      })()}
+      labelKonfirmasi="Ya, Hapus"
+      onConfirm={() => {
+        if (details.length > 1) aturDetails(details.filter((row) => row.kunci !== barisDihapus))
+        setBarisDihapus(null)
+      }}
+      onClose={() => setBarisDihapus(null)}
+    />
+
+    <ConfirmDialog
+      open={kendalaDihapus !== null}
+      title="Hapus kendala ini?"
+      pesan="Isian jenis kendala, kendala & alasan keterlambatan, serta rencana tindak lanjut pada blok ini akan dihapus dari form. Apakah Anda yakin?"
+      labelKonfirmasi="Ya, Hapus"
+      onConfirm={() => {
+        if (kendalaDihapus !== null) hapusKendala(kendalaDihapus)
+        setKendalaDihapus(null)
+      }}
+      onClose={() => setKendalaDihapus(null)}
+    />
 
     <ConfirmDialog
       open={tujuanKeluar !== null}
@@ -903,5 +1046,42 @@ export function ProgressFormPage() {
       Pastikan data sudah benar. Progres yang sudah dikirim tidak dapat diubah lagi.
     </AlertDialog>
     </>
+  )
+}
+
+interface DaftarFotoTersimpanProps {
+  foto: ProgressPhoto[]
+  judul?: string
+  /** ID foto yang sedang dihapus. */
+  menghapus?: number
+  onHapus: (photoId: number) => void
+}
+
+/** Foto yang sudah tersimpan pada draf; penghapusan langsung diproses server. */
+function DaftarFotoTersimpan({ foto, judul, menghapus, onHapus }: DaftarFotoTersimpanProps) {
+  return (
+    <div>
+      {judul && <p className="mb-2 text-xs font-medium text-muted">{judul}</p>}
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {foto.map((item) => (
+          <li key={item.id} className="app-card overflow-hidden">
+            <img src={item.url} alt={item.caption || 'Foto bukti pekerjaan'} className="h-28 w-full object-cover" loading="lazy" />
+            <div className="space-y-2 p-2">
+              <p className="truncate text-[11px] text-muted">{item.caption || item.original_name || 'Tanpa keterangan'}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-danger"
+                icon={<Trash2 className="size-3.5" />}
+                loading={menghapus === item.id}
+                onClick={() => onHapus(item.id)}
+              >
+                Hapus
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

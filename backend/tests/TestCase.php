@@ -77,7 +77,7 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Kirim laporan progres yang lengkap (lokasi, keterangan, dan satu foto bukti) seperti dari form QS.
+     * Kirim laporan progres yang lengkap (lokasi, keterangan, dan satu foto bukti per pekerjaan) seperti dari form QS.
      * Laporan bertanggal setelah hari ini dikirim dengan waktu dimajukan ke tanggal tersebut, seolah QS
      * mengirimnya pada hari pelaksanaan, karena progres tidak boleh bertanggal di masa depan.
      *
@@ -94,8 +94,13 @@ abstract class TestCase extends BaseTestCase
             'status' => 'DIKIRIM',
             'lokasi' => 'Kota Bontang',
             'keterangan' => 'Pekerjaan dilaksanakan sesuai jadwal.',
-            'photos' => [UploadedFile::fake()->image('bukti.jpg')],
         ];
+
+        if (! isset($data['photos'])) {
+            $pekerjaan = array_column($data['details'] ?? [], 'work_item_id');
+            $data['photos'] = array_map(fn ($i) => UploadedFile::fake()->image("bukti-{$i}.jpg"), array_keys($pekerjaan)) ?: [UploadedFile::fake()->image('bukti.jpg')];
+            $data['photo_work_item_ids'] = $pekerjaan;
+        }
 
         $tanggal = CarbonImmutable::parse($data['tanggal_laporan'])->toDateString();
         $majukan = $tanggal > ProgressService::hariIni()->toDateString();

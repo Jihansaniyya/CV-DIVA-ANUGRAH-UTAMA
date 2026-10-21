@@ -44,9 +44,4 @@ class Period extends Model
     {
         return $this->hasMany(ProgressReport::class);
     }
-
-    public function milestones(): HasMany
-    {
-        return $this->hasMany(Milestone::class);
-    }
 }

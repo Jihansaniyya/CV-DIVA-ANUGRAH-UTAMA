@@ -95,7 +95,6 @@ return [
         'target_persentase' => 'target persentase',
         'volume_realisasi' => 'volume realisasi',
         'deskripsi' => 'deskripsi',
-        'nama_material' => 'nama material',
         'photos' => 'foto dokumentasi',
         'photos.*' => 'foto dokumentasi',
         'details' => 'detail pekerjaan',

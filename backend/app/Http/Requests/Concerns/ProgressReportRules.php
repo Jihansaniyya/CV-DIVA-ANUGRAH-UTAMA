@@ -19,7 +19,7 @@ trait ProgressReportRules
     /** Field bersarang dikirim sebagai JSON string ketika memakai multipart/form-data. */
     protected function prepareForValidation(): void
     {
-        foreach (['details', 'issues', 'photo_captions'] as $key) {
+        foreach (['details', 'issues', 'photo_captions', 'photo_work_item_ids'] as $key) {
             $nilai = $this->input($key);
 
             if (is_string($nilai)) {
@@ -43,7 +43,7 @@ trait ProgressReportRules
             'cuaca' => ['nullable', 'string', 'max:50'],
             'status' => ['nullable', Rule::enum(ReportStatus::class)],
 
-            'details' => [$detailWajib ? 'required' : 'sometimes', 'array', 'min:1'],
+            'details' => [$detailWajib ? 'required' : 'sometimes', 'array', 'min:1', 'max:'.$batas->pekerjaanMaks()],
             'details.*.work_item_id' => ['required', 'integer', 'distinct', 'exists:work_items,id'],
             'details.*.volume_realisasi' => ['required', 'numeric', 'min:0'],
             'details.*.keterangan' => ['nullable', 'string'],
@@ -60,13 +60,36 @@ trait ProgressReportRules
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png', 'max:'.$batas->fotoMaksKb()],
             'photo_captions' => ['nullable', 'array'],
             'photo_captions.*' => ['nullable', 'string', 'max:255'],
+            // Pekerjaan pemilik setiap foto (indeks sama dengan `photos`); dicocokkan ke detail laporan oleh service.
+            'photo_work_item_ids' => ['nullable', 'array'],
+            'photo_work_item_ids.*' => ['nullable', 'integer'],
         ];
     }
 
-    /** Total ukuran foto dalam satu permintaan tidak boleh melewati batas server. */
+    /**
+     * Total ukuran foto dalam satu permintaan tidak boleh melewati batas server, dan jumlah kendala dibatasi.
+     * Form mengirim satu kendala sebagai beberapa baris (satu per pekerjaan terkait), jadi baris dengan isian
+     * yang sama dihitung sebagai satu kendala.
+     */
     public function after(): array
     {
         return [
+            function (Validator $validator) {
+                $maks = app(UploadLimitService::class)->kendalaMaks();
+                $jumlah = collect((array) $this->input('issues', []))
+                    ->filter(fn ($baris) => is_array($baris))
+                    ->map(fn (array $baris) => json_encode([
+                        $baris['jenis_kendala'] ?? null,
+                        trim((string) ($baris['deskripsi'] ?? '')),
+                        trim((string) ($baris['tindak_lanjut'] ?? '')),
+                    ]))
+                    ->unique()
+                    ->count();
+
+                if ($jumlah > $maks) {
+                    $validator->errors()->add('issues', 'Maksimal '.$maks.' kendala per progres.');
+                }
+            },
             function (Validator $validator) {
                 $totalMaks = app(UploadLimitService::class)->totalMaksKb();
                 $foto = array_filter((array) $this->file('photos', []), fn ($f) => $f instanceof UploadedFile);
@@ -109,6 +132,7 @@ trait ProgressReportRules
 
         return [
             'details.required' => 'Laporan harus memuat minimal satu pekerjaan.',
+            'details.max' => 'Maksimal '.$batas->pekerjaanMaks().' pekerjaan per progres.',
             'details.*.work_item_id.distinct' => 'Pekerjaan yang sama tidak boleh diinput dua kali dalam satu progres.',
             'photos.max' => 'Maksimal '.$batas->fotoMaksJumlah().' foto per progres.',
             'photos.*.mimes' => 'Foto harus berformat JPG, JPEG, atau PNG.',

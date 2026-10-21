@@ -71,18 +71,7 @@ export function ProjectsPage() {
     setFormTerbuka(true)
   }
 
-  // QS hanya punya satu aksi, jadi tombol Detail ditampilkan langsung tanpa menu titik tiga.
-  const tombolDetail = (project: Project) => (
-    <Link
-      to={`/proyek/${project.id}`}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-primary hover:text-primary"
-      aria-label={`Detail ${project.nama_proyek}`}
-    >
-      <Eye className="size-3.5" aria-hidden />
-      Detail
-    </Link>
-  )
-
+  // Tabel dan kartu sama untuk semua peran; QS dan Kontraktor hanya mendapat aksi Lihat Detail.
   const aksiProyek = (project: Project): ActionMenuItem[] => [
     { label: 'Lihat Detail', icon: <Eye className="size-4" aria-hidden />, onSelect: () => navigate(`/proyek/${project.id}`) },
     ...(adminMode
@@ -173,10 +162,12 @@ export function ProjectsPage() {
                         <Th>Nama Proyek</Th>
                         <Th className="w-[15%]">Lokasi</Th>
                         <Th className="w-36">Tanggal</Th>
-                        {adminMode && <Th className="w-[11%]">QS</Th>}
+                        <Th className="w-[11%]">QS</Th>
                         <Th className="w-40">Progres</Th>
                         <Th align="center" className="w-24">Status</Th>
-                        <Th align="center" className={adminMode ? 'w-14' : 'w-24'}>Aksi</Th>
+                        <Th align="center" className="w-14">
+                          Aksi
+                        </Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -198,7 +189,7 @@ export function ProjectsPage() {
                             <p className="whitespace-nowrap">Mulai: {tanggalSingkat(project.tanggal_mulai)}</p>
                             <p className="mt-0.5 whitespace-nowrap">Selesai: {tanggalSelesai(project)}</p>
                           </Td>
-                          {adminMode && <Td className="break-words text-muted">{project.qs?.name ?? '-'}</Td>}
+                          <Td className="break-words text-muted">{project.qs?.name ?? '-'}</Td>
                           <Td>
                             <RencanaRealisasiBar rencana={project.total_bobot_rencana ?? 0} realisasi={project.progres_aktual ?? 0} />
                           </Td>
@@ -206,11 +197,7 @@ export function ProjectsPage() {
                             <StatusBadge status={project.status} bertumpuk />
                           </Td>
                           <Td align="center">
-                            {adminMode ? (
-                              <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
-                            ) : (
-                              tombolDetail(project)
-                            )}
+                            <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
                           </Td>
                         </tr>
                       ))}
@@ -231,11 +218,9 @@ export function ProjectsPage() {
                           {project.nama_proyek}
                         </Link>
                         <StatusBadge status={project.status} bertumpuk />
-                        {adminMode && (
-                          <div className="-mt-1 -mr-2 shrink-0">
-                            <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
-                          </div>
-                        )}
+                        <div className="-mt-1 -mr-2 shrink-0">
+                          <ActionMenu items={aksiProyek(project)} label={`Aksi untuk ${project.nama_proyek}`} />
+                        </div>
                       </div>
                       <dl className="mt-2 flex flex-col gap-y-1 text-[11px] text-muted">
                         <div>
@@ -252,19 +237,16 @@ export function ProjectsPage() {
                             <dd className="inline">{tanggalSelesai(project)}</dd>
                           </div>
                         </div>
-                        {adminMode && (
-                          <div>
-                            <dt className="inline">QS: </dt>
-                            <dd className="inline">{project.qs?.name ?? '-'}</dd>
-                          </div>
-                        )}
+                        <div>
+                          <dt className="inline">QS: </dt>
+                          <dd className="inline">{project.qs?.name ?? '-'}</dd>
+                        </div>
                       </dl>
                       <RencanaRealisasiBar
                         className="mt-3"
                         rencana={project.total_bobot_rencana ?? 0}
                         realisasi={project.progres_aktual ?? 0}
                       />
-                      {!adminMode && <div className="mt-3 flex justify-end">{tombolDetail(project)}</div>}
                     </li>
                   ))}
                 </ul>

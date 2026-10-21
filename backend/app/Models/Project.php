@@ -87,11 +87,6 @@ class Project extends Model
         return $this->hasMany(WorkPlan::class);
     }
 
-    public function milestones(): HasMany
-    {
-        return $this->hasMany(Milestone::class)->orderBy('tanggal_target');
-    }
-
     public function progressReports(): HasMany
     {
         return $this->hasMany(ProgressReport::class);

@@ -4,7 +4,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ReferenceDot,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,13 +17,11 @@ const BIRU_TUA = '#3b5b8c'
 const MERAH = '#c00000'
 // Harus sama dengan kelas -translate-y-2.5 (10px) pada garis realisasi.
 const CELAH_REALISASI = 10
-const AMBER = '#f59e0b'
 const TICK_PERSEN = [0, 20, 40, 60, 80, 100]
 
 interface CurveSChartProps {
   data: CurveData
   tinggi?: number
-  tampilkanMilestone?: boolean
 }
 
 interface Titik {
@@ -34,11 +31,6 @@ interface Titik {
   /** Nilai yang digambar pada garis realisasi; null setelah periode terakhir yang memiliki laporan. */
   aktualGaris: number | null
   deviasi: number | null
-  periodId: number
-}
-
-function potong(teks: string, maks: number): string {
-  return teks.length > maks ? `${teks.slice(0, maks - 1)}…` : teks
 }
 
 function TooltipKurva({ active, payload }: TooltipContentProps) {
@@ -68,9 +60,8 @@ function TooltipKurva({ active, payload }: TooltipContentProps) {
  * Kedua garis hanya digambar sampai periode yang sudah berjalan (aktual_kumulatif tidak null),
  * sehingga ujung garis rencana sama dengan Progres Rencana s/d hari ini. Garis realisasi berhenti
  * pada periode terakhir yang memiliki laporan progres, bukan memanjang datar sampai periode berjalan.
- * Milestone ditandai sebagai titik pada target persentasenya.
  */
-export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: CurveSChartProps) {
+export function CurveSChart({ data, tinggi = 320 }: CurveSChartProps) {
   const indeksLaporanTerakhir = data.titik.reduce((terakhir, item, index) => ((item.aktual ?? 0) > 0 ? index : terakhir), -1)
 
   const titik: Titik[] = data.titik.map((item, index) => ({
@@ -79,18 +70,7 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
     aktual: item.aktual_kumulatif,
     aktualGaris: index <= indeksLaporanTerakhir ? item.aktual_kumulatif : null,
     deviasi: item.deviasi,
-    periodId: item.period_id,
   }))
-
-  const milestone = tampilkanMilestone
-    ? data.milestones
-        .map((item) => {
-          const baris = titik.find((t) => t.periodId === item.period_id)
-
-          return baris ? { x: baris.nama, y: item.target_persentase, nama: item.nama } : null
-        })
-        .filter((item): item is { x: string; y: number; nama: string } => item !== null)
-    : []
 
   return (
     <div>
@@ -154,18 +134,6 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
               )}
               connectNulls={false}
             />
-            {milestone.map((item) => (
-              <ReferenceDot
-                key={`${item.x}-${item.nama}`}
-                x={item.x}
-                y={item.y}
-                r={6}
-                fill={AMBER}
-                stroke="#ffffff"
-                strokeWidth={2}
-                label={{ value: potong(item.nama, 26), position: 'top', offset: 10, fontSize: 10, fill: '#92400e' }}
-              />
-            ))}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -183,12 +151,6 @@ export function CurveSChart({ data, tinggi = 320, tampilkanMilestone = true }: C
           </svg>
           Realisasi kumulatif
         </li>
-        {milestone.length > 0 && (
-          <li className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full" style={{ backgroundColor: AMBER }} aria-hidden />
-            Milestone
-          </li>
-        )}
       </ul>
     </div>
   )

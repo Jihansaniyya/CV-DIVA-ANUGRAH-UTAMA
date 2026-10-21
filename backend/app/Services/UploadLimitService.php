@@ -31,6 +31,18 @@ class UploadLimitService
         return $php > 0 ? min($aplikasi, $php) : $aplikasi;
     }
 
+    /** Jumlah baris pekerjaan maksimal per laporan progres. */
+    public function pekerjaanMaks(): int
+    {
+        return max((int) config('progres.pekerjaan_maks', 10), 1);
+    }
+
+    /** Jumlah kendala maksimal per laporan progres. */
+    public function kendalaMaks(): int
+    {
+        return max((int) config('progres.kendala_maks', 5), 1);
+    }
+
     /** Total ukuran foto dalam satu pengiriman (KB), setelah dikurangi cadangan multipart. 0 = tanpa batas. */
     public function totalMaksKb(): int
     {
@@ -39,13 +51,15 @@ class UploadLimitService
         return $post > 0 ? max($post - self::CADANGAN_MULTIPART_KB, 0) : 0;
     }
 
-    /** @return array{foto_maks_kb:int,foto_maks_jumlah:int,total_maks_kb:int} */
+    /** @return array{foto_maks_kb:int,foto_maks_jumlah:int,total_maks_kb:int,pekerjaan_maks:int,kendala_maks:int} */
     public function ringkasan(): array
     {
         return [
             'foto_maks_kb' => $this->fotoMaksKb(),
             'foto_maks_jumlah' => $this->fotoMaksJumlah(),
             'total_maks_kb' => $this->totalMaksKb(),
+            'pekerjaan_maks' => $this->pekerjaanMaks(),
+            'kendala_maks' => $this->kendalaMaks(),
         ];
     }
 

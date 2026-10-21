@@ -40,6 +40,8 @@ export interface ProgressPayload {
   issues?: ProgressIssueInput[]
   photos?: File[]
   photo_captions?: string[]
+  /** Pekerjaan pemilik setiap foto, berurutan sama dengan `photos`. */
+  photo_work_item_ids?: number[]
 }
 
 /** Laporan progres dikirim sebagai multipart/form-data karena memuat foto. */
@@ -59,6 +61,7 @@ function buatFormData(payload: ProgressPayload): FormData {
   form.append('details', JSON.stringify(payload.details))
   form.append('issues', JSON.stringify(payload.issues ?? []))
   form.append('photo_captions', JSON.stringify(payload.photo_captions ?? []))
+  form.append('photo_work_item_ids', JSON.stringify(payload.photo_work_item_ids ?? []))
 
   payload.photos?.forEach((file) => form.append('photos[]', file))
 

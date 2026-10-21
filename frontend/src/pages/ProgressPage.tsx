@@ -26,6 +26,7 @@ export function ProgressPage() {
   const tampilPelapor = !punyaPeran('QS')
   const kontraktor = punyaPeran('KONTRAKTOR')
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [projectId, setProjectId] = useState('')
   const [status, setStatus] = useState('')
   const [dari, setDari] = useState('')
@@ -34,7 +35,7 @@ export function ProgressPage() {
   const { data: projects } = useProjectOptions()
   const { data, isLoading, error, refetch } = useProgressList({
     page,
-    per_page: 10,
+    per_page: perPage,
     project_id: projectId ? Number(projectId) : undefined,
     status: status || undefined,
     dari: dari || undefined,
@@ -228,6 +229,11 @@ export function ProgressPage() {
                 from={data.meta.from}
                 to={data.meta.to}
                 onChange={setPage}
+                perPage={perPage}
+                onPerPageChange={(jumlah) => {
+                  setPerPage(jumlah)
+                  setPage(1)
+                }}
               />
             </div>
           </>

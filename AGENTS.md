@@ -65,6 +65,6 @@ Ekstensi `gd` wajib aktif di `php.ini` karena dipakai PhpSpreadsheet saat export
 
 - Membuat data proyek, progres, bobot, atau laporan secara hardcode maupun acak di frontend.
 - Mengandalkan penyembunyian menu sebagai satu-satunya pembatas akses; backend wajib ikut memvalidasi.
-- Menambahkan fitur di luar scope PRD: keuangan proyek, penggajian, transaksi pembelian material, atau
-  inventory menyeluruh. Data material hanya untuk kebutuhan pelaporan progres.
+- Menambahkan fitur di luar scope PRD: keuangan proyek, penggajian, transaksi pembelian, pengadaan barang,
+  atau inventory.
 - Mengubah warna logo perusahaan.

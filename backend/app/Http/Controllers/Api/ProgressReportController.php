@@ -18,7 +18,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProgressReportController extends Controller
 {
-    private const RELASI = ['project', 'user', 'period', 'details.workItem.unit', 'photos', 'issues.workItem'];
+    private const RELASI = ['project', 'user', 'period', 'details.workItem.unit', 'photos.detail.workItem', 'issues.workItem'];
 
     public function __construct(private readonly ProgressService $progress) {}
 
