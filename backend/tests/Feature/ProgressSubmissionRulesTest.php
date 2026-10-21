@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProjectStatus;
 use App\Enums\RoleCode;
 use App\Models\ProgressPhoto;
 use App\Models\ProgressReport;
@@ -626,6 +627,33 @@ class ProgressSubmissionRulesTest extends TestCase
             'details' => $this->duaPekerjaan(),
             'issues' => [$kendala($galian->id, 'Hujan deras.'), $kendala($besi->id, 'Material terlambat.')],
         ])->assertStatus(422)->assertJsonValidationErrors('issues');
+    }
+
+    // ---- Proyek selesai & pekerjaan habis --------------------------------------------------------
+
+    public function test_proyek_selesai_tidak_menerima_progres_lagi(): void
+    {
+        $id = $this->simpan(['status' => 'DRAFT', 'details' => $this->detail(0, 5)])->assertCreated()->json('data.id');
+        $this->konteks['project']->forceFill(['status' => ProjectStatus::SELESAI])->saveQuietly();
+
+        $this->simpan(['status' => 'DRAFT', 'details' => $this->detail(1, 5)])
+            ->assertStatus(422)->assertJsonValidationErrors('project_id');
+        $this->actingAs($this->konteks['qs'])->postJson("/api/progress/{$id}", ['details' => $this->detail(0, 6)])
+            ->assertStatus(422)->assertJsonValidationErrors('project_id');
+        $this->actingAs($this->konteks['qs'])->patchJson("/api/progress/{$id}/submit")
+            ->assertStatus(422)->assertJsonValidationErrors('project_id');
+    }
+
+    public function test_pekerjaan_dengan_sisa_volume_nol_tidak_dapat_dipilih_lagi(): void
+    {
+        $this->simpan(['status' => 'DRAFT', 'details' => $this->detail(0, $this->sisa(0))])->assertCreated();
+        $this->assertEqualsWithDelta(0.0, $this->sisa(0), 0.0001);
+
+        $this->simpan([
+            'status' => 'DRAFT',
+            'tanggal_laporan' => CarbonImmutable::parse($this->tanggalMulai())->addDay()->toDateString(),
+            'details' => $this->detail(0, 0),
+        ])->assertStatus(422)->assertJsonValidationErrors('details');
     }
 
     // ---- Akses Kontraktor -----------------------------------------------------------------------

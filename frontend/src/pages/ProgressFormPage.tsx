@@ -14,7 +14,7 @@ import { cn } from '@/utils/cn'
 import { angka, hariIni, persen, rentangTanggal, tanggal as formatTanggal } from '@/utils/format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Save, Send, Trash2 } from 'lucide-react'
-import type { ProgressPhoto, ProgressReport } from '@/types'
+import type { ProgressPhoto, ProgressReport, WorkItem } from '@/types'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -176,13 +176,13 @@ export function ProgressFormPage() {
   const { data: limits } = useUploadLimits()
   const { data: projectList, isLoading: memuatProyek } = useProjectOptions()
   const projects = projectList ?? []
+  // Proyek Selesai tidak menerima progres lagi (backend ikut memvalidasi); draf yang dibuka tetap menampilkan proyeknya.
+  const proyekTersedia = editId ? projects : projects.filter((item) => item.status !== 'SELESAI')
   const projectId: number | '' =
-    laporanEdit?.project_id ?? (projectIdDipilih !== '' ? projectIdDipilih : projects.length === 1 ? projects[0].id : '')
+    laporanEdit?.project_id ?? (projectIdDipilih !== '' ? projectIdDipilih : proyekTersedia.length === 1 ? proyekTersedia[0].id : '')
   const { data: pekerjaan, isLoading: memuatPekerjaan } = useWorkItems(projectId ? Number(projectId) : null)
   const proyekDipilih = projects.find((item) => item.id === Number(projectId))
   const fotoTersimpan = laporanEdit?.foto ?? []
-  // Pekerjaan tidak boleh berulang, jadi baris juga tidak lebih banyak dari jumlah pekerjaan proyek.
-  const maksBaris = Math.min(limits?.pekerjaan_maks ?? BARIS_MAKS_CADANGAN, pekerjaan?.data.length || Infinity)
   const maksKendala = limits?.kendala_maks ?? KENDALA_MAKS_CADANGAN
 
   /** Foto tersimpan milik pekerjaan pada baris ini; bila pekerjaan dipilih di dua baris, foto tampil di baris pertama. */
@@ -232,6 +232,15 @@ export function ProgressFormPage() {
   /** Volume draf yang sedang diubah tidak ikut mengurangi sisa volume pekerjaannya sendiri. */
   const volumeDrafIni = (workItemId: number) =>
     laporanEdit?.detail?.filter((detail) => detail.work_item_id === workItemId).reduce((total, detail) => total + detail.volume_realisasi, 0) ?? 0
+  /** Sisa volume yang masih boleh dilaporkan: volume - (terkirim + draf lain), sama dengan batas backend. */
+  const sisaVolume = (item: WorkItem) => (item.sisa_volume ?? item.volume - (item.volume_realisasi ?? 0)) + volumeDrafIni(item.id)
+  /** Pekerjaan yang sisa volumenya habis (0,00) sudah selesai dan tidak dapat dipilih lagi. */
+  const pekerjaanHabis = (item: WorkItem) => sisaVolume(item) <= 0.0001
+  const jumlahPekerjaanTersedia = (pekerjaan?.data ?? []).filter((item) => !pekerjaanHabis(item)).length
+  // Pekerjaan tidak boleh berulang, jadi baris juga tidak lebih banyak dari jumlah pekerjaan yang masih tersedia.
+  const maksBaris = Math.min(limits?.pekerjaan_maks ?? BARIS_MAKS_CADANGAN, jumlahPekerjaanTersedia || Infinity)
+  const pesanProyekSelesai =
+    proyekDipilih?.status === 'SELESAI' ? 'Proyek ini sudah selesai sehingga progres harian tidak dapat ditambahkan atau dikirim lagi.' : null
   // Progres baru hanya dapat ditambahkan bila total bobot rencana proyek sudah 100% (backend ikut memvalidasi).
   const pesanRencanaBelumLengkap =
     proyekDipilih?.rencana_lengkap === false
@@ -457,6 +466,7 @@ export function ProgressFormPage() {
     const validasi: Record<string, string> = {}
 
     if (!projectId) validasi.project_id = 'Proyek wajib dipilih.'
+    else if (pesanProyekSelesai) validasi.project_id = pesanProyekSelesai
     else if (pesanRencanaBelumLengkap) validasi.project_id = pesanRencanaBelumLengkap
     if (!tanggal) {
       validasi.tanggal_laporan = 'Tanggal progres wajib diisi.'
@@ -589,9 +599,13 @@ export function ProgressFormPage() {
     return <EmptyState judul="Belum ada proyek yang ditugaskan" pesan="Hubungi Admin untuk penugasan proyek." />
   }
 
+  if (proyekTersedia.length === 0) {
+    return <EmptyState judul="Semua proyek sudah selesai" pesan="Progres harian tidak dapat ditambahkan pada proyek yang sudah selesai." />
+  }
+
   const daftarPekerjaan = pekerjaan?.data ?? []
   // Batas baris baru diketahui setelah daftar pekerjaan proyek dimuat (bisa kurang dari batas server).
-  const barisSiap = Boolean(projectId) && !pesanRencanaBelumLengkap && !memuatPekerjaan && daftarPekerjaan.length > 0
+  const barisSiap = Boolean(projectId) && !pesanProyekSelesai && !pesanRencanaBelumLengkap && !memuatPekerjaan && jumlahPekerjaanTersedia > 0
   const idDipilih = idPekerjaanDipilih()
   const pekerjaanDipilih = daftarPekerjaan.filter((item) => idDipilih.includes(item.id))
 
@@ -618,7 +632,7 @@ export function ProgressFormPage() {
             required
             value={projectId === '' ? '' : String(projectId)}
             disabled={Boolean(editId)}
-            options={projects.map((project) => ({
+            options={proyekTersedia.map((project) => ({
               value: String(project.id),
               label: project.rencana_lengkap === false ? `${project.nama_proyek} (rencana belum 100%)` : project.nama_proyek,
             }))}
@@ -694,18 +708,24 @@ export function ProgressFormPage() {
       >
         {!projectId ? (
           <EmptyState judul="Pilih proyek terlebih dahulu" pesan="Pilih proyek pada bagian Informasi Progres di atas untuk menampilkan daftar pekerjaan." />
+        ) : pesanProyekSelesai ? (
+          <EmptyState judul="Proyek sudah selesai" pesan={pesanProyekSelesai} />
         ) : pesanRencanaBelumLengkap ? (
           <EmptyState judul="Rencana pekerjaan belum lengkap" pesan={pesanRencanaBelumLengkap} />
         ) : memuatPekerjaan ? (
           <LoadingState pesan="Memuat daftar pekerjaan..." />
         ) : daftarPekerjaan.length === 0 ? (
           <EmptyState judul="Belum ada data pekerjaan" pesan="Proyek ini belum memiliki data pekerjaan. Hubungi Admin untuk menambahkannya." />
+        ) : jumlahPekerjaanTersedia === 0 ? (
+          <EmptyState
+            judul="Semua pekerjaan sudah selesai"
+            pesan="Sisa volume seluruh pekerjaan proyek ini sudah 0,00 (termasuk draf yang belum dikirim), sehingga tidak ada pekerjaan yang dapat dilaporkan."
+          />
         ) : (
           <ul className="flex flex-col gap-3">
             {details.map((baris, index) => {
               const item = daftarPekerjaan.find((pekerjaanItem) => pekerjaanItem.id === Number(baris.work_item_id))
-              // Sisa dari backend: volume - (terkirim + draf lain), sama dengan batas yang divalidasi saat menyimpan.
-              const sisa = item ? (item.sisa_volume ?? item.volume - (item.volume_realisasi ?? 0)) + volumeDrafIni(item.id) : null
+              const sisa = item ? sisaVolume(item) : null
               const tersimpanBaris = fotoTersimpanBaris(index)
 
               return (
@@ -722,8 +742,8 @@ export function ProgressFormPage() {
                   >
                     <option value="">Pilih pekerjaan</option>
                     {daftarPekerjaan.map((pekerjaanItem) => (
-                      <option key={pekerjaanItem.id} value={pekerjaanItem.id}>
-                        {pekerjaanItem.uraian_pekerjaan}
+                      <option key={pekerjaanItem.id} value={pekerjaanItem.id} disabled={pekerjaanHabis(pekerjaanItem)}>
+                        {pekerjaanHabis(pekerjaanItem) ? `${pekerjaanItem.uraian_pekerjaan} (selesai, sisa 0,00)` : pekerjaanItem.uraian_pekerjaan}
                       </option>
                     ))}
                   </Select>

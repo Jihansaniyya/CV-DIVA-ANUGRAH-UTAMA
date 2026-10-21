@@ -22,21 +22,25 @@ export function ProgressTab({ projectId, project }: { projectId: number; project
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState pesan={pesanError(error)} onRetry={() => void refetch()} />
 
-  // Progres baru hanya dapat ditambahkan bila total bobot rencana sudah 100% (backend ikut memvalidasi).
+  // Progres baru hanya dapat ditambahkan bila total bobot rencana sudah 100% dan proyek belum selesai (backend ikut memvalidasi).
   const rencanaBelumLengkap = project.rencana_lengkap === false
+  const proyekSelesai = project.status === 'SELESAI'
+  const alasanTidakBisa = proyekSelesai ? 'Proyek sudah selesai' : rencanaBelumLengkap ? 'Rencana pekerjaan belum mencapai 100%' : null
 
   return (
     <Card
       title="Progres Harian"
       description={
-        rencanaBelumLengkap
+        proyekSelesai
+          ? 'Proyek sudah selesai, sehingga progres harian tidak dapat ditambahkan lagi.'
+          : rencanaBelumLengkap
           ? `Rencana pekerjaan baru dijadwalkan ${persen(project.total_bobot_rencana ?? 0)} dari total bobot pekerjaan. Progres dapat ditambahkan setelah rencana mencapai 100%.`
           : 'Progres harian yang diinput QS untuk proyek ini.'
       }
       action={
         punyaPeran('QS') ? (
-          rencanaBelumLengkap ? (
-            <Button size="sm" icon={<Plus className="size-4" />} disabled title="Rencana pekerjaan belum mencapai 100%">
+          alasanTidakBisa ? (
+            <Button size="sm" icon={<Plus className="size-4" />} disabled title={alasanTidakBisa}>
               Tambah Progres
             </Button>
           ) : (

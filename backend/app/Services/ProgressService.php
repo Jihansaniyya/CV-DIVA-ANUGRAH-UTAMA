@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ProjectStatus;
 use App\Enums\ReportStatus;
 use App\Models\Period;
 use App\Models\ProgressDetail;
@@ -26,7 +27,8 @@ use Throwable;
  *   - sisa volume   = volume pekerjaan - volume laporan yang memakai volume (terkirim + draf QS aktif);
  *   - satu pekerjaan hanya boleh tercatat sekali per tanggal pada satu proyek;
  *   - tanggal progres berada dalam jadwal proyek dan tidak melewati hari ini;
- *   - laporan baru boleh berstatus DIKIRIM bila lokasi, keterangan, dan minimal satu foto per pekerjaan terisi.
+ *   - laporan baru boleh berstatus DIKIRIM bila lokasi, keterangan, dan minimal satu foto per pekerjaan terisi;
+ *   - proyek berstatus Selesai tidak menerima progres lagi, dan pekerjaan yang sisa volumenya habis tidak dapat dipilih.
  *
  * Setiap penyimpanan mengunci baris pekerjaan proyek lebih dulu sehingga dua permintaan bersamaan
  * tidak dapat memakai sisa volume yang sama.
@@ -59,6 +61,7 @@ class ProgressService
             return ['report' => $ada, 'baru' => false];
         }
 
+        $this->assertProyekBelumSelesai($project);
         $this->assertRencanaLengkap($project);
 
         $status = $data['status'] ?? ReportStatus::DRAFT->value;
@@ -140,6 +143,7 @@ class ProgressService
                 $this->kunciPekerjaan($report->project_id);
                 $report->refresh();
                 $this->assertMasihDraf($report);
+                $this->assertProyekBelumSelesai($report->project);
 
                 if (isset($data['tanggal_laporan'])) {
                     $period = $this->periodeLaporan($report->project, $data['tanggal_laporan']);
@@ -203,6 +207,7 @@ class ProgressService
             $this->kunciPekerjaan($report->project_id);
             $report->refresh();
             $this->assertMasihDraf($report);
+            $this->assertProyekBelumSelesai($report->project);
             $this->assertRealisasiValid($report);
             $this->kirim($report);
 
@@ -313,6 +318,16 @@ class ProgressService
         if ($report->status !== ReportStatus::DRAFT) {
             throw ValidationException::withMessages([
                 'status' => 'Laporan ini sudah dikirim sehingga tidak dapat diubah atau dikirim ulang.',
+            ]);
+        }
+    }
+
+    /** Proyek yang seluruh pekerjaannya sudah terealisasi 100% (status Selesai) tidak menerima progres lagi. */
+    private function assertProyekBelumSelesai(Project $project): void
+    {
+        if ($project->status === ProjectStatus::SELESAI) {
+            throw ValidationException::withMessages([
+                'project_id' => 'Proyek ini sudah selesai sehingga progres harian tidak dapat ditambahkan atau dikirim lagi.',
             ]);
         }
     }
@@ -492,6 +507,13 @@ class ProgressService
             }
 
             $sisa = round((float) $item->volume - (float) ($terpakai[$item->id] ?? 0), 3);
+
+            if ($sisa <= self::TOLERANSI_VOLUME) {
+                throw ValidationException::withMessages([
+                    'details' => 'Pekerjaan "'.$item->uraian_pekerjaan.'" sudah selesai (sisa volume 0,00, sudah termasuk draf yang belum dikirim)'
+                        .' sehingga tidak dapat dipilih lagi.',
+                ]);
+            }
 
             if ((float) $detail->volume_realisasi > $sisa + self::TOLERANSI_VOLUME) {
                 throw ValidationException::withMessages([
