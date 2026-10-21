@@ -161,39 +161,71 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
         <EmptyState judul="Belum ada pekerjaan" pesan="Tambahkan uraian pekerjaan beserta volume dan satuannya." />
       ) : (
         <TableWrap>
-          <Table>
+          <Table className="w-full">
             <thead>
               <tr>
-                <Th>No</Th>
-                <Th>Uraian Pekerjaan</Th>
-                <Th>Satuan</Th>
-                <Th align="right">Volume</Th>
-                <Th align="right">Harga Satuan</Th>
-                <Th align="right">Harga Pekerjaan</Th>
-                <Th align="right">Bobot (%)</Th>
-                <Th>Periode</Th>
-                <Th>Progres</Th>
-                {adminMode && <Th align="center">Aksi</Th>}
+                <Th align="center" className="w-12">
+                  No
+                </Th>
+                <Th align="center" className="min-w-48">
+                  Uraian Pekerjaan
+                </Th>
+                <Th align="center" className="w-20">
+                  Satuan
+                </Th>
+                <Th align="center" className="w-24">
+                  Volume
+                </Th>
+                <Th align="center" className="w-36">
+                  Harga Satuan
+                </Th>
+                <Th align="center" className="w-40">
+                  Harga Pekerjaan
+                </Th>
+                <Th align="center" className="w-24">
+                  Bobot (%)
+                </Th>
+                <Th align="center" className="w-36">
+                  Periode
+                </Th>
+                <Th align="center" className="w-44">
+                  Progres Realisasi (%)
+                </Th>
+                {adminMode && (
+                  <Th align="center" className="w-24">
+                    Aksi
+                  </Th>
+                )}
               </tr>
             </thead>
             <tbody>
               {items.map((item, index) => (
                 <tr key={item.id} className="hover:bg-surface/60">
-                  <Td>{index + 1}</Td>
-                  <Td>
+                  <Td align="center">{index + 1}</Td>
+                  <Td align="center">
                     <p className="font-medium text-ink">{item.uraian_pekerjaan}</p>
                     {item.kategori && <p className="text-[11px] text-muted">{item.kategori.nama}</p>}
                   </Td>
-                  <Td className="text-muted">{item.satuan}</Td>
-                  <Td align="right">{angka(item.volume, 2)}</Td>
-                  <Td align="right">{item.harga_satuan ? rupiah(item.harga_satuan) : '-'}</Td>
-                  <Td align="right">{item.harga_pekerjaan ? rupiah(item.harga_pekerjaan) : '-'}</Td>
-                  <Td align="right">{angka(item.bobot, 2)}</Td>
-                  <Td className="text-muted whitespace-nowrap">
+                  <Td align="center" className="text-muted">
+                    {item.satuan}
+                  </Td>
+                  <Td align="center" className="tabular-nums">
+                    {angka(item.volume, 2)}
+                  </Td>
+                  <Td align="center" className="whitespace-nowrap tabular-nums">
+                    {item.harga_satuan ? rupiah(item.harga_satuan) : '-'}
+                  </Td>
+                  <Td align="center" className="whitespace-nowrap tabular-nums">
+                    {item.harga_pekerjaan ? rupiah(item.harga_pekerjaan) : '-'}
+                  </Td>
+                  <Td align="center" className="tabular-nums">
+                    {angka(item.bobot, 2)}
+                  </Td>
+                  <Td align="center" className="text-muted whitespace-nowrap">
                     {item.periode_mulai ? `${item.periode_mulai} s/d ${item.periode_selesai ?? item.periode_mulai}` : '-'}
                   </Td>
-                  <Td className="min-w-36">
-                    <ProgressBar nilai={item.persentase_realisasi ?? 0} />
+                  <Td align="center" className="min-w-40">
+                    <ProgressBar nilai={item.persentase_realisasi ?? 0} tanpaPersen />
                     <p className="mt-0.5 text-[10px] text-muted">
                       {angka(item.volume_realisasi ?? 0, 2)} / {angka(item.volume, 2)} {item.satuan}
                     </p>
@@ -228,9 +260,15 @@ export function WorkItemsTab({ projectId }: { projectId: number }) {
             </tbody>
             <tfoot>
               <tr className="bg-surface/60 font-semibold">
-                <Td colSpan={5}>JUMLAH</Td>
-                <Td align="right">{rupiah(data?.meta.total_harga_pekerjaan ?? 0)}</Td>
-                <Td align="right">{angka(data?.meta.total_bobot ?? 0, 2)}</Td>
+                <Td colSpan={5} align="center">
+                  JUMLAH
+                </Td>
+                <Td align="center" className="whitespace-nowrap tabular-nums">
+                  {rupiah(data?.meta.total_harga_pekerjaan ?? 0)}
+                </Td>
+                <Td align="center" className="tabular-nums">
+                  {angka(data?.meta.total_bobot ?? 0, 2)}
+                </Td>
                 <Td colSpan={adminMode ? 3 : 2} />
               </tr>
             </tfoot>

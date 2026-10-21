@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ProjectStatus;
 use App\Enums\ReportType;
 use App\Exports\FinalReportExport;
 use App\Exports\MonthlyReportExport;
@@ -102,6 +103,13 @@ class ReportController extends Controller
             $data['laporan_terakhir'] === null,
             422,
             'Laporan Akhir belum dapat dibuat karena belum ada laporan progres yang dikirim.',
+        );
+
+        // Laporan Akhir hanya dicetak setelah seluruh pekerjaan terealisasi 100% (status proyek Selesai).
+        abort_if(
+            $project->status !== ProjectStatus::SELESAI,
+            422,
+            'Laporan Akhir hanya dapat dicetak setelah seluruh pekerjaan proyek selesai (status proyek Selesai).',
         );
 
         // Setiap foto diperkecil sebelum disisipkan; proyek dengan ratusan foto bisa melewati batas 30 detik bawaan PHP.

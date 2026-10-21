@@ -3,6 +3,7 @@ import { StatusDonut } from '@/components/charts/StatusDonut'
 import { DeviationBadge, StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { KpiCard } from '@/components/ui/KpiCard'
+import { LegendaLevel } from '@/components/ui/LevelBar'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/State'
 import { Table, TableWrap, Td, Th } from '@/components/ui/Table'
@@ -70,7 +71,7 @@ function ProyekTerbaruAdmin({ proyek, className }: { proyek: DashboardProjectRow
                     {persen(baris.progres_rencana)}
                   </Td>
                   <Td className="py-2">
-                    <ProgressBar nilai={baris.progres_aktual} pembanding={baris.progres_rencana} />
+                    <ProgressBar nilai={baris.progres_aktual} />
                   </Td>
                   <Td align="center" className="py-2">
                     <DeviationBadge nilai={baris.deviasi} />
@@ -82,6 +83,7 @@ function ProyekTerbaruAdmin({ proyek, className }: { proyek: DashboardProjectRow
               ))}
             </tbody>
           </Table>
+          <LegendaLevel className="border-t border-line px-4 py-3 sm:px-5" />
         </TableWrap>
       )}
     </Card>

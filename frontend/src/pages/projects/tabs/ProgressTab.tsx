@@ -9,7 +9,7 @@ import { useProgressList } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
 import type { Project } from '@/types'
-import { persen, tanggalSingkat } from '@/utils/format'
+import { angka, persen, tanggalSingkat } from '@/utils/format'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -58,28 +58,48 @@ export function ProgressTab({ projectId, project }: { projectId: number; project
         <EmptyState judul="Belum ada progres" pesan="Progres yang diinput QS akan tampil di sini." />
       ) : (
         <TableWrap>
-          <Table>
+          <Table className="w-full">
             <thead>
               <tr>
-                <Th>Tanggal</Th>
-                <Th>Periode</Th>
-                <Th>Pelapor</Th>
-                <Th>Pekerjaan</Th>
-                <Th align="right">Bobot Realisasi</Th>
-                <Th align="center">Status</Th>
-                <Th align="center">Aksi</Th>
+                <Th align="center" className="w-32">
+                  Tanggal
+                </Th>
+                <Th align="center" className="w-24">
+                  Periode
+                </Th>
+                <Th align="center" className="w-40">
+                  Pelapor
+                </Th>
+                <Th align="center">Pekerjaan</Th>
+                <Th align="center" className="w-44">
+                  Bobot Realisasi (%)
+                </Th>
+                <Th align="center" className="w-28">
+                  Status
+                </Th>
+                <Th align="center" className="w-20">
+                  Aksi
+                </Th>
               </tr>
             </thead>
             <tbody>
               {data.data.map((laporan) => (
                 <tr key={laporan.id} className="hover:bg-surface/60">
-                  <Td className="whitespace-nowrap">{tanggalSingkat(laporan.tanggal_laporan)}</Td>
-                  <Td className="text-muted">{laporan.periode ?? '-'}</Td>
-                  <Td className="text-muted">{laporan.pelapor ?? '-'}</Td>
-                  <Td className="max-w-56 min-w-40 text-xs text-ink">
+                  <Td align="center" className="whitespace-nowrap">
+                    {tanggalSingkat(laporan.tanggal_laporan)}
+                  </Td>
+                  <Td align="center" className="text-muted">
+                    {laporan.periode ?? '-'}
+                  </Td>
+                  <Td align="center" className="text-muted">
+                    {laporan.pelapor ?? '-'}
+                  </Td>
+                  <Td align="center" className="min-w-40 text-xs text-ink">
                     <DaftarPekerjaan detail={laporan.detail} />
                   </Td>
-                  <Td align="right">{persen(laporan.total_bobot_realisasi)}</Td>
+                  <Td align="center" className="tabular-nums">
+                    {angka(laporan.total_bobot_realisasi, 2)}
+                  </Td>
                   <Td align="center">
                     <ReportStatusBadge status={laporan.status} />
                   </Td>

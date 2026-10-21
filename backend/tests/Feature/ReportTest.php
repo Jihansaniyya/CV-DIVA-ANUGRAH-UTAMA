@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProjectStatus;
 use App\Enums\RoleCode;
 use App\Models\ReportDocument;
 use App\Models\User;
@@ -303,6 +304,14 @@ class ReportTest extends TestCase
             'tindak_lanjut' => 'Tambah jam kerja',
             'status' => 'TERBUKA',
         ]);
+
+        // Proyek belum selesai: Laporan Akhir belum dapat dicetak.
+        $this->actingAs($this->kontraktor)
+            ->postJson('/api/reports/export/final', ['project_id' => $project->id])
+            ->assertStatus(422);
+        $this->assertSame(0, ReportDocument::count());
+
+        $project->forceFill(['status' => ProjectStatus::SELESAI])->saveQuietly();
 
         $this->actingAs($this->kontraktor)
             ->postJson('/api/reports/export/final', ['project_id' => $project->id])

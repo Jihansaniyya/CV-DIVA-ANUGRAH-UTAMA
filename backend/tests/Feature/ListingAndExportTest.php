@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProjectStatus;
 use App\Enums\RoleCode;
 use App\Models\Project;
 use App\Models\ReportDocument;
@@ -188,6 +189,9 @@ class ListingAndExportTest extends TestCase
             'details' => [['work_item_id' => $konteks['items'][0]->id, 'volume_realisasi' => 5]],
             'photos' => [UploadedFile::fake()->image('draf.jpg')],
         ])->assertCreated();
+
+        // Laporan Akhir hanya dapat dicetak untuk proyek yang sudah selesai.
+        $project->forceFill(['status' => ProjectStatus::SELESAI])->saveQuietly();
 
         $mulai = microtime(true);
         memory_reset_peak_usage();

@@ -106,7 +106,9 @@ export function ReportsPage() {
   // Laporan akhir baru dapat direkap setelah ada laporan progres yang dikirim.
   const akhirKosong = jenis === 'akhir' && akhir.data?.laporan_terakhir === null
   const siap = !aktif.isLoading && !aktif.error && Boolean(aktif.data) && !akhirKosong
-  const bisaEkspor = siap
+  // Laporan Akhir hanya dapat dicetak setelah seluruh pekerjaan selesai (backend ikut memvalidasi).
+  const akhirBelumSelesai = jenis === 'akhir' && Boolean(akhir.data) && akhir.data?.status_proyek.kode !== 'SELESAI'
+  const bisaEkspor = siap && !akhirBelumSelesai
 
   if (memuatProyek) return <LoadingState pesan="Memuat daftar proyek..." />
   if (!projects || projects.length === 0) {
@@ -174,9 +176,17 @@ export function ReportsPage() {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-line bg-surface/50 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
-          <p className="min-w-0 text-xs text-muted">
-            <span className="font-medium text-ink">{labelJenis}</span> · {labelPeriode}
-          </p>
+          <div className="min-w-0 text-xs text-muted">
+            <p>
+              <span className="font-medium text-ink">{labelJenis}</span> · {labelPeriode}
+            </p>
+            {akhirBelumSelesai && siap && (
+              <p className="mt-1 font-medium text-danger">
+                Laporan Akhir hanya dapat dicetak setelah seluruh pekerjaan proyek selesai (status proyek saat ini:{' '}
+                {akhir.data?.status_proyek.label}). Pratinjau tetap dapat dilihat.
+              </p>
+            )}
+          </div>
           <div className="flex sm:justify-end">
             <Button
               icon={<FileSpreadsheet className="size-4" />}

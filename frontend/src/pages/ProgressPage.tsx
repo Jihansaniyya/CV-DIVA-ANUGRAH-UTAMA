@@ -12,13 +12,18 @@ import { useAuth } from '@/hooks/useAuth'
 import { pesanError } from '@/lib/api'
 import type { ProgressReport } from '@/types'
 import { cn } from '@/utils/cn'
-import { persen, tanggalSingkat } from '@/utils/format'
+import { angka, persen, tanggalSingkat } from '@/utils/format'
 import { ChevronRight, Eye, Plus, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-function bobot(laporan: ProgressReport): string {
-  return laporan.total_bobot_realisasi > 0 && laporan.total_bobot_realisasi < 0.01 ? '< 0,01%' : persen(laporan.total_bobot_realisasi)
+/** Bobot realisasi laporan; di tabel tanpa tanda % karena satuannya sudah ada di judul kolom. */
+function bobot(laporan: ProgressReport, tanpaPersen = false): string {
+  const nilai = laporan.total_bobot_realisasi
+
+  if (nilai > 0 && nilai < 0.01) return tanpaPersen ? '< 0,01' : '< 0,01%'
+
+  return tanpaPersen ? angka(nilai, 2) : persen(nilai)
 }
 
 export function ProgressPage() {
@@ -161,25 +166,41 @@ export function ProgressPage() {
             </ul>
 
             <TableWrap flush className="hidden md:block">
-              <Table>
+              <Table className="w-full">
                 <thead>
                   <tr>
-                    <Th className="w-28">Tanggal</Th>
-                    <Th className="min-w-64">Proyek</Th>
-                    <Th>Periode</Th>
-                    {tampilPelapor && <Th>Pelapor</Th>}
-                    <Th>Pekerjaan</Th>
-                    <Th align="right">Bobot Realisasi</Th>
-                    <Th align="center">Status</Th>
-                    <Th align="right">
-                      <span className="sr-only">Aksi</span>
+                    <Th align="center" className="w-32">
+                      Tanggal
+                    </Th>
+                    <Th className="min-w-64">Nama Proyek</Th>
+                    <Th align="center" className="w-24">
+                      Periode
+                    </Th>
+                    {tampilPelapor && (
+                      <Th align="center" className="w-40">
+                        Pelapor
+                      </Th>
+                    )}
+                    <Th align="center" className="min-w-48">
+                      Pekerjaan
+                    </Th>
+                    <Th align="center" className="w-44">
+                      Bobot Realisasi (%)
+                    </Th>
+                    <Th align="center" className="w-28">
+                      Status
+                    </Th>
+                    <Th align="center" className="w-28">
+                      Aksi
                     </Th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.data.map((laporan) => (
                     <tr key={laporan.id} className="hover:bg-surface/60">
-                      <Td className="whitespace-nowrap">{tanggalSingkat(laporan.tanggal_laporan)}</Td>
+                      <Td align="center" className="whitespace-nowrap">
+                        {tanggalSingkat(laporan.tanggal_laporan)}
+                      </Td>
                       <Td className="max-w-md">
                         {kontraktor ? (
                           <p title={laporan.nama_proyek ?? undefined} className="line-clamp-2 leading-snug font-medium text-ink">
@@ -195,18 +216,24 @@ export function ProgressPage() {
                           </Link>
                         )}
                       </Td>
-                      <Td className="whitespace-nowrap text-muted">{laporan.periode ?? 'Di luar periode'}</Td>
-                      {tampilPelapor && <Td className="whitespace-nowrap text-muted">{laporan.pelapor ?? '-'}</Td>}
-                      <Td className="max-w-56 min-w-40 text-xs text-ink">
+                      <Td align="center" className="whitespace-nowrap text-muted">
+                        {laporan.periode ?? 'Di luar periode'}
+                      </Td>
+                      {tampilPelapor && (
+                        <Td align="center" className="whitespace-nowrap text-muted">
+                          {laporan.pelapor ?? '-'}
+                        </Td>
+                      )}
+                      <Td align="center" className="min-w-48 text-xs text-ink">
                         <DaftarPekerjaan detail={laporan.detail} />
                       </Td>
-                      <Td align="right" className="font-semibold whitespace-nowrap">
-                        {bobot(laporan)}
+                      <Td align="center" className="font-semibold whitespace-nowrap tabular-nums">
+                        {bobot(laporan, true)}
                       </Td>
                       <Td align="center">
                         <ReportStatusBadge status={laporan.status} />
                       </Td>
-                      <Td align="right">
+                      <Td align="center">
                         <Link
                           to={`/progres/${laporan.id}`}
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-primary/40 hover:text-primary"

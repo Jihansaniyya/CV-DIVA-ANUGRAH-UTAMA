@@ -1,21 +1,6 @@
 import { cn } from '@/utils/cn'
 import { angka } from '@/utils/format'
-
-/**
- * Ambang warna progres:
- * - merah  : 0% sampai di bawah 40%
- * - kuning : 40% sampai di bawah 80%
- * - hijau  : 80% sampai 100%
- */
-const AMBANG_KUNING = 40
-const AMBANG_HIJAU = 80
-
-function nada(nilai: number): { isi: string; teks: string } {
-  if (nilai >= AMBANG_HIJAU) return { isi: 'bg-success', teks: 'text-white' }
-  if (nilai >= AMBANG_KUNING) return { isi: 'bg-warning', teks: 'text-ink' }
-
-  return { isi: 'bg-danger', teks: 'text-white' }
-}
+import { AMBANG_HIJAU, AMBANG_KUNING, nadaLevel as nada } from '@/utils/level'
 
 interface LevelBarProps {
   nilai: number

@@ -1,7 +1,7 @@
 import { StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
-import { Select } from '@/components/ui/Field'
 import { KpiCard } from '@/components/ui/KpiCard'
+import { LegendaLevel } from '@/components/ui/LevelBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { EmptyState } from '@/components/ui/State'
@@ -42,14 +42,6 @@ const FILTER_STATUS: { kunci: Exclude<Filter, 'tertinggal'>; label: string; ikon
   { kunci: 'belum', label: 'Belum Dimulai', ikon: CalendarClock, nada: 'neutral' },
 ]
 
-const JUDUL_FILTER: Record<Filter, string> = {
-  semua: 'Semua proyek',
-  berjalan: 'Proyek sedang berjalan',
-  tertinggal: 'Proyek tertinggal dari rencana',
-  selesai: 'Proyek selesai',
-  belum: 'Proyek belum dimulai',
-}
-
 /** Deviasi berwarna: merah bila tertinggal, hijau bila mendahului rencana. */
 function TeksDeviasi({ nilai, className }: { nilai: number; className?: string }) {
   return (
@@ -67,26 +59,15 @@ function NamaProyek({ proyek }: { proyek: DashboardProjectRow }) {
   )
 }
 
-function MonitoringProyek({
-  proyek,
-  filter,
-  onFilterChange,
-}: {
-  proyek: DashboardProjectRow[]
-  filter: Filter
-  onFilterChange: (filter: Filter) => void
-}) {
+/**
+ * Monitoring hanya memuat proyek yang sedang berjalan (termasuk Terlambat), karena tujuannya menemukan
+ * proyek yang tertinggal; proyek selesai atau belum dimulai cukup terlihat jumlahnya pada kartu status.
+ */
+function MonitoringProyek({ proyek }: { proyek: DashboardProjectRow[] }) {
   const [halaman, setHalaman] = useState(1)
-  const [filterSebelumnya, setFilterSebelumnya] = useState(filter)
-
-  // Kembali ke halaman pertama setiap kali filter berganti.
-  if (filterSebelumnya !== filter) {
-    setFilterSebelumnya(filter)
-    setHalaman(1)
-  }
 
   // Urutan dari backend: deviasi paling tertinggal berada di atas.
-  const terfilter = proyek.filter(COCOK[filter])
+  const terfilter = proyek.filter(COCOK.berjalan)
   const halamanTerakhir = Math.max(1, Math.ceil(terfilter.length / PER_HALAMAN))
   const aktif = Math.min(halaman, halamanTerakhir)
   const awal = (aktif - 1) * PER_HALAMAN
@@ -95,21 +76,7 @@ function MonitoringProyek({
   return (
     <Card
       title="Monitoring Proyek"
-      description={`${JUDUL_FILTER[filter]} · paling tertinggal di atas`}
-      action={
-        <Select
-          aria-label="Filter proyek"
-          value={filter}
-          onChange={(event) => onFilterChange(event.target.value as Filter)}
-          className="py-1.5 text-xs"
-        >
-          {(Object.keys(JUDUL_FILTER) as Filter[]).map((kunci) => (
-            <option key={kunci} value={kunci}>
-              {JUDUL_FILTER[kunci]}
-            </option>
-          ))}
-        </Select>
-      }
+      description="Proyek sedang berjalan · paling tertinggal di atas"
       className="flex flex-col xl:min-h-0"
       bodyClassName="flex flex-col xl:min-h-0 xl:flex-1"
       flush
@@ -117,7 +84,7 @@ function MonitoringProyek({
       {proyek.length === 0 ? (
         <EmptyState judul="Belum ada proyek" pesan="Proyek yang dibuat Admin akan tampil di sini." />
       ) : terfilter.length === 0 ? (
-        <EmptyState judul="Tidak ada proyek" pesan="Tidak ada proyek pada kategori ini." />
+        <EmptyState judul="Tidak ada proyek berjalan" pesan="Belum ada proyek yang sedang berjalan untuk dipantau." />
       ) : (
         <>
           <div className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
@@ -149,7 +116,7 @@ function MonitoringProyek({
                         <StatusBadge status={baris.status} bertumpuk />
                       </Td>
                       <Td>
-                        <ProgressBar nilai={baris.progres_aktual} pembanding={baris.progres_rencana} />
+                        <ProgressBar nilai={baris.progres_aktual} />
                         <p className="mt-0.5 text-[11px] text-muted">Rencana {persen(baris.progres_rencana, 1)}</p>
                       </Td>
                       <Td align="right">
@@ -172,7 +139,7 @@ function MonitoringProyek({
                     </div>
                     <StatusBadge status={baris.status} bertumpuk />
                   </div>
-                  <ProgressBar nilai={baris.progres_aktual} pembanding={baris.progres_rencana} />
+                  <ProgressBar nilai={baris.progres_aktual} />
                   <p className="text-[11px] text-muted">
                     Rencana {persen(baris.progres_rencana, 1)} · Deviasi <TeksDeviasi nilai={baris.deviasi} />
                   </p>
@@ -182,6 +149,7 @@ function MonitoringProyek({
           </div>
 
           <div className="border-t border-line px-4 sm:px-5 xl:shrink-0">
+            <LegendaLevel className="pt-3" />
             <Pagination
               page={aktif}
               lastPage={halamanTerakhir}
@@ -241,8 +209,6 @@ function ProgresTerbaru({ laporan }: { laporan: Laporan[] }) {
 
 export function KontraktorDashboard({ data }: { data: DashboardData }) {
   const proyek = data.proyek ?? []
-  // Default menampilkan proyek yang sedang berjalan agar proyek selesai tidak menumpuk di atas.
-  const [filter, setFilter] = useState<Filter>(() => (proyek.some(COCOK.berjalan) ? 'berjalan' : 'semua'))
   const jumlahBerjalan = proyek.filter(COCOK.berjalan).length
   const jumlahTertinggal = proyek.filter(COCOK.tertinggal).length
 
@@ -290,7 +256,7 @@ export function KontraktorDashboard({ data }: { data: DashboardData }) {
 
       {/* Layar lebar: tabel dan progres terbaru mengisi sisa tinggi layar dan menggulir isinya sendiri. */}
       <div className="grid grid-cols-1 gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-[minmax(0,1fr)]">
-        <MonitoringProyek proyek={proyek} filter={filter} onFilterChange={setFilter} />
+        <MonitoringProyek proyek={proyek} />
         <ProgresTerbaru laporan={data.laporan_terbaru ?? []} />
       </div>
     </div>
